@@ -38,99 +38,129 @@ function generateDataSheet() {
 }
 
 /**
- * ==========================================
- * 3. CALCULATIONS ENGINE (RESTORED GROUPINGS)
- * ==========================================
+ * MODULE 2: Institutional Calculations (Updated with Trend State Labels)
  */
 function generateCalculationsSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const dataSheet = ss.getSheetByName("DATA");
   const inputSheet = ss.getSheetByName("INPUT");
-  if (!dataSheet) return;
-
+  
+  if (!dataSheet || dataSheet.getLastRow() < 20) return SpreadsheetApp.getUi().alert("DATA loading. Wait 10s.");
+  
   const tickers = getCleanTickers(inputSheet);
   let calcSheet = ss.getSheetByName("CALCULATIONS") || ss.insertSheet("CALCULATIONS");
-  
   calcSheet.clear();
+
   calcSheet.setFrozenRows(2);
   calcSheet.setFrozenColumns(1);
 
-  // --- ROW 1: GROUPED HEADERS ---
-  calcSheet.getRange("A1").setValue("ASSET").setFontWeight("bold").setHorizontalAlignment("center").setVerticalAlignment("middle").setBackground("#EEE");
-  
-  // Group 1: Strategy (B-E)
-  calcSheet.getRange("B1:E1").merge().setValue("STRATEGY DASHBOARD")
-    .setBackground("#E1F5FE").setFontColor("#01579B").setFontWeight("bold").setHorizontalAlignment("center");
+  // 1. HEADERS (16 Columns Total)
+  calcSheet.getRange("A1").setValue("ASSET").setFontWeight("bold").setHorizontalAlignment("center");
+  calcSheet.getRange("B1:E1").merge().setValue("LIVE EXECUTION").setBackground("#fce4ec").setFontColor("#880e4f").setFontWeight("bold").setHorizontalAlignment("center");
+  calcSheet.getRange("F1:J1").merge().setValue("TREND QUALITY").setBackground("#E3F2FD").setFontColor("#1565C0").setFontWeight("bold").setHorizontalAlignment("center");
+  calcSheet.getRange("K1:M1").merge().setValue("MOMENTUM & VOL").setBackground("#FFF8E1").setFontColor("#FF8F00").setFontWeight("bold").setHorizontalAlignment("center");
+  calcSheet.getRange("N1:P1").merge().setValue("RISK & LEVELS").setBackground("#E8F5E9").setFontColor("#2E7D32").setFontWeight("bold").setHorizontalAlignment("center");
 
-  // Group 2: Trend (F-J)
-  calcSheet.getRange("F1:J1").merge().setValue("TREND ANALYSIS")
-    .setBackground("#E8F5E9").setFontColor("#1B5E20").setFontWeight("bold").setHorizontalAlignment("center");
+  const mainHeaders = [["Ticker", "Price", "Change %", "DECISION", "R:R Quality", "Trend Score", "Trend State", "SMA 20", "SMA 50", "SMA 200", "Vol Trend", "RSI", "Divergence", "Support", "Target (3:1)", "Resistance"]];
+  calcSheet.getRange(2, 1, 1, 16).setValues(mainHeaders).setFontWeight("bold").setBackground("#212121").setFontColor("white");
 
-  // Group 3: Technicals (K-P)
-  calcSheet.getRange("K1:P1").merge().setValue("TECHNICAL LEVELS")
-    .setBackground("#FFF3E0").setFontColor("#E65100").setFontWeight("bold").setHorizontalAlignment("center");
-
-  // --- ROW 2: COLUMN HEADERS ---
-  const headers = [["Ticker", "DECISION", "Price", "Change %", "R:R Quality", "Trend Score", "Trend State", "SMA 20", "SMA 50", "SMA 200", "Vol Trend", "RSI", "Divergence", "Support", "Target (3:1)", "Resistance"]];
-  calcSheet.getRange(2, 1, 1, 16).setValues(headers)
-    .setFontWeight("bold").setBackground("#212121").setFontColor("#FFF").setHorizontalAlignment("left");
-
-  // --- ROW 3+: DATA FORMULAS ---
+  const tickerNames = [];
   const formulas = [];
+
   tickers.forEach((ticker, i) => {
-    const row = i + 3;
-    const colIdx = (i * 7) + 1;
-    const closeCol = columnToLetter(colIdx + 4); 
-    const highCol = columnToLetter(colIdx + 2); 
-    const lowCol = columnToLetter(colIdx + 3); 
-    const volCol = columnToLetter(colIdx + 5);
-    const count = `COUNTA(DATA!$${closeCol}:$${closeCol})`;
+    const rowNum = i + 3;
+    const tickerDataStart = (i * 7) + 1; 
+    const closeCol = columnToLetter(tickerDataStart + 4); 
+    const highCol = columnToLetter(tickerDataStart + 2); 
+    const lowCol = columnToLetter(tickerDataStart + 3); 
+    const volCol = columnToLetter(tickerDataStart + 5);
     
+    const lastRow = `COUNTA(DATA!$${closeCol}:$${closeCol})`;
+    const priceHist = `OFFSET(DATA!$${closeCol}$1, ${lastRow}-1, 0)`;
+    const price5dAgo = `OFFSET(DATA!$${closeCol}$1, ${lastRow}-6, 0)`;
+
+    const s20 = `AVERAGE(OFFSET(DATA!$${closeCol}$1, ${lastRow}-20, 0, 20))`;
+    const s50 = `AVERAGE(OFFSET(DATA!$${closeCol}$1, ${lastRow}-50, 0, 50))`;
+    const s200 = `AVERAGE(OFFSET(DATA!$${closeCol}$1, ${lastRow}-200, 0, 200))`;
+    
+    // Star Logic
+    const stars = `(B${rowNum}>${s20}) + (B${rowNum}>${s50}) + (B${rowNum}>${s200})`;
+    const starScore = `=REPT("★", ${stars}) & REPT("☆", 3-(${stars}))`;
+    
+    // Trend State Logic
+    const trendState = `=IF(${stars}=3, "🚀 BULLISH", IF(${stars}=0, "📉 BEARISH", "⚖️ NEUTRAL"))`;
+
+    const rsi = `ROUND(IFERROR(100-(100/(1+(MAX(0,AVERAGEIF(ARRAYFORMULA(OFFSET(DATA!$${closeCol}$1, ${lastRow}-14, 0, 14)-OFFSET(DATA!$${closeCol}$1, ${lastRow}-15, 0, 14)),">0"))/MAX(0.0001, ABS(AVERAGEIF(ARRAYFORMULA(OFFSET(DATA!$${closeCol}$1, ${lastRow}-14, 0, 14)-OFFSET(DATA!$${closeCol}$1, ${lastRow}-15, 0, 14)),"<0")))))), 50), 2)`;
+
+    tickerNames.push([ticker]);
+
     formulas.push([
-      ticker, 
-      `=IF(C${row}<N${row}, "⚠️ EXIT", IF(C${row}>=O${row}, "💰 TAKE PROFIT", IF(AND(L${row}<45, M${row}="🐂 BULL DIV"), "🎯 BUY DIP", "Wait")))`, 
-      `=IFERROR(OFFSET(DATA!$${closeCol}$1, ${count}-1, 0), 0)`, 
-      `=IFERROR(GOOGLEFINANCE("${ticker}", "changepct")/100, 0)`,
-      `=IFERROR(IF((P${row}-C${row}) / MAX(0.01, C${row}-N${row}) >= 3, "💎 HIGH", "⚖️ MED"), "-")`,
-      `=REPT("★", (C${row}>AVERAGE(OFFSET(DATA!$${closeCol}$1, ${count}-20, 0, 20))) + (C${row}>AVERAGE(OFFSET(DATA!$${closeCol}$1, ${count}-50, 0, 50))) + (C${row}>AVERAGE(OFFSET(DATA!$${closeCol}$1, MAX(1, ${count}-200), 0, 200))))`,
-      `=IF(LEN(F${row})=3, "🚀 BULLISH", IF(LEN(F${row})=0, "📉 BEARISH", "⚖️ NEUTRAL"))`,
-      `=AVERAGE(OFFSET(DATA!$${closeCol}$1, ${count}-20, 0, 20))`,
-      `=AVERAGE(OFFSET(DATA!$${closeCol}$1, ${count}-50, 0, 50))`,
-      `=AVERAGE(OFFSET(DATA!$${closeCol}$1, MAX(1, ${count}-200), 0, 200))`,
-      `=OFFSET(DATA!$${volCol}$1, ${count}-1, 0)/AVERAGE(OFFSET(DATA!$${volCol}$1, ${count}-21, 0, 20))`,
-      `=IFERROR(100-(100/(1+(MAX(0,AVERAGEIF(ARRAYFORMULA(OFFSET(DATA!$${closeCol}$1, ${count}-14, 0, 14)-OFFSET(DATA!$${closeCol}$1, ${count}-15, 0, 14)),">0"))/MAX(0.0001, ABS(AVERAGEIF(ARRAYFORMULA(OFFSET(DATA!$${closeCol}$1, ${count}-14, 0, 14)-OFFSET(DATA!$${closeCol}$1, ${count}-15, 0, 14)),"<0")))))), 50)`,
-      `=IF(AND(C${row} < OFFSET(DATA!$${closeCol}$1, ${count}-6, 0)*1.01, L${row} > OFFSET(DATA!$${closeCol}$1, ${count}-7, 0)), "🐂 BULL DIV", "-")`,
-      `=MIN(OFFSET(DATA!$${lowCol}$1, ${count}-20, 0, 20))`,
-      `=C${row} + ((C${row}-N${row})*3)`,
-      `=MAX(OFFSET(DATA!$${highCol}$1, ${count}-50, 0, 50))`
+      `=ROUND(IFERROR(GOOGLEFINANCE("${ticker}", "price"), ${priceHist}), 2)`, // B: Price
+      `=IFERROR(GOOGLEFINANCE("${ticker}", "changepct")/100, 0)`, // C: Change %
+      `=IF(B${rowNum} < N${rowNum}, "⚠️ EXIT (STOP)", IF(B${rowNum} >= O${rowNum}, "💰 TAKE PROFIT", IF(AND(L${rowNum}>70, ${stars} < 2), "📉 SELL (WEAK)", IF(AND(L${rowNum}<48, M${rowNum}="🐂 BULL DIV"), "🎯 BUY DIP", IF(AND(B${rowNum}>P${rowNum}*0.98, L${rowNum}>50), "🚀 WATCHING", "Wait")))))`, // D: DECISION
+      `=IF(OR(D${rowNum}="Wait", D${rowNum}="Wait"), "—", IF((O${rowNum}-B${rowNum})/(B${rowNum}-N${rowNum}) >= 3, "💎 HIGH", "⚖️ MED"))`, // E: R:R Quality
+      starScore, // F: Trend Score
+      trendState, // G: Trend State
+      `=ROUND(IFERROR(${s20}, 0), 2)`, // H: SMA 20
+      `=ROUND(IFERROR(${s50}, 0), 2)`, // I: SMA 50
+      `=ROUND(IFERROR(${s200}, 0), 2)`, // J: SMA 200
+      `=ROUND(OFFSET(DATA!$${volCol}$1, ${lastRow}-1, 0) / MAX(0.01, AVERAGE(OFFSET(DATA!$${volCol}$1, ${lastRow}-21, 0, 20))), 2) & " " & IF(OFFSET(DATA!$${volCol}$1, ${lastRow}-1, 0) > OFFSET(DATA!$${volCol}$1, ${lastRow}-2, 0), "↑", "↓")`, // K: Vol
+      rsi, // L: RSI
+      `=IF(AND(B${rowNum} < ${price5dAgo} * 1.01, L${rowNum} > OFFSET(DATA!$${closeCol}$1, ${lastRow}-7, 0)), "🐂 BULL DIV", "-")`, // M: Divergence
+      `=ROUND(IFERROR(MIN(OFFSET(DATA!$${lowCol}$1, ${lastRow}-20, 0, 20)), 0), 2)`, // N: Support
+      `=ROUND(B${rowNum} + ((B${rowNum}-N${rowNum}) * 3), 2)`, // O: Target
+      `=ROUND(IFERROR(MAX(OFFSET(DATA!$${highCol}$1, ${lastRow}-50, 0, 50)), 0), 2)` // P: Resistance
     ]);
   });
-  
-  const numRows = formulas.length;
-  calcSheet.getRange(3, 1, numRows, 16).setValues(formulas);
-  
-  // --- STRICT FORMATTING ---
-  // Text Columns
-  calcSheet.getRange(3, 1, numRows, 1).setNumberFormat("@"); 
-  calcSheet.getRange(3, 2, numRows, 1).setNumberFormat("@");
-  calcSheet.getRange(3, 5, numRows, 3).setNumberFormat("@");
-  calcSheet.getRange(3, 13, numRows, 1).setNumberFormat("@");
-  
-  // Number Columns (0.00)
-  calcSheet.getRange(3, 3, numRows, 1).setNumberFormat("0.00");
-  calcSheet.getRange(3, 8, numRows, 5).setNumberFormat("0.00"); 
-  calcSheet.getRange(3, 14, numRows, 3).setNumberFormat("0.00");
-  
-  // Percentage (0.00%)
-  calcSheet.getRange(3, 4, numRows, 1).setNumberFormat("0.00%");
 
-  // Borders & Align
-  calcSheet.getRange(1, 1, numRows + 2, 16)
-    .setBorder(true, true, true, true, true, true, "#999999", SpreadsheetApp.BorderStyle.SOLID)
-    .setHorizontalAlignment("left");
+  if (tickerNames.length > 0) {
+    calcSheet.getRange(3, 1, tickerNames.length, 1).setValues(tickerNames);
+    calcSheet.getRange(3, 2, formulas.length, 15).setFormulas(formulas);
     
-  // Re-center Row 1 Headers
-  calcSheet.getRange(1, 1, 1, 16).setHorizontalAlignment("center");
+    const fullRange = calcSheet.getRange(1, 1, tickerNames.length + 2, 16);
+    fullRange.setHorizontalAlignment("left");
+    fullRange.setBorder(true, true, true, true, true, true, "#cccccc", SpreadsheetApp.BorderStyle.SOLID);
+    
+    calcSheet.getRange(3, 3, tickerNames.length, 1).setNumberFormat("0.00%");
+    const colWidths = [90, 80, 80, 140, 100, 100, 120, 80, 80, 80, 110, 70, 110, 90, 100, 90];
+    colWidths.forEach((width, index) => calcSheet.setColumnWidth(index + 1, width));
+    
+    applyFinalFormatting(calcSheet, tickerNames.length);
+  }
+}
+
+/**
+ * HELPER: Formatting Rules
+ */
+function applyFinalFormatting(sheet, numRows) {
+  if (numRows === 0) return;
+  sheet.clearConditionalFormatRules();
+  const decisionRange = sheet.getRange(3, 4, numRows, 1);
+  const trendRange = sheet.getRange(3, 7, numRows, 1);
+  const rules = [
+    SpreadsheetApp.newConditionalFormatRule().whenTextContains("BUY").setBackground("#C8E6C9").setFontColor("#1B5E20").setBold(true).setRanges([decisionRange]).build(),
+    SpreadsheetApp.newConditionalFormatRule().whenTextContains("EXIT").setBackground("#FFCDD2").setFontColor("#B71C1C").setBold(true).setRanges([decisionRange]).build(),
+    SpreadsheetApp.newConditionalFormatRule().whenTextContains("BULLISH").setFontColor("#1b5e20").setBold(true).setRanges([trendRange]).build(),
+    SpreadsheetApp.newConditionalFormatRule().whenTextContains("BEARISH").setFontColor("#b71c1c").setBold(true).setRanges([trendRange]).build()
+  ];
+  sheet.setConditionalFormatRules(rules);
+}
+
+function getCleanTickers(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 3) return [];
+  const vals = sheet.getRange(3, 1, Math.max(lastRow-2,1), 1).getValues().flat();
+  return vals.filter(t => t && t.toString().trim() !== "").map(t => t.toString().trim().toUpperCase());
+}
+
+function columnToLetter(column) {
+  let temp, letter = '';
+  while (column > 0) {
+    temp = (column - 1) % 26;
+    letter = String.fromCharCode(temp + 65) + letter;
+    column = (column - temp - 1) / 26;
+  }
+  return letter;
 }
 
 /**
@@ -338,17 +368,3 @@ function updateDynamicChart() {
   sheet.insertChart(chart);
 }
 
-// Helpers
-function getCleanTickers(sheet) {
-  const last = sheet.getLastRow();
-  if (last < 3) return [];
-  return sheet.getRange(3, 1, last-2, 1).getValues().flat()
-    .filter(t => t && t.toString().trim() !== "").map(t => t.toString().toUpperCase());
-}
-function columnToLetter(column) {
-  let temp, letter = '';
-  while (column > 0) {
-    temp = (column - 1) % 26; letter = String.fromCharCode(temp + 65) + letter; column = (column - temp - 1) / 26;
-  }
-  return letter;
-}
