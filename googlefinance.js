@@ -1,6 +1,7 @@
 /**
  * ==============================================================================
  * BASELINE LABEL: GF_WORKING_CHART_21DECFINAL
+ * NAME: _21DEC_FINAL (MASTER ORCHESTRATOR EDITION)
  * DATE: 21 DEC 2025
  * STATUS: GOLDEN BASELINE - STABLE
  * ==============================================================================
@@ -9,10 +10,46 @@
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('📈 Institutional Terminal')
-    .addItem('1. Reset & Fetch Data', 'generateDataSheet')
-    .addItem('2. Build Dashboard', 'generateCalculationsSheet')
-    .addItem('3. Setup Chart View', 'setupChartSheet')
+    .addItem('🚀 1-CLICK REBUILD ALL', 'FlushAllSheetsAndBuild')
+    .addSeparator()
+    .addItem('1. Fetch Data Only', 'generateDataSheet')
+    .addItem('2. Build Dashboard Only', 'generateCalculationsSheet')
+    .addItem('3. Setup Chart Only', 'setupChartSheet')
     .addToUi();
+}
+
+/**
+ * MASTER ORCHESTRATOR
+ * Deletes all sheets and builds them sequentially with load buffers.
+ */
+function FlushAllSheetsAndBuild() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetsToDelete = ["DATA", "CALCULATIONS", "CHART"];
+  const ui = SpreadsheetApp.getUi();
+  
+  const response = ui.alert('🚨 Full Rebuild', 'This will delete and rebuild all terminal sheets. Proceed?', ui.ButtonSet.YES_NO);
+  if (response !== ui.Button.YES) return;
+
+  // 1. Wipe clean
+  sheetsToDelete.forEach(name => {
+    let sheet = ss.getSheetByName(name);
+    if (sheet) ss.deleteSheet(sheet);
+  });
+
+  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>Step 1/3:</b> Fetching Market Data..."), "Terminal Status");
+  generateDataSheet();
+  SpreadsheetApp.flush();
+  Utilities.sleep(5000); // Wait for GoogleFinance to initialize
+
+  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>Step 2/3:</b> Running Confluence Logic..."), "Terminal Status");
+  generateCalculationsSheet();
+  SpreadsheetApp.flush();
+  Utilities.sleep(2000);
+
+  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>Step 3/3:</b> Rendering Terminal Chart..."), "Terminal Status");
+  setupChartSheet();
+  
+  ui.alert('✅ Rebuild Complete', 'Institutional Terminal is now live.', ui.ButtonSet.OK);
 }
 
 function onEdit(e) {
@@ -44,7 +81,7 @@ function generateDataSheet() {
 }
 
 /**
- * 2. CALCULATIONS ENGINE
+ * 2. CALCULATIONS ENGINE (DETAILED REASONING IN Q)
  */
 function generateCalculationsSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -56,8 +93,8 @@ function generateCalculationsSheet() {
   calcSheet.clear().clearFormats();
   calcSheet.setFrozenRows(2);
 
-  const headers = [["Ticker", "Price", "Change %", "DECISION", "R:R Quality", "Trend Score", "Trend State", "SMA 20", "SMA 50", "SMA 200", "Vol Trend", "RSI", "Divergence", "Support", "Target (3:1)", "Resistance"]];
-  calcSheet.getRange(2, 1, 1, 16).setValues(headers).setFontWeight("bold").setBackground("#212121").setFontColor("white");
+  const headers = [["Ticker", "Price", "Change %", "DECISION", "R:R Quality", "Trend Score", "Trend State", "SMA 20", "SMA 50", "SMA 200", "Vol Trend", "RSI", "Divergence", "Support", "Target (3:1)", "Resistance", "REASONING"]];
+  calcSheet.getRange(2, 1, 1, 17).setValues(headers).setFontWeight("bold").setBackground("#212121").setFontColor("white");
 
   const formulas = [];
   const tickerNames = [];
@@ -80,7 +117,7 @@ function generateCalculationsSheet() {
     formulas.push([
       `=ROUND(IFERROR(GOOGLEFINANCE("${ticker}", "price")), 2)`,
       `=IFERROR(GOOGLEFINANCE("${ticker}", "changepct")/100, 0)`,
-      `=IFS(B${rowNum} < N${rowNum}, "🚨 EXIT (STOP)", B${rowNum} >= O${rowNum}, "💰 TAKE PROFIT", AND(L${rowNum}<40, M${rowNum}<>"-"), "🎯 BUY DIP", TRUE, "Wait")`,
+      `=IFS(B${rowNum} < N${rowNum}, "🚨 EXIT", B${rowNum} >= O${rowNum}, "💰 PROFIT", AND(B${rowNum}>I${rowNum}, K${rowNum}>1.1), "🚀 STRONG BUY", AND(L${rowNum}<45, B${rowNum}>N${rowNum}), "🎯 BUY DIP", TRUE, "⚖️ HOLD")`,
       `=IF((O${rowNum}-B${rowNum})/MAX(0.01, B${rowNum}-N${rowNum}) >= 3, "💎 HIGH", "⚖️ MED")`,
       `=REPT("★", (B${rowNum}>${s20}) + (B${rowNum}>${s50}) + (B${rowNum}>${s200}))`,
       `=IF(B${rowNum}>${s200}, "🚀 BULLISH", "📉 BEARISH")`,
@@ -92,11 +129,12 @@ function generateCalculationsSheet() {
       `=IF(AND(B${rowNum} < OFFSET(DATA!$${closeCol}$1, ${lastRow}-5, 0), L${rowNum} > OFFSET(DATA!$${closeCol}$1, ${lastRow}-10, 0)), "🐂 BULL DIV", "-")`,
       `=ROUND(IFERROR(MIN(OFFSET(DATA!$${lowCol}$1, ${lastRow}-21, 0, 20)), 0), 2)`,
       `=ROUND(B${rowNum} + ((B${rowNum}-N${rowNum}) * 3), 2)`,
-      `=ROUND(IFERROR(MAX(OFFSET(DATA!$${highCol}$1, ${lastRow}-51, 0, 50)), 0), 2)`
+      `=ROUND(IFERROR(MAX(OFFSET(DATA!$${highCol}$1, ${lastRow}-51, 0, 50)), 0), 2)`,
+      `=IFS(D${rowNum}="🚨 EXIT", "Price broke the 21-day Support ($"&N${rowNum}&"). Structural trend has failed.", D${rowNum}="💰 PROFIT", "Target price reach 3:1 Reward ($"&O${rowNum}&"). Momentum indicates profit taking zone.", D${rowNum}="🚀 STRONG BUY", "Price is above the 50-day SMA ($"&I${rowNum}&") with Relative Volume > 1.10. Strong institutional accumulation.", D${rowNum}="🎯 BUY DIP", "RSI is oversold ("&L${rowNum}&") while Price remains above Support. Low-risk entry point.", TRUE, "RSI is neutral ("&L${rowNum}&") and Price is between Support/Resistance. Consolidation phase.")`
     ]);
   });
   calcSheet.getRange(3, 1, tickerNames.length, 1).setValues(tickerNames);
-  calcSheet.getRange(3, 2, formulas.length, 15).setFormulas(formulas);
+  calcSheet.getRange(3, 2, formulas.length, 16).setFormulas(formulas);
   calcSheet.getRange(3, 3, tickerNames.length, 1).setNumberFormat("0.00%");
   calcSheet.getRange(3, 8, formulas.length, 9).setNumberFormat("0.00");
 }
@@ -129,12 +167,26 @@ function setupChartSheet() {
   chartSheet.getRange("B4").setFormula("=DATE(YEAR(TODAY())-A3, MONTH(TODAY())-B3, DAY(TODAY())-C3)").setNumberFormat("yyyy-mm-dd");
 
   const t = "B1";
-  const labels = [["DECISION"], ["PRICE"], ["CHANGE %"], ["TREND STATE"], ["R:R QUALITY"], ["RSI"], ["52W HIGH"], ["52W LOW"], ["PE RATIO"], ["EPS"], ["BETA"], ["YIELD"], ["SMA 20"], ["SMA 50"], ["SMA 200"], ["SUPPORT"], ["TARGET"], ["RESISTANCE"], ["REL VOL"], ["PREV CLOSE"], ["DIFF"], ["DIFF %"], ["TREND SCORE"], ["DIVERGENCE"], ["MARKET CAP"], ["DIVIDEND"]];
-  const formulas = [[`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$P, 4, 0), "Wait")`], [`=IFERROR(GOOGLEFINANCE(${t}, "price"), 0)`], [`=IFERROR(GOOGLEFINANCE(${t}, "changepct")/100, 0)`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$P, 7, 0), "—")`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$P, 5, 0), "—")`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$P, 12, 0), 50)`], [`=GOOGLEFINANCE(${t}, "high52")`], [`=GOOGLEFINANCE(${t}, "low52")`], [`=GOOGLEFINANCE(${t}, "pe")`], [`=GOOGLEFINANCE(${t}, "eps")`], [`=GOOGLEFINANCE(${t}, "beta")`], [`=IFERROR(GOOGLEFINANCE(${t}, "yield")/100, 0)`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$P, 8, 0), 0)`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$P, 9, 0), 0)`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$P, 10, 0), 0)`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$P, 14, 0), 0)`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$P, 15, 0), 0)`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$P, 16, 0), 0)`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$P, 11, 0), 1)`], [`=GOOGLEFINANCE(${t}, "closeyest")`], [`=B7-B25`], [`=IFERROR(B26/B25, 0)`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$P, 6, 0), "—")`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$P, 13, 0), "—")`], [`=GOOGLEFINANCE(${t}, "marketcap")`], [`=GOOGLEFINANCE(${t}, "dividend")`]];
+  const labels = [["SIGNAL"], ["REASONING"], ["PRICE"], ["CHANGE %"], ["TREND STATE"], ["R:R QUALITY"], ["RSI"], ["52W HIGH"], ["52W LOW"], ["PE RATIO"], ["EPS"], ["BETA"], ["YIELD"], ["SMA 20"], ["SMA 50"], ["SMA 200"], ["SUPPORT"], ["TARGET"], ["RESISTANCE"], ["REL VOL"], ["PREV CLOSE"], ["DIFF"], ["DIFF %"], ["TREND SCORE"], ["DIVERGENCE"], ["MARKET CAP"], ["DIVIDEND"]];
+  const formulas = [
+    [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$Q, 4, 0), "Wait")`],
+    [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$Q, 17, 0), "—")`],
+    [`=IFERROR(GOOGLEFINANCE(${t}, "price"), 0)`], 
+    [`=IFERROR(GOOGLEFINANCE(${t}, "changepct")/100, 0)`], 
+    [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$Q, 7, 0), "—")`], 
+    [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$Q, 5, 0), "—")`], 
+    [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$Q, 12, 0), 50)`], 
+    [`=GOOGLEFINANCE(${t}, "high52")`], [`=GOOGLEFINANCE(${t}, "low52")`], [`=GOOGLEFINANCE(${t}, "pe")`], [`=GOOGLEFINANCE(${t}, "eps")`], [`=GOOGLEFINANCE(${t}, "beta")`], [`=IFERROR(GOOGLEFINANCE(${t}, "yield")/100, 0)`], 
+    [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$Q, 8, 0), 0)`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$Q, 9, 0), 0)`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$Q, 10, 0), 0)`], 
+    [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$Q, 14, 0), 0)`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$Q, 15, 0), 0)`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$Q, 16, 0), 0)`], 
+    [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$Q, 11, 0), 1)`], [`=GOOGLEFINANCE(${t}, "closeyest")`], [`=B8-B26`], [`=IFERROR(B27/B26, 0)`], 
+    [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$Q, 6, 0), "—")`], [`=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$Q, 13, 0), "—")`], [`=GOOGLEFINANCE(${t}, "marketcap")`], [`=GOOGLEFINANCE(${t}, "dividend")`]
+  ];
   
   chartSheet.getRange(6, 1, labels.length, 1).setValues(labels).setFontWeight("bold").setBackground("#EEE");
   chartSheet.getRange(6, 2, formulas.length, 1).setFormulas(formulas);
-  chartSheet.getRange("B7:B31").setNumberFormat("0.00").setHorizontalAlignment("left");
+  chartSheet.getRange("B8:B32").setNumberFormat("0.00").setHorizontalAlignment("left");
+  chartSheet.getRange("B7").setWrap(true);
   
   updateDynamicChart();
 }
@@ -152,8 +204,8 @@ function updateDynamicChart() {
   const startDate = sheet.getRange("B4").getValue();
   const isWeekly = sheet.getRange("D2").getValue() === "WEEKLY";
 
-  const supportVal = sheet.getRange("B21").getValue();
-  const resistanceVal = sheet.getRange("B23").getValue();
+  const supportVal = sheet.getRange("B22").getValue();
+  const resistanceVal = sheet.getRange("B24").getValue();
 
   const rawHeaders = dataSheet.getRange(1, 1, 1, dataSheet.getLastColumn()).getValues()[0];
   const colIdx = rawHeaders.indexOf(ticker);
