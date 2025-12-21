@@ -1,9 +1,8 @@
 /**
  * ==============================================================================
- * BASELINE LABEL: STABLE_MASTER_V12_CLEAN
+ * BASELINE LABEL: GF_WORKING_CHART_21DECFINAL
  * DATE: 21 DEC 2025
- * FIX: Restores 12-Month/30-Day dropdowns, Removes Target from Chart, 
- * Restores original row alignment.
+ * STATUS: GOLDEN BASELINE - STABLE
  * ==============================================================================
  */
 
@@ -81,7 +80,7 @@ function generateCalculationsSheet() {
     formulas.push([
       `=ROUND(IFERROR(GOOGLEFINANCE("${ticker}", "price")), 2)`,
       `=IFERROR(GOOGLEFINANCE("${ticker}", "changepct")/100, 0)`,
-      `=IFS(B${rowNum} < N${rowNum}, "🚨 EXIT (STOP)", B${rowNum} >= O${rowNum}, "💰 TAKE PROFIT", TRUE, "Wait")`,
+      `=IFS(B${rowNum} < N${rowNum}, "🚨 EXIT (STOP)", B${rowNum} >= O${rowNum}, "💰 TAKE PROFIT", AND(L${rowNum}<40, M${rowNum}<>"-"), "🎯 BUY DIP", TRUE, "Wait")`,
       `=IF((O${rowNum}-B${rowNum})/MAX(0.01, B${rowNum}-N${rowNum}) >= 3, "💎 HIGH", "⚖️ MED")`,
       `=REPT("★", (B${rowNum}>${s20}) + (B${rowNum}>${s50}) + (B${rowNum}>${s200}))`,
       `=IF(B${rowNum}>${s200}, "🚀 BULLISH", "📉 BEARISH")`,
@@ -119,7 +118,6 @@ function setupChartSheet() {
   chartSheet.getRange("D1").setValue("VIEW:").setFontWeight("bold");
   chartSheet.getRange("D2").setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(["DAILY", "WEEKLY"]).build()).setValue("DAILY").setBackground("#E1F5FE");
 
-  // DROPDOWN FIX: Months (0-12) | Days (0-30)
   const monthRule = SpreadsheetApp.newDataValidation().requireValueInList([0,1,2,3,4,5,6,7,8,9,10,11,12]).build();
   const daysRule = SpreadsheetApp.newDataValidation().requireValueInList(Array.from({length: 31}, (_, i) => i)).build();
   
@@ -128,7 +126,6 @@ function setupChartSheet() {
   chartSheet.getRange("C3").setDataValidation(daysRule).setHorizontalAlignment("center");
   chartSheet.getRange("A3:C3").setValues([[0, 3, 0]]);
   
-  chartSheet.getRange("A4").setValue("START:").setFontWeight("bold");
   chartSheet.getRange("B4").setFormula("=DATE(YEAR(TODAY())-A3, MONTH(TODAY())-B3, DAY(TODAY())-C3)").setNumberFormat("yyyy-mm-dd");
 
   const t = "B1";
@@ -143,7 +140,7 @@ function setupChartSheet() {
 }
 
 /**
- * 4. CHART ENGINE (NO TARGET ON CHART)
+ * 4. CHART ENGINE
  */
 function updateDynamicChart() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -189,7 +186,6 @@ function updateDynamicChart() {
     let s50 = dataCounter >= 50 ? Number((pricesAll.slice(dataCounter-50, dataCounter).reduce((a,b)=>a+b,0)/50).toFixed(2)) : null;
     let s200 = dataCounter >= 200 ? Number((pricesAll.slice(dataCounter-200, dataCounter).reduce((a,b)=>a+b,0)/200).toFixed(2)) : null;
 
-    // Col Structure: Date, Price, BullVol, BearVol, SMA20, SMA50, SMA200, Resistance, Support
     masterData.push([Utilities.formatDate(d, ss.getSpreadsheetTimeZone(), "MMM dd"), close, (close >= (i>2?rawData[i-1][4]:close))?vol:null, (close < (i>2?rawData[i-1][4]:close))?vol:null, s20, s50, s200, resistanceVal, supportVal]);
     
     viewPrices.push(close);
