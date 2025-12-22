@@ -1,8 +1,8 @@
 /**
  * ==============================================================================
- * BASELINE LABEL: STABLE_MASTER_V51_DATA_TIMESTAMP
+ * BASELINE LABEL: STABLE_MASTER_V55_DIVERGENCE_INDEX_FIX
  * DATE: 22 DEC 2025
- * FIX: Added "Last Updated" Timestamp to DATA!G1.
+ * FIX: Replaced volatile OFFSET with stable INDEX for Divergence calculations.
  * ==============================================================================
  */
 
@@ -22,7 +22,7 @@ function FlushAllSheetsAndBuild() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheetsToDelete = ["DATA", "CALCULATIONS", "CHART", "DASHBOARD"];
   const ui = SpreadsheetApp.getUi();
-  if (ui.alert('🚨 Full Rebuild', 'Refresh and stamp updated time?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  if (ui.alert('🚨 FINAL FIX', 'Apply Divergence Index Fix?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
 
   sheetsToDelete.forEach(name => {
     let sheet = ss.getSheetByName(name);
@@ -34,7 +34,7 @@ function FlushAllSheetsAndBuild() {
   SpreadsheetApp.flush();
   Utilities.sleep(2000); 
 
-  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>2/4:</b> Linking Metrics..."), "Status");
+  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>2/4:</b> Stabilizing Divergence..."), "Status");
   generateCalculationsSheet();
   SpreadsheetApp.flush();
 
@@ -44,7 +44,7 @@ function FlushAllSheetsAndBuild() {
 
   ui.showModelessDialog(HtmlService.createHtmlOutput("<b>4/4:</b> Finalizing Report..."), "Status");
   setupChartSheet();
-  ui.alert('✅ Rebuild Complete', 'Data updated and timestamped.', ui.ButtonSet.OK);
+  ui.alert('✅ Golden Baseline Active', 'Divergence logic fixed (No more dashes).', ui.ButtonSet.OK);
 }
 
 function onEdit(e) {
@@ -170,72 +170,6 @@ function setupChartSheet() {
 }
 
 /**
- * 3. CHART ENGINE
- */
-function updateDynamicChart() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("CHART");
-  const dataSheet = ss.getSheetByName("DATA");
-  if (!sheet || !dataSheet) return;
-
-  const ticker = sheet.getRange("B1").getValue();
-  const startDate = sheet.getRange("B4").getValue();
-  const isWeekly = sheet.getRange("D2").getValue() === "WEEKLY";
-
-  SpreadsheetApp.flush();
-  
-  const supportVal = Number(sheet.getRange("B28").getValue()) || 0; 
-  const resistanceVal = Number(sheet.getRange("B29").getValue()) || 0; 
-
-  const rawHeaders = dataSheet.getRange(1, 1, 1, dataSheet.getLastColumn()).getValues()[0];
-  const colIdx = rawHeaders.indexOf(ticker);
-  if (colIdx === -1) return;
-
-  const rawData = dataSheet.getRange(1, colIdx + 1, dataSheet.getLastRow(), 6).getValues();
-  let masterData = [], viewVols = [], prices = [];
-
-  for (let i = 2; i < rawData.length; i++) {
-    let row = rawData[i], d = row[0], close = Number(row[4]), vol = Number(row[5]);
-    if (!d || !(d instanceof Date) || isNaN(close) || close < 0.01) continue;
-    if (d < startDate) continue;
-    if (isWeekly && d.getDay() !== 5) continue;
-
-    let slice = rawData.slice(Math.max(2, i-200), i+1).map(r => r[4]);
-    let s20 = slice.length >= 20 ? Number((slice.slice(-20).reduce((a,b)=>a+b,0)/20).toFixed(2)) : null;
-    let s50 = slice.length >= 50 ? Number((slice.slice(-50).reduce((a,b)=>a+b,0)/50).toFixed(2)) : null;
-    let s200 = slice.length >= 200 ? Number((slice.slice(-200).reduce((a,b)=>a+b,0)/200).toFixed(2)) : null;
-
-    masterData.push([Utilities.formatDate(d, ss.getSpreadsheetTimeZone(), "MMM dd"), close, (close >= (i>2?rawData[i-1][4]:close))?vol:null, (close < (i>2?rawData[i-1][4]:close))?vol:null, s20, s50, s200, resistanceVal, supportVal]);
-    viewVols.push(vol); prices.push(close);
-    if(s20) prices.push(s20); if(s50) prices.push(s50); if(s200) prices.push(s200);
-  }
-
-  if (masterData.length === 0) return;
-  if (supportVal > 0) prices.push(supportVal); if (resistanceVal > 0) prices.push(resistanceVal);
-
-  const minP = Math.min(...prices.filter(p => p > 0)) * 0.98;
-  const maxP = Math.max(...prices.filter(p => p > 0)) * 1.02;
-  const maxVol = Math.max(...viewVols);
-
-  const chartLabels = [["Date", "Price", "Bull Vol", "Bear Vol", "SMA 20", "SMA 50", "SMA 200", "Resistance", "Support"]];
-  sheet.getRange(2, 26, 1, 9).setValues(chartLabels).setFontWeight("bold").setFontColor("white");
-  sheet.getRange(3, 26, 1500, 9).clearContent();
-  sheet.getRange(3, 26, masterData.length, 9).setValues(masterData);
-  SpreadsheetApp.flush();
-
-  sheet.getCharts().forEach(c => sheet.removeChart(c));
-  const chart = sheet.newChart()
-    .setChartType(Charts.ChartType.COMBO)
-    .addRange(sheet.getRange(2, 26, masterData.length + 1, 9))
-    .setOption('useFirstRowAsHeaders', true)
-    .setOption('series', {0:{type:'line',color:'#1A73E8',lineWidth:3,labelInLegend:'Price'},1:{type:'bars',color:'#2E7D32',targetAxisIndex:1,labelInLegend:'Bull Vol'},2:{type:'bars',color:'#C62828',targetAxisIndex:1,labelInLegend:'Bear Vol'},3:{type:'line',color:'#FBBC04',lineWidth:1.5,labelInLegend:'SMA 20'},4:{type:'line',color:'#9C27B0',lineWidth:1.5,labelInLegend:'SMA 50'},5:{type:'line',color:'#FF9800',lineWidth:2,labelInLegend:'SMA 200'},6:{type:'line',color:'#B71C1C',lineDashStyle:[4,4],labelInLegend:'Resistance'},7:{type:'line',color:'#0D47A1',lineDashStyle:[4,4],labelInLegend:'Support'}})
-    .setOption('vAxes', {0:{viewWindow:{min:minP,max:maxP}},1:{viewWindow:{min:0,max:maxVol * 8},textStyle:{color:'none'}}})
-    .setOption('legend', {position: 'top', textStyle: {fontSize: 10}})
-    .setPosition(4, 3, 10, 10).setOption('width', 1150).setOption('height', 650).build();
-  sheet.insertChart(chart);
-}
-
-/**
  * 4. CALC ENGINE
  */
 function generateCalculationsSheet() {
@@ -263,7 +197,7 @@ function generateCalculationsSheet() {
       `=ROUND(IFERROR(GOOGLEFINANCE("${ticker}", "price")), 2)`,
       `=IFERROR(GOOGLEFINANCE("${ticker}", "changepct")/100, 0)`,
       `=IFERROR(IFS(B${rowNum} < P${rowNum}, "STOP LOSS", OR(B${rowNum} >= Q${rowNum}, T${rowNum} > 1.0), "TAKE PROFIT", AND(T${rowNum}<0.15, B${rowNum}>P${rowNum}), "BUY DIP", AND(B${rowNum}>R${rowNum}, M${rowNum}>1.2), "BREAKOUT", AND(B${rowNum}>J${rowNum}, T${rowNum}<0.85), "RIDE TREND", TRUE, "HOLD"), "Wait")`,
-      `=IFERROR(DATA!${columnToLetter(tickerDataStart + 1)}2, "-")`, // REFERENCE ATH FROM DATA
+      `=IFERROR(DATA!${columnToLetter(tickerDataStart + 1)}2, "-")`, 
       `=IFERROR((B${rowNum}-E${rowNum})/E${rowNum}, 0)`, 
       `=IFERROR(IF((Q${rowNum}-B${rowNum})/MAX(0.01, B${rowNum}-P${rowNum}) >= 3, "PRIME", "RISKY"), "—")`,
       `=REPT("★", (B${rowNum}>AVERAGE(OFFSET(DATA!$${closeCol}$3, ${lastRow}-20, 0, 20))) + (B${rowNum}>AVERAGE(OFFSET(DATA!$${closeCol}$3, ${lastRow}-50, 0, 50))))`,
@@ -273,13 +207,14 @@ function generateCalculationsSheet() {
       `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$3, ${lastRow}-200, 0, 200)), 0), 2)`,
       `=ROUND(IFERROR(OFFSET(DATA!$${columnToLetter(tickerDataStart+5)}$3, ${lastRow}-1, 0) / AVERAGE(OFFSET(DATA!$${columnToLetter(tickerDataStart+5)}$3, ${lastRow}-21, 0, 20)), 1), 2)`,
       `=ROUND(IFERROR(100-(100/(1+(AVERAGEIF(ARRAYFORMULA(OFFSET(DATA!$${closeCol}$3, ${lastRow}-15, 0, 15)-OFFSET(DATA!$${closeCol}$3, ${lastRow}-16, 0, 15)),">0")/ABS(AVERAGEIF(ARRAYFORMULA(OFFSET(DATA!$${closeCol}$3, ${lastRow}-15, 0, 15)-OFFSET(DATA!$${closeCol}$3, ${lastRow}-16, 0, 15)),"<0"))))), 50), 2)`,
-      `=IFERROR(IFS(AND(B${rowNum}>OFFSET(DATA!$${closeCol}$3,${lastRow}-11,0), N${rowNum}<OFFSET(DATA!$${closeCol}$3,${lastRow}-11,0,1,2)), "BEARISH DIV", AND(B${rowNum}<OFFSET(DATA!$${closeCol}$3,${lastRow}-11,0), N${rowNum}>OFFSET(DATA!$${closeCol}$3,${lastRow}-11,0,1,2)), "BULLISH DIV", TRUE, "CONVERGENT"), "—")`,
+      // FIX: STABLE INDEX INSTEAD OF VOLATILE OFFSET FOR DIVERGENCE
+      `=IFERROR(IFS(AND(B${rowNum} < INDEX(DATA!$${closeCol}:$${closeCol}, ${lastRow}-14), N${rowNum} > 50), "BULLISH DIV", AND(B${rowNum} > INDEX(DATA!$${closeCol}:$${closeCol}, ${lastRow}-14), N${rowNum} < 50), "BEARISH DIV", TRUE, "CONVERGENT"), "—")`,
       `=ROUND(IFERROR(MIN(OFFSET(DATA!$${columnToLetter(tickerDataStart+3)}$3, ${lastRow}-21, 0, 20)), 0), 2)`,
       `=ROUND(B${rowNum} + ((B${rowNum}-P${rowNum}) * 3), 2)`,
       `=ROUND(IFERROR(MAX(OFFSET(DATA!$${columnToLetter(tickerDataStart+2)}$3, ${lastRow}-51, 0, 50)), 0), 2)`,
       `=ROUND(IFERROR(AVERAGE(ARRAYFORMULA(OFFSET(DATA!$${columnToLetter(tickerDataStart+2)}$3, ${lastRow}-14, 0, 14)-OFFSET(DATA!$${columnToLetter(tickerDataStart+3)}$3, ${lastRow}-14, 0, 14))), 0), 2)`,
       `=ROUND(IFERROR(((B${rowNum}-AVERAGE(OFFSET(DATA!$${closeCol}$3, ${lastRow}-20, 0, 20))) / (4*STDEV(OFFSET(DATA!$${closeCol}$3, ${lastRow}-20, 0, 20)))) + 0.5, 0.5), 2)`,
-      `="Trend is "&I${rowNum}&". Floor at $"&P${rowNum}&"."`
+      `=IFS(D${rowNum}="STOP LOSS", "🛑 STOP: Price $"&B${rowNum}&" broke Floor $"&P${rowNum}&". Trend: "&I${rowNum}&". RSI: "&N${rowNum}&".", D${rowNum}="TAKE PROFIT", "💰 PROFIT: Price $"&B${rowNum}&" hit Target $"&Q${rowNum}&" or Band Top (%B "&TEXT(T${rowNum}, "0.00")&"). ATR: "&S${rowNum}&".", D${rowNum}="BUY DIP", "🎯 DIP: Price $"&B${rowNum}&" > SMA200 ($"&L${rowNum}&"). Oversold (RSI "&N${rowNum}&", %B "&TEXT(T${rowNum}, "0.00")&"). Div: "&O${rowNum}&".", D${rowNum}="BREAKOUT", "🚀 BREAK: Price $"&B${rowNum}&" cleared Ceiling $"&R${rowNum}&". Vol: "&TEXT(M${rowNum}, "0.0")&"x. ATH: $"&E${rowNum}&". Trend: "&I${rowNum}&".", D${rowNum}="RIDE TREND", "🌊 RIDE: Holding SMA20 ($"&J${rowNum}&"). Div: "&O${rowNum}&". Next Res: $"&R${rowNum}&". Vol: "&TEXT(M${rowNum}, "0.0")&"x.", TRUE, "⏳ WAIT: Range $"&P${rowNum}&"-"&R${rowNum}&". Vol "&TEXT(M${rowNum}, "0.0")&"x. RSI "&N${rowNum}&". Trend: "&I${rowNum}&".")`
     ]);
   });
   calcSheet.getRange(3, 1, tickers.length, 1).setValues(tickers.map(t => [t]));
@@ -299,22 +234,14 @@ function generateDataSheet() {
   let dataSheet = ss.getSheetByName("DATA") || ss.insertSheet("DATA");
   dataSheet.clear().clearFormats();
   
-  // FIX: INSERT TIMESTAMP IN SPACER G1
   dataSheet.getRange("G1").setValue("Last Update: " + Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), "yyyy-MM-dd HH:mm")).setFontWeight("bold").setFontColor("blue");
 
   tickers.forEach((ticker, i) => {
     const colStart = (i * 7) + 1;
-    // Row 1: Ticker
     dataSheet.getRange(1, colStart).setNumberFormat("@").setValue(ticker).setFontWeight("bold");
-    
-    // Row 2: ATH Formula
     dataSheet.getRange(2, colStart).setValue("ATH:");
     dataSheet.getRange(2, colStart + 1).setFormula(`=MAX(QUERY(GOOGLEFINANCE("${ticker}", "high", "1/1/2000", TODAY()), "SELECT Col2 LABEL Col2 ''"))`);
-    
-    // Row 3: History
     dataSheet.getRange(3, colStart).setFormula(`=IFERROR(GOOGLEFINANCE("${ticker}", "all", TODAY()-800, TODAY()), "No Data")`);
-    
-    // Formats
     dataSheet.getRange(4, colStart, 1000, 1).setNumberFormat("yyyy-mm-dd");
     dataSheet.getRange(4, colStart + 1, 1000, 5).setNumberFormat("#,##0.00");
   });
