@@ -1,8 +1,8 @@
 /**
  * ==============================================================================
- * BASELINE LABEL: STABLE_MASTER_V44_FILTER_LOGIC_FIX
+ * BASELINE LABEL: STABLE_MASTER_V51_DATA_TIMESTAMP
  * DATE: 22 DEC 2025
- * FIX: Dashboard Filter Logic (ALL/ALL = Show All). Preserved V43 Styling.
+ * FIX: Added "Last Updated" Timestamp to DATA!G1.
  * ==============================================================================
  */
 
@@ -22,7 +22,7 @@ function FlushAllSheetsAndBuild() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheetsToDelete = ["DATA", "CALCULATIONS", "CHART", "DASHBOARD"];
   const ui = SpreadsheetApp.getUi();
-  if (ui.alert('🚨 Full Rebuild', 'Fix Dashboard Filters & Rebuild?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  if (ui.alert('🚨 Full Rebuild', 'Refresh and stamp updated time?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
 
   sheetsToDelete.forEach(name => {
     let sheet = ss.getSheetByName(name);
@@ -34,17 +34,17 @@ function FlushAllSheetsAndBuild() {
   SpreadsheetApp.flush();
   Utilities.sleep(2000); 
 
-  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>2/4:</b> Calculating Metrics..."), "Status");
+  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>2/4:</b> Linking Metrics..."), "Status");
   generateCalculationsSheet();
   SpreadsheetApp.flush();
 
-  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>3/4:</b> Logic: (A or B) AND (C or D)..."), "Status");
+  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>3/4:</b> Updating Dashboard..."), "Status");
   generateDashboardSheet(); 
   SpreadsheetApp.flush();
 
-  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>4/4:</b> Styling Report..."), "Status");
+  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>4/4:</b> Finalizing Report..."), "Status");
   setupChartSheet();
-  ui.alert('✅ Rebuild Complete', 'Filters fixed: ALL/ALL now shows all stocks.', ui.ButtonSet.OK);
+  ui.alert('✅ Rebuild Complete', 'Data updated and timestamped.', ui.ButtonSet.OK);
 }
 
 function onEdit(e) {
@@ -60,7 +60,7 @@ function onEdit(e) {
 }
 
 /**
- * 1. DASHBOARD ENGINE (FILTER LOGIC FIXED)
+ * 1. DASHBOARD ENGINE
  */
 function generateDashboardSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -68,15 +68,10 @@ function generateDashboardSheet() {
   if (!inputSheet) return;
   let dashboard = ss.getSheetByName("DASHBOARD") || ss.insertSheet("DASHBOARD", inputSheet.getIndex() + 1);
   dashboard.clear().clearFormats();
-  const headers = [["Ticker", "Price", "Change %", "DECISION", "R:R Quality", "Trend Score", "Trend State", "SMA 20", "SMA 50", "SMA 200", "Vol Trend", "RSI", "Divergence", "Support", "Target (3:1)", "Resistance", "ATR (14)", "Bollinger %B", "REASONING"]];
-  dashboard.getRange(2, 1, 1, 19).setValues(headers).setBackground("#212121").setFontColor("white").setFontWeight("bold");
+  const headers = [["Ticker", "Price", "Change %", "DECISION", "ATH (TRUE)", "ATH Diff %", "R:R Quality", "Trend Score", "Trend State", "SMA 20", "SMA 50", "SMA 200", "Vol Trend", "RSI", "Divergence", "Support", "Target (3:1)", "Resistance", "ATR (14)", "Bollinger %B", "REASONING"]];
+  dashboard.getRange(2, 1, 1, 21).setValues(headers).setBackground("#212121").setFontColor("white").setFontWeight("bold");
 
-  // LOGIC:
-  // IF B1 is Empty OR "ALL" -> Return 1 (True). ELSE -> Regex Match (OR logic inside B1).
-  // IF C1 is Empty OR "ALL" -> Return 1 (True). ELSE -> Regex Match (OR logic inside C1).
-  // MULTIPLY them to get AND logic between B1 and C1.
-  
-  const formula = '=IFERROR(SORT(FILTER(CALCULATIONS!$A$3:$S, ISNUMBER(MATCH(CALCULATIONS!$A$3:$A, FILTER(INPUT!$A$3:$A, ' +
+  const formula = '=IFERROR(SORT(FILTER(CALCULATIONS!$A$3:$U, ISNUMBER(MATCH(CALCULATIONS!$A$3:$A, FILTER(INPUT!$A$3:$A, ' +
     '(IF(OR(INPUT!$B$1="", INPUT!$B$1="ALL"), 1, REGEXMATCH(INPUT!$B$3:$B, "(?i)\\b(" & SUBSTITUTE(SUBSTITUTE(INPUT!$B$1, ", ", "|"), ",", "|") & ")\\b"))) * ' +
     '(IF(OR(INPUT!$C$1="", INPUT!$C$1="ALL"), 1, REGEXMATCH(INPUT!$C$3:$C, "(?i)\\b(" & SUBSTITUTE(SUBSTITUTE(INPUT!$C$1, ", ", "|"), ",", "|") & ")\\b")))' +
     '), 0))), 3, FALSE), "No Matches Found")';
@@ -84,15 +79,14 @@ function generateDashboardSheet() {
   dashboard.getRange("A3").setFormula(formula);
   dashboard.getRange("A:S").setHorizontalAlignment("left");
   
-  // FORCE DASHBOARD FORMATTING
   SpreadsheetApp.flush();
-  dashboard.getRangeList(['C3:C', 'R3:R']).setNumberFormat("0.00%");
+  dashboard.getRangeList(['C3:C', 'F3:F', 'T3:T']).setNumberFormat("0.00%");
   
   dashboard.setFrozenRows(2);
 }
 
 /**
- * 2. CHART SIDEBAR (STYLING V43 PRESERVED)
+ * 2. CHART SIDEBAR
  */
 function setupChartSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -112,7 +106,7 @@ function setupChartSheet() {
   chartSheet.getRange("D1").setValue("VIEW:").setFontWeight("bold");
   chartSheet.getRange("D2").setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(["DAILY", "WEEKLY"]).build()).setValue("DAILY");
   
-  chartSheet.getRange("E1").setFormula('=IFERROR(VLOOKUP(B1, CALCULATIONS!$A$3:$S, 19, 0), "—")').setWrap(true).setVerticalAlignment("top");
+  chartSheet.getRange("E1").setFormula('=IFERROR(VLOOKUP(B1, CALCULATIONS!$A$3:$U, 21, 0), "—")').setWrap(true).setVerticalAlignment("top");
 
   chartSheet.getRange("A2:C2").setValues([["YEAR", "MONTH", "DAY"]]).setFontWeight("bold").setHorizontalAlignment("center");
   
@@ -124,46 +118,41 @@ function setupChartSheet() {
   chartSheet.getRange("A4").setValue("DATE").setFontWeight("bold");
   chartSheet.getRange("B4").setFormula("=DATE(YEAR(TODAY())-A3, MONTH(TODAY())-B3, DAY(TODAY())-C3)").setNumberFormat("yyyy-mm-dd");
 
-  // STYLING: Black/Yellow/Pink
-  const headerRange = chartSheet.getRange("A1:F4");
-  headerRange.setBackground("#000000").setFontColor("#FFFF00"); 
-  
-  const inputList = chartSheet.getRangeList(["A3", "B3", "C3", "D2"]);
-  inputList.setBackground("#FF80AB").setFontColor("#000000").setHorizontalAlignment("center").setFontWeight("bold");
-  
+  chartSheet.getRange("A1:F4").setBackground("#000000").setFontColor("#FFFF00");
+  chartSheet.getRangeList(["A3", "B3", "C3", "D2"]).setBackground("#FF80AB").setFontColor("#000000").setHorizontalAlignment("center").setFontWeight("bold");
   chartSheet.getRange("B1").setBackground("#FFEB3B").setFontColor("black").setFontWeight("bold");
 
   const t = "B1";
   
   const data = [
-    ["SIGNAL (DECISION)", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$S, 4, 0), "Wait")`], 
+    ["SIGNAL (DECISION)", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$U, 4, 0), "Wait")`], 
     ["LIVE PRICE", `=IFERROR(GOOGLEFINANCE(${t}, "price"), 0)`], 
     ["CHANGE ($)", `=IFERROR(B6 - GOOGLEFINANCE(${t}, "closeyest"), 0)`], 
     ["CHANGE (%)", `=IFERROR(GOOGLEFINANCE(${t}, "changepct")/100, 0)`], 
     ["", ""], 
     ["[ VALUATION METRICS ]", ""], 
-    ["ALL TIME HIGH", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$S, 16, 0), 0)`], 
-    ["DIFF FROM ATH %", `=IFERROR((B6-B11)/B11, 0)`], 
+    ["ATH (TRUE)", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$U, 5, 0), 0)`], 
+    ["DIFF FROM ATH %", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$U, 6, 0), 0)`], 
     ["P/E RATIO", `=IFERROR(GOOGLEFINANCE(${t}, "pe"), 0)`],
     ["EPS", `=IFERROR(GOOGLEFINANCE(${t}, "eps"), 0)`],
     ["52W HIGH", `=IFERROR(GOOGLEFINANCE(${t}, "high52"), 0)`],
     ["52W LOW", `=IFERROR(GOOGLEFINANCE(${t}, "low52"), 0)`],
     ["", ""], 
     ["[ MOMENTUM & TREND ]", ""], 
-    ["SMA 20", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$S, 8, 0), 0)`], 
-    ["SMA 50", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$S, 9, 0), 0)`], 
-    ["SMA 200", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$S, 10, 0), 0)`], 
-    ["RSI (14)", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$S, 12, 0), 50)`], 
-    ["TREND STATE", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$S, 7, 0), "—")`], 
-    ["DIVERGENCE", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$S, 13, 0), "Neutral")`], 
-    ["RELATIVE VOLUME", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$S, 11, 0), 1)`], 
+    ["SMA 20", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$U, 10, 0), 0)`], 
+    ["SMA 50", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$U, 11, 0), 0)`], 
+    ["SMA 200", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$U, 12, 0), 0)`], 
+    ["RSI (14)", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$U, 14, 0), 50)`], 
+    ["TREND STATE", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$U, 9, 0), "—")`], 
+    ["DIVERGENCE", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$U, 15, 0), "Neutral")`], 
+    ["RELATIVE VOLUME", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$U, 13, 0), 1)`], 
     ["", ""], 
     ["[ TECHNICAL LEVELS ]", ""], 
-    ["SUPPORT FLOOR", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$S, 14, 0), 0)`], 
-    ["RESISTANCE CEILING", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$S, 16, 0), 0)`], 
-    ["TARGET (3:1 R:R)", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$S, 15, 0), 0)`], 
-    ["ATR (14)", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$S, 17, 0), 0)`], 
-    ["BOLLINGER %B", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$S, 18, 0), 0)`] 
+    ["SUPPORT FLOOR", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$U, 16, 0), 0)`], 
+    ["RESISTANCE CEILING", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$U, 18, 0), 0)`], 
+    ["TARGET (3:1 R:R)", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$U, 17, 0), 0)`], 
+    ["ATR (14)", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$U, 19, 0), 0)`], 
+    ["BOLLINGER %B", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$U, 20, 0), 0)`] 
   ];
 
   chartSheet.getRange(5, 1, data.length, 1).setValues(data.map(r => [r[0]])).setFontWeight("bold");
@@ -172,7 +161,6 @@ function setupChartSheet() {
   [10, 18, 27].forEach(r => chartSheet.getRange(r, 1, 1, 2).setBackground("#444").setFontColor("white").setHorizontalAlignment("center"));
   
   SpreadsheetApp.flush();
-  // STRICT FORMATTING
   chartSheet.getRange("B5:B32").setHorizontalAlignment("left");
   chartSheet.getRangeList(["B6", "B7", "B11", "B13:B16", "B19:B22", "B25", "B28:B31"]).setNumberFormat("#,##0.00");
   chartSheet.getRangeList(["B8", "B12", "B32"]).setNumberFormat("0.00%");
@@ -261,12 +249,12 @@ function generateCalculationsSheet() {
 
   calcSheet.getRange("A1:D1").merge().setValue("[ CORE IDENT ]").setBackground("#263238").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
   calcSheet.getRange("E1:G1").merge().setValue("[ PERFORMANCE ]").setBackground("#0D47A1").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
-  calcSheet.getRange("H1:M1").merge().setValue("[ MOMENTUM ]").setBackground("#1B5E20").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
-  calcSheet.getRange("N1:R1").merge().setValue("[ RISK LEVELS ]").setBackground("#B71C1C").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
-  calcSheet.getRange("S1").setValue("[ ANALYST ]").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
+  calcSheet.getRange("H1:O1").merge().setValue("[ MOMENTUM ]").setBackground("#1B5E20").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
+  calcSheet.getRange("P1:T1").merge().setValue("[ RISK LEVELS ]").setBackground("#B71C1C").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
+  calcSheet.getRange("U1").setValue("[ ANALYST ]").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
 
-  const headers = [["Ticker", "Price", "Change %", "DECISION", "R:R Quality", "Trend Score", "Trend State", "SMA 20", "SMA 50", "SMA 200", "Vol Trend", "RSI", "Divergence", "Support", "Target (3:1)", "Resistance", "ATR (14)", "Bollinger %B", "REASONING"]];
-  calcSheet.getRange(2, 1, 1, 19).setValues(headers).setBackground("#212121").setFontColor("white").setFontWeight("bold");
+  const headers = [["Ticker", "Price", "Change %", "DECISION", "ATH (TRUE)", "ATH Diff %", "R:R Quality", "Trend Score", "Trend State", "SMA 20", "SMA 50", "SMA 200", "Vol Trend", "RSI", "Divergence", "Support", "Target (3:1)", "Resistance", "ATR (14)", "Bollinger %B", "REASONING"]];
+  calcSheet.getRange(2, 1, 1, 21).setValues(headers).setBackground("#212121").setFontColor("white").setFontWeight("bold");
   
   const formulas = [];
   tickers.forEach((ticker, i) => {
@@ -274,31 +262,33 @@ function generateCalculationsSheet() {
     formulas.push([
       `=ROUND(IFERROR(GOOGLEFINANCE("${ticker}", "price")), 2)`,
       `=IFERROR(GOOGLEFINANCE("${ticker}", "changepct")/100, 0)`,
-      `=IFERROR(IFS(B${rowNum} < N${rowNum}, "STOP LOSS", OR(B${rowNum} >= O${rowNum}, R${rowNum} > 1.0), "TAKE PROFIT", AND(R${rowNum}<0.15, B${rowNum}>J${rowNum}), "BUY DIP", AND(B${rowNum}>P${rowNum}, K${rowNum}>1.2), "BREAKOUT", AND(B${rowNum}>H${rowNum}, R${rowNum}<0.85), "RIDE TREND", TRUE, "HOLD"), "Wait")`,
-      `=IFERROR(IF((O${rowNum}-B${rowNum})/MAX(0.01, B${rowNum}-N${rowNum}) >= 3, "PRIME", "RISKY"), "—")`,
-      `=REPT("★", (B${rowNum}>AVERAGE(OFFSET(DATA!$${closeCol}$1, ${lastRow}-20, 0, 20))) + (B${rowNum}>AVERAGE(OFFSET(DATA!$${closeCol}$1, ${lastRow}-50, 0, 50))))`,
-      `=IF(B${rowNum}>AVERAGE(OFFSET(DATA!$${closeCol}$1, ${lastRow}-200, 0, 200)), "BULL REGIME", "BEAR REGIME")`,
-      `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$1, ${lastRow}-20, 0, 20)), 0), 2)`,
-      `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$1, ${lastRow}-50, 0, 50)), 0), 2)`,
-      `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$1, ${lastRow}-200, 0, 200)), 0), 2)`,
-      `=ROUND(IFERROR(OFFSET(DATA!$${columnToLetter(tickerDataStart+5)}$1, ${lastRow}-1, 0) / AVERAGE(OFFSET(DATA!$${columnToLetter(tickerDataStart+5)}$1, ${lastRow}-21, 0, 20)), 1), 2)`,
-      `=ROUND(IFERROR(100-(100/(1+(AVERAGEIF(ARRAYFORMULA(OFFSET(DATA!$${closeCol}$1, ${lastRow}-15, 0, 15)-OFFSET(DATA!$${closeCol}$1, ${lastRow}-16, 0, 15)),">0")/ABS(AVERAGEIF(ARRAYFORMULA(OFFSET(DATA!$${closeCol}$1, ${lastRow}-15, 0, 15)-OFFSET(DATA!$${closeCol}$1, ${lastRow}-16, 0, 15)),"<0"))))), 50), 2)`,
-      `=IFERROR(IFS(AND(B${rowNum}>OFFSET(DATA!$${closeCol}$1,${lastRow}-11,0), L${rowNum}<OFFSET(DATA!$${closeCol}$1,${lastRow}-11,0,1,2)), "BEARISH DIV", AND(B${rowNum}<OFFSET(DATA!$${closeCol}$1,${lastRow}-11,0), L${rowNum}>OFFSET(DATA!$${closeCol}$1,${lastRow}-11,0,1,2)), "BULLISH DIV", TRUE, "CONVERGENT"), "—")`,
-      `=ROUND(IFERROR(MIN(OFFSET(DATA!$${columnToLetter(tickerDataStart+3)}$1, ${lastRow}-21, 0, 20)), 0), 2)`,
-      `=ROUND(B${rowNum} + ((B${rowNum}-N${rowNum}) * 3), 2)`,
-      `=ROUND(IFERROR(MAX(OFFSET(DATA!$${columnToLetter(tickerDataStart+2)}$1, ${lastRow}-51, 0, 50)), 0), 2)`,
-      `=ROUND(IFERROR(AVERAGE(ARRAYFORMULA(OFFSET(DATA!$${columnToLetter(tickerDataStart+2)}$1, ${lastRow}-14, 0, 14)-OFFSET(DATA!$${columnToLetter(tickerDataStart+3)}$1, ${lastRow}-14, 0, 14))), 0), 2)`,
-      `=ROUND(IFERROR(((B${rowNum}-AVERAGE(OFFSET(DATA!$${closeCol}$1, ${lastRow}-20, 0, 20))) / (4*STDEV(OFFSET(DATA!$${closeCol}$1, ${lastRow}-20, 0, 20)))) + 0.5, 0.5), 2)`,
-      `="Trend is "&G${rowNum}&". Floor at $"&N${rowNum}&"."`
+      `=IFERROR(IFS(B${rowNum} < P${rowNum}, "STOP LOSS", OR(B${rowNum} >= Q${rowNum}, T${rowNum} > 1.0), "TAKE PROFIT", AND(T${rowNum}<0.15, B${rowNum}>P${rowNum}), "BUY DIP", AND(B${rowNum}>R${rowNum}, M${rowNum}>1.2), "BREAKOUT", AND(B${rowNum}>J${rowNum}, T${rowNum}<0.85), "RIDE TREND", TRUE, "HOLD"), "Wait")`,
+      `=IFERROR(DATA!${columnToLetter(tickerDataStart + 1)}2, "-")`, // REFERENCE ATH FROM DATA
+      `=IFERROR((B${rowNum}-E${rowNum})/E${rowNum}, 0)`, 
+      `=IFERROR(IF((Q${rowNum}-B${rowNum})/MAX(0.01, B${rowNum}-P${rowNum}) >= 3, "PRIME", "RISKY"), "—")`,
+      `=REPT("★", (B${rowNum}>AVERAGE(OFFSET(DATA!$${closeCol}$3, ${lastRow}-20, 0, 20))) + (B${rowNum}>AVERAGE(OFFSET(DATA!$${closeCol}$3, ${lastRow}-50, 0, 50))))`,
+      `=IF(B${rowNum}>AVERAGE(OFFSET(DATA!$${closeCol}$3, ${lastRow}-200, 0, 200)), "BULL REGIME", "BEAR REGIME")`,
+      `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$3, ${lastRow}-20, 0, 20)), 0), 2)`,
+      `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$3, ${lastRow}-50, 0, 50)), 0), 2)`,
+      `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$3, ${lastRow}-200, 0, 200)), 0), 2)`,
+      `=ROUND(IFERROR(OFFSET(DATA!$${columnToLetter(tickerDataStart+5)}$3, ${lastRow}-1, 0) / AVERAGE(OFFSET(DATA!$${columnToLetter(tickerDataStart+5)}$3, ${lastRow}-21, 0, 20)), 1), 2)`,
+      `=ROUND(IFERROR(100-(100/(1+(AVERAGEIF(ARRAYFORMULA(OFFSET(DATA!$${closeCol}$3, ${lastRow}-15, 0, 15)-OFFSET(DATA!$${closeCol}$3, ${lastRow}-16, 0, 15)),">0")/ABS(AVERAGEIF(ARRAYFORMULA(OFFSET(DATA!$${closeCol}$3, ${lastRow}-15, 0, 15)-OFFSET(DATA!$${closeCol}$3, ${lastRow}-16, 0, 15)),"<0"))))), 50), 2)`,
+      `=IFERROR(IFS(AND(B${rowNum}>OFFSET(DATA!$${closeCol}$3,${lastRow}-11,0), N${rowNum}<OFFSET(DATA!$${closeCol}$3,${lastRow}-11,0,1,2)), "BEARISH DIV", AND(B${rowNum}<OFFSET(DATA!$${closeCol}$3,${lastRow}-11,0), N${rowNum}>OFFSET(DATA!$${closeCol}$3,${lastRow}-11,0,1,2)), "BULLISH DIV", TRUE, "CONVERGENT"), "—")`,
+      `=ROUND(IFERROR(MIN(OFFSET(DATA!$${columnToLetter(tickerDataStart+3)}$3, ${lastRow}-21, 0, 20)), 0), 2)`,
+      `=ROUND(B${rowNum} + ((B${rowNum}-P${rowNum}) * 3), 2)`,
+      `=ROUND(IFERROR(MAX(OFFSET(DATA!$${columnToLetter(tickerDataStart+2)}$3, ${lastRow}-51, 0, 50)), 0), 2)`,
+      `=ROUND(IFERROR(AVERAGE(ARRAYFORMULA(OFFSET(DATA!$${columnToLetter(tickerDataStart+2)}$3, ${lastRow}-14, 0, 14)-OFFSET(DATA!$${columnToLetter(tickerDataStart+3)}$3, ${lastRow}-14, 0, 14))), 0), 2)`,
+      `=ROUND(IFERROR(((B${rowNum}-AVERAGE(OFFSET(DATA!$${closeCol}$3, ${lastRow}-20, 0, 20))) / (4*STDEV(OFFSET(DATA!$${closeCol}$3, ${lastRow}-20, 0, 20)))) + 0.5, 0.5), 2)`,
+      `="Trend is "&I${rowNum}&". Floor at $"&P${rowNum}&"."`
     ]);
   });
   calcSheet.getRange(3, 1, tickers.length, 1).setValues(tickers.map(t => [t]));
-  calcSheet.getRange(3, 2, formulas.length, 18).setFormulas(formulas);
+  calcSheet.getRange(3, 2, formulas.length, 20).setFormulas(formulas);
   
-  // FORCE CALCULATION FORMATTING
   SpreadsheetApp.flush();
   calcSheet.getRange("C3:C").setNumberFormat("0.00%");
-  calcSheet.getRange("R3:R").setNumberFormat("0.00%");
+  calcSheet.getRange("F3:F").setNumberFormat("0.00%");
+  calcSheet.getRange("T3:T").setNumberFormat("0.00%");
 }
 
 function generateDataSheet() {
@@ -308,12 +298,25 @@ function generateDataSheet() {
   const tickers = getCleanTickers(inputSheet);
   let dataSheet = ss.getSheetByName("DATA") || ss.insertSheet("DATA");
   dataSheet.clear().clearFormats();
+  
+  // FIX: INSERT TIMESTAMP IN SPACER G1
+  dataSheet.getRange("G1").setValue("Last Update: " + Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), "yyyy-MM-dd HH:mm")).setFontWeight("bold").setFontColor("blue");
+
   tickers.forEach((ticker, i) => {
     const colStart = (i * 7) + 1;
+    // Row 1: Ticker
     dataSheet.getRange(1, colStart).setNumberFormat("@").setValue(ticker).setFontWeight("bold");
-    dataSheet.getRange(2, colStart).setFormula(`=IFERROR(GOOGLEFINANCE("${ticker}", "all", TODAY()-800, TODAY()), "No Data")`);
-    dataSheet.getRange(3, colStart, 1000, 1).setNumberFormat("yyyy-mm-dd");
-    dataSheet.getRange(3, colStart + 1, 1000, 5).setNumberFormat("#,##0.00");
+    
+    // Row 2: ATH Formula
+    dataSheet.getRange(2, colStart).setValue("ATH:");
+    dataSheet.getRange(2, colStart + 1).setFormula(`=MAX(QUERY(GOOGLEFINANCE("${ticker}", "high", "1/1/2000", TODAY()), "SELECT Col2 LABEL Col2 ''"))`);
+    
+    // Row 3: History
+    dataSheet.getRange(3, colStart).setFormula(`=IFERROR(GOOGLEFINANCE("${ticker}", "all", TODAY()-800, TODAY()), "No Data")`);
+    
+    // Formats
+    dataSheet.getRange(4, colStart, 1000, 1).setNumberFormat("yyyy-mm-dd");
+    dataSheet.getRange(4, colStart + 1, 1000, 5).setNumberFormat("#,##0.00");
   });
 }
 
