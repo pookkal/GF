@@ -1,6 +1,6 @@
 /**
 * ==============================================================================
-* BASELINE LABEL: STABLE_MASTER_V111_HYBRID_TEXT
+* BASELINE LABEL: STABLE_MASTER_DEC25_BASE_v1
 * DATE: 25 DEC 2025
 * FIX: Re-integrated Indicator Names (BB, ATR) into the reasoning text.
 * Logic: "Indicator (Value): Meaning".
