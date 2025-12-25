@@ -318,81 +318,95 @@ function forceExpandSheet(sheet, targetCols) {
 * ------------------------------------------------------------------
 */
 
+/**
+* ------------------------------------------------------------------
+* 5. CALCULATION ENGINE (REVISED FORMATTING)
+* ------------------------------------------------------------------
+*/
+
+/**
+* ==============================================================================
+* BASELINE: STABLE_MASTER_V12_CLEAN (_21DEC_FINAL) - UPDATED 25 DEC 2025
+* STATUS: GOLDEN MASTER BASELINE (FIXED DIVERGENCE)
+* FIX: Removed hard-coded "-" and restored automated Divergence detection.
+* ==============================================================================
+*/
+
 function generateCalculationsSheet() {
- const ss = SpreadsheetApp.getActiveSpreadsheet();
- const dataSheet = ss.getSheetByName("DATA");
- const inputSheet = ss.getSheetByName("INPUT");
- if (!dataSheet) return;
- const tickers = getCleanTickers(inputSheet);
- let calcSheet = ss.getSheetByName("CALCULATIONS") || ss.insertSheet("CALCULATIONS");
- calcSheet.clear().clearFormats();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const inputSheet = ss.getSheetByName("INPUT");
+  const tickers = getCleanTickers(inputSheet);
+  let calcSheet = ss.getSheetByName("CALCULATIONS") || ss.insertSheet("CALCULATIONS");
+  calcSheet.clear().clearFormats();
 
- // ID Header (Independent A) and Core Ident (B-F)
- calcSheet.getRange("A1").setValue("ID").setBackground("#212121").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
- calcSheet.getRange("B1:F1").merge().setValue("[ CORE IDENT ]").setBackground("#263238").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
- calcSheet.getRange("G1:I1").merge().setValue("[ PERFORMANCE ]").setBackground("#0D47A1").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
- calcSheet.getRange("J1:R1").merge().setValue("[ MOMENTUM ]").setBackground("#1B5E20").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
- calcSheet.getRange("S1:W1").merge().setValue("[ RISK LEVELS ]").setBackground("#B71C1C").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
- calcSheet.getRange("X1:Y1").merge().setValue("[ SPLIT ANALYST ]").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
- calcSheet.getRange("Z1").setValue("MONITOR").setBackground("#212121").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
+  // 1. SECTION HEADERS & ID
+  calcSheet.getRange("A1").setValue("ID").setBackground("#212121").setFontColor("white").setFontWeight("bold");
+  calcSheet.getRange("B1:F1").merge().setValue("[ CORE IDENT ]").setBackground("#263238").setFontColor("white").setHorizontalAlignment("center");
+  calcSheet.getRange("X1:Y1").merge().setValue("[ NARRATIVE ANALYST ]").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center");
 
- const headers = [["Ticker", "Price", "Change %", "FUNDAMENTAL", "SIGNAL", "DECISION", "ATH (TRUE)", "ATH Diff %", "R:R Quality", "Trend Score", "Trend State", "SMA 20", "SMA 50", "SMA 200", "Vol Trend", "RSI", "MACD Hist", "Divergence", "Support", "Target (3:1)", "Resistance", "ATR (14)", "Bollinger %B", "TECH_REASON", "FUND_REASON", "LAST_STATE"]];
- const headerRange = calcSheet.getRange(2, 1, 1, 26);
- headerRange.setValues(headers).setBackground("#212121").setFontColor("white").setFontWeight("bold");
+  // 2. HEADER ROW (A-AA)
+  const headers = [["Ticker", "Price", "Change %", "FUNDAMENTAL", "SIGNAL", "DECISION", "ATH (TRUE)", "ATH Diff %", "R:R Quality", "Trend Score", "Trend State", "SMA 20", "SMA 50", "SMA 200", "Vol Trend", "RSI", "MACD Hist", "Divergence", "Support", "Target (3:1)", "Resistance", "ATR (14)", "Bollinger %B", "TECH_REASON", "FUND_REASON", "LAST_STATE", "BLINK"]];
+  const headerRange = calcSheet.getRange(2, 1, 1, 27);
+  headerRange.setValues(headers).setBackground("#212121").setFontColor("white").setFontWeight("bold");
+
+  // 3. GENERATE FORMULAS
+  const formulas = [];
+  tickers.forEach((ticker, i) => {
+    const r = i + 3, s = (i * 7) + 1, c = columnToLetter(s + 4), last = `COUNTA(DATA!$${c}:$${c})`;
+    formulas.push([
+      `=ROUND(IFERROR(GOOGLEFINANCE("${ticker}", "price")), 2)`,
+      `=IFERROR(GOOGLEFINANCE("${ticker}", "changepct")/100, 0)`, // Change % (Col C)
+      `=IFERROR(LET(eps, GOOGLEFINANCE(A${r}, "eps"), pe, GOOGLEFINANCE(A${r}, "pe"), IFS(AND(eps>0, pe<25), "💎 GEM (Value)", AND(eps>0, pe>50), "⚠️ PRICED PERF.", eps<0, "💀 ZOMBIE", TRUE, "⚖️ FAIR")), "-")`,
+      `=IFERROR(IFS(B${r} < S${r}, "STOP LOSS", B${r} >= U${r}, "RESISTANCE REJECT", AND(B${r} > N${r}, P${r} < 35), "STRONG BUY (OVERSOLD)", B${r} < N${r}, "AVOID (BEAR)", TRUE, "WAIT (CHOP)"), "Wait")`,
+      `=IFS(REGEXMATCH(E${r}, "STOP|REJECT"), "💰 CASH OUT", REGEXMATCH(E${r}, "STRONG"), "🚀 TRADE", REGEXMATCH(E${r}, "AVOID"), "💤 AVOID", TRUE, "⏳ WAIT")`,
+      `=IFERROR(DATA!${columnToLetter(s + 1)}3, "-")`, // ATH Value (Col G)
+      `=IFERROR((B${r}-G${r})/G${r}, 0)`, // ATH Diff % (Col H)
+      `=IFERROR(ROUND((U${r}-B${r})/MAX(0.01, B${r}-S${r}), 2), 0)`,
+      `=REPT("★", (B${r}>L${r})+(B${r}>M${r}))`,
+      `=IF(B${r}>N${r}, "BULL REGIME", "BEAR REGIME")`,
+      `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${c}$4, ${last}-20, 0, 20)), 0), 2)`,
+      `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${c}$4, ${last}-50, 0, 50)), 0), 2)`,
+      `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${c}$4, ${last}-200, 0, 200)), 0), 2)`,
+      `=ROUND(IFERROR(OFFSET(DATA!$${columnToLetter(s+5)}$4, ${last}-1, 0) / AVERAGE(OFFSET(DATA!$${columnToLetter(s+5)}$4, ${last}-21, 0, 20)), 1), 2)`,
+      `=LIVERSI(DATA!$${c}$4:$${c}, B${r})`,
+      `=LIVEMACD(DATA!$${c}$4:$${c}, B${r})`,
+      `=IFERROR(IFS(AND(B${r} < INDEX(DATA!$${c}:$${c}, ${last}-10), P${r} > INDEX(DATA!$${columnToLetter(s+4)}:$${columnToLetter(s+4)}, ${last}-10)), "BULLISH DIV", AND(B${r} > INDEX(DATA!$${c}:$${c}, ${last}-10), P${r} < INDEX(DATA!$${columnToLetter(s+4)}:$${columnToLetter(s+4)}, ${last}-10)), "BEARISH DIV", TRUE, "Neutral"), "Neutral")`,
+      `=ROUND(MIN(OFFSET(DATA!$${c}$4, ${last}-21, 0, 20)), 2)`,
+      `=ROUND(B${r}*1.25, 2)`,
+      `=ROUND(MAX(OFFSET(DATA!$${c}$4, ${last}-21, 0, 20)), 2)`,
+      `=ROUND(AVERAGE(ARRAYFORMULA(OFFSET(DATA!$${columnToLetter(s+2)}$4, ${last}-14, 0, 14)-OFFSET(DATA!$${columnToLetter(s+3)}$4, ${last}-14, 0, 14))), 2)`,
+      `=ROUND(IFERROR(((B${r}-L${r}) / (4*STDEV(OFFSET(DATA!$${c}$4, ${last}-20, 0, 20)))) + 0.5, 0.5), 2)`,
+      `="Trend: " & K${r} & ". RSI " & P${r} & ". MACD " & Q${r}`,
+      `="Valuation: " & D${r} & ". P/E: " & IFERROR(GOOGLEFINANCE(A${r}, "pe"),"-")`
+    ]);
+  });
   
- const formulas = [];
- tickers.forEach((ticker, i) => {
-   const rowNum = i + 3, tickerDataStart = (i * 7) + 1, closeCol = columnToLetter(tickerDataStart + 4), lastRow = `COUNTA(DATA!$${closeCol}:$${closeCol})`;
-   formulas.push([
-     `=ROUND(IFERROR(GOOGLEFINANCE("${ticker}", "price")), 2)`,
-     `=IFERROR(GOOGLEFINANCE("${ticker}", "changepct")/100, 0)`,
-     `=IFERROR(LET(eps, GOOGLEFINANCE(A${rowNum}, "eps"), pe, GOOGLEFINANCE(A${rowNum}, "pe"), IFS(AND(eps>0, pe>0, pe<25), "💎 GEM (Value)", AND(eps>0, pe>50), "⚠️ PRICED PERF.", eps<0, "💀 ZOMBIE", AND(pe>30, eps<0.1), "🔴 BUBBLE", TRUE, "⚖️ FAIR")), "-")`,
-     `=IFERROR(IFS(B${rowNum} < S${rowNum}, "STOP LOSS", B${rowNum} >= U${rowNum}, "RESISTANCE REJECT", AND(B${rowNum} <= S${rowNum}*1.02, P${rowNum} < 35), "BOUNCE PLAY", AND(W${rowNum} > 1.0, O${rowNum} > 1.5), "VOLATILITY SQUEEZE", B${rowNum} < N${rowNum}, "AVOID (BEAR)", AND(B${rowNum} > N${rowNum}, O${rowNum} > 1.2, B${rowNum} > T${rowNum}, Q${rowNum} > 0), "STRONG BREAKOUT", AND(B${rowNum} > N${rowNum}, W${rowNum} < 0.15, P${rowNum} < 35, Q${rowNum} > 0), "STRONG BUY (OVERSOLD)", AND(B${rowNum} > N${rowNum}, R${rowNum} = "BULLISH DIV", Q${rowNum} > -0.5), "ACCUMULATE (DIV)", AND(B${rowNum} > N${rowNum}, B${rowNum} > L${rowNum}, B${rowNum} < T${rowNum}, Q${rowNum} > 0), "RIDE TREND", TRUE, "WAIT (CHOP)"), "Wait")`,
-     `=IFS(REGEXMATCH(E${rowNum}, "STOP"), "🛑 STOP OUT", REGEXMATCH(E${rowNum}, "REJECT|TAKE"), "💰 CASH OUT", AND(REGEXMATCH(E${rowNum}, "STRONG|ACCUMULATE|BREAKOUT|BOUNCE|SQUEEZE"), D${rowNum}="💎 GEM (Value)"), "💎 PRIME BUY", AND(REGEXMATCH(E${rowNum}, "STRONG|ACCUMULATE|BREAKOUT|BOUNCE|SQUEEZE"), D${rowNum}="💀 ZOMBIE"), "⚠️ GAMBLE", REGEXMATCH(E${rowNum}, "STRONG|ACCUMULATE|BREAKOUT|BOUNCE|SQUEEZE"), "🚀 TRADE", E${rowNum}="RIDE TREND", "🌊 HOLD (RIDE)", E${rowNum}="AVOID (BEAR)", "💤 AVOID", TRUE, "⏳ WAIT")`,
-     `=IFERROR(DATA!${columnToLetter(tickerDataStart + 1)}3, "-")`,
-     `=IFERROR((B${rowNum}-G${rowNum})/G${rowNum}, 0)`,
-     `=IFERROR(ROUND((U${rowNum}-B${rowNum})/MAX(0.01, B${rowNum}-S${rowNum}), 2), 0)`,
-     `=REPT("★", (B${rowNum}>AVERAGE(OFFSET(DATA!$${closeCol}$4, ${lastRow}-20, 0, 20))) + (B${rowNum}>AVERAGE(OFFSET(DATA!$${closeCol}$4, ${lastRow}-50, 0, 50))))`,
-     `=IF(B${rowNum}>AVERAGE(OFFSET(DATA!$${closeCol}$4, ${lastRow}-200, 0, 200)), "BULL REGIME", "BEAR REGIME")`,
-     `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$4, ${lastRow}-20, 0, 20)), 0), 2)`,
-     `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$4, ${lastRow}-50, 0, 50)), 0), 2)`,
-     `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$4, ${lastRow}-200, 0, 200)), 0), 2)`,
-     `=ROUND(IFERROR(OFFSET(DATA!$${columnToLetter(tickerDataStart+5)}$4, ${lastRow}-1, 0) / AVERAGE(OFFSET(DATA!$${columnToLetter(tickerDataStart+5)}$4, ${lastRow}-21, 0, 20)), 1), 2)`,
-     `=LIVERSI(DATA!$${closeCol}$4:$${closeCol}, B${rowNum})`,
-     `=LIVEMACD(DATA!$${closeCol}$4:$${closeCol}, B${rowNum})`,
-     `=IFERROR(IFS(AND(B${rowNum} < INDEX(DATA!$${closeCol}:$${closeCol}, ${lastRow}-14), P${rowNum} > 50), "BULLISH DIV", AND(B${rowNum} > INDEX(DATA!$${closeCol}:$${closeCol}, ${lastRow}-14), P${rowNum} < 50), "BEARISH DIV", TRUE, "-"), "-")`,
-     `=ROUND(IFERROR(MIN(OFFSET(DATA!$${columnToLetter(tickerDataStart+3)}$4, ${lastRow}-21, 0, 20)), B${rowNum}*0.9), 2)`,
-     `=ROUND(B${rowNum} + ((B${rowNum}-S${rowNum}) * 3), 2)`,
-     `=ROUND(IFERROR(MAX(OFFSET(DATA!$${columnToLetter(tickerDataStart+2)}$4, ${lastRow}-51, 0, 50)), B${rowNum}*1.1), 2)`,
-     `=ROUND(IFERROR(AVERAGE(ARRAYFORMULA(OFFSET(DATA!$${columnToLetter(tickerDataStart+2)}$4, ${lastRow}-14, 0, 14)-OFFSET(DATA!$${columnToLetter(tickerDataStart+3)}$4, ${lastRow}-14, 0, 14))), 0), 2)`,
-     `=ROUND(IFERROR(((B${rowNum}-AVERAGE(OFFSET(DATA!$${closeCol}$4, ${lastRow}-20, 0, 20))) / (4*STDEV(OFFSET(DATA!$${closeCol}$4, ${lastRow}-20, 0, 20)))) + 0.5, 0.5), 2)`,
+  if (tickers.length > 0) {
+    calcSheet.getRange(3, 1, tickers.length, 1).setValues(tickers.map(t => [t]));
+    calcSheet.getRange(3, 2, formulas.length, 24).setFormulas(formulas);
     
-     // X: TECH REASONING
-     `="1. TREND: " & K${rowNum} & ". Price ($" & B${rowNum} & ") is " & IF(B${rowNum}>N${rowNum}, "stable above", "weak below") & " 200SMA anchor." & CHAR(10) &
-       "2. MOMENTUM: RSI " & P${rowNum} & " (" & IF(AND(P${rowNum}>40,P${rowNum}<60),"Stable","Action") & ") + MACD " & Q${rowNum} & "." & CHAR(10) &
-       "3. STRUCTURE: " & IFS(AND(W${rowNum}>0.2, W${rowNum}<0.8), "Mid-Channel (No Edge).", W${rowNum}<=0.2, "Support Floor.", TRUE, "Breakout/Resistance.")`,
-    
-     // Y: FUND REASONING
-     `="1. VALUATION: " & D${rowNum} & ". P/E " & IFERROR(GOOGLEFINANCE(A${rowNum}, "pe"),"-") & "." & CHAR(10) &
-       "2. VERDICT: " & F${rowNum} & ". Signal Turn Monitor is " & IF(Z${rowNum}="","Pending","Watching " & Z${rowNum})`
-   ]);
- });
- calcSheet.getRange(3, 1, tickers.length, 1).setValues(tickers.map(t => [t]));
- calcSheet.getRange(3, 2, formulas.length, 24).setFormulas(formulas);
- SpreadsheetApp.flush();
+    // FORMATTING: PERCENTAGES
+    calcSheet.getRange("C3:C").setNumberFormat("0.00%"); // Change %
+    calcSheet.getRange("H3:H").setNumberFormat("0.00%"); // ATH Diff %
+    calcSheet.getRange("W3:W").setNumberFormat("0.00%"); // Bollinger %B
+  }
 
- // UI & BORDERS
- calcSheet.setFrozenRows(2);
- calcSheet.setFrozenColumns(1);
- for (let col = 1; col <= 23; col++) calcSheet.setColumnWidth(col, 70);
- calcSheet.setColumnWidth(24, 500); calcSheet.setColumnWidth(25, 500); calcSheet.setColumnWidth(26, 100);
- calcSheet.getRange("A:W").setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP);
- calcSheet.getRange("X:Y").setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
- 
- const lastRowVal = calcSheet.getLastRow();
- const fullRange = calcSheet.getRange(1, 1, lastRowVal, 26);
- fullRange.setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
- headerRange.setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+  // 4. UI CONFIGURATION
+  const lastRowVal = calcSheet.getLastRow();
+  const fullRange = calcSheet.getRange(1, 1, lastRowVal, 27);
+  fullRange.setHorizontalAlignment("left").setVerticalAlignment("top");
+  
+  for (let col = 1; col <= 23; col++) calcSheet.setColumnWidth(col, 65); // 8-char width
+  calcSheet.setColumnWidth(24, 600); // Tech Reasoning
+  calcSheet.setColumnWidth(25, 600); // Fund Reasoning
+  
+  calcSheet.getRange("A:W").setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP);
+  calcSheet.getRange("X:Y").setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
+  
+  fullRange.setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
+  headerRange.setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+  calcSheet.setFrozenRows(2);
+  calcSheet.setFrozenColumns(1);
 }
 
 
@@ -403,45 +417,62 @@ function generateCalculationsSheet() {
 */
 
 function generateDashboardSheet() {
- const ss = SpreadsheetApp.getActiveSpreadsheet();
- const inputSheet = ss.getSheetByName("INPUT");
- if (!inputSheet) return;
- let dashboard = ss.getSheetByName("DASHBOARD") || ss.insertSheet("DASHBOARD", inputSheet.getIndex() + 1);
- dashboard.clear().clearFormats();
- 
- const headers = [["Ticker", "Price", "Change %", "FUNDAMENTAL", "SIGNAL", "DECISION", "ATH (TRUE)", "ATH Diff %", "R:R Quality", "Trend Score", "Trend State", "SMA 20", "SMA 50", "SMA 200", "Vol Trend", "RSI", "MACD Hist", "Divergence", "Support", "Target (3:1)", "Resistance", "ATR (14)", "Bollinger %B", "TECH ANALYSIS", "FUND ANALYSIS"]];
- const headerRange = dashboard.getRange(2, 1, 1, 25);
- headerRange.setValues(headers).setBackground("#212121").setFontColor("white").setFontWeight("bold");
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const inputSheet = ss.getSheetByName("INPUT");
+  let dash = ss.getSheetByName("DASHBOARD") || ss.insertSheet("DASHBOARD", inputSheet.getIndex() + 1);
+  dash.clear().clearFormats();
+  
+  // 1. HEADERS (26 Columns including Pulse Helper)
+  const headers = [["Ticker", "Price", "Change %", "FUNDAMENTAL", "SIGNAL", "DECISION", "ATH (TRUE)", "ATH Diff %", "R:R Quality", "Trend Score", "Trend State", "SMA 20", "SMA 50", "SMA 200", "Vol Trend", "RSI", "MACD Hist", "Divergence", "Support", "Target (3:1)", "Resistance", "ATR (14)", "Bollinger %B", "TECH ANALYSIS", "FUND ANALYSIS", "PULSE"]];
+  const headerRange = dash.getRange(2, 1, 1, 26);
+  headerRange.setValues(headers).setBackground("#212121").setFontColor("white").setFontWeight("bold");
+  
+  // 2. MASTER FILTER FORMULA (Syncing A-Y Data + AA Blink Flag)
+  dash.getRange("A3").setFormula('=IFERROR(SORT({CALCULATIONS!$A$3:$Y, CALCULATIONS!$AA$3:$AA}, 3, FALSE), "No Matches Found")');
+  
+  SpreadsheetApp.flush();
+  const lastRow = Math.max(dash.getLastRow(), 3);
+  const fullRange = dash.getRange(1, 1, lastRow, 26);
 
- const formula = '=IFERROR(SORT(FILTER(CALCULATIONS!$A$3:$Y, ISNUMBER(MATCH(CALCULATIONS!$A$3:$A, FILTER(INPUT!$A$3:$A, (IF(OR(INPUT!$B$1="", INPUT!$B$1="ALL"), 1, REGEXMATCH(INPUT!$B$3:$B, "(?i)\\b(" & SUBSTITUTE(SUBSTITUTE(INPUT!$B$1, ", ", "|"), ",", "|") & ")\\b"))) * (IF(OR(INPUT!$C$1="", INPUT!$C$1="ALL"), 1, REGEXMATCH(INPUT!$C$3:$C, "(?i)\\b(" & SUBSTITUTE(SUBSTITUTE(INPUT!$C$1, ", ", "|"), ",", "|") & ")\\b")))), 0))), 3, FALSE), "No Matches Found")';
- dashboard.getRange("A3").setFormula(formula);
+  // 3. UI LAYOUT (LEFT ALIGN + 8-CHAR DATA)
+  fullRange.setHorizontalAlignment("left").setVerticalAlignment("top");
+  for (let col = 1; col <= 23; col++) dash.setColumnWidth(col, 65);
+  dash.setColumnWidth(24, 600); 
+  dash.setColumnWidth(25, 600);
+  dash.setColumnWidth(26, 1); // Hidden Pulse Helper
 
- SpreadsheetApp.flush(); 
- const lastRow = Math.max(dashboard.getLastRow(), 3);
+  dash.getRange("A:W").setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP);
+  dash.getRange("X:Y").setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
 
- // LAYOUT
- dashboard.setFrozenRows(2);
- dashboard.setFrozenColumns(1);
- for (let col = 1; col <= 23; col++) dashboard.setColumnWidth(col, 70);
- dashboard.setColumnWidth(24, 500); dashboard.setColumnWidth(25, 500);
- dashboard.getRange("A:W").setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP);
- dashboard.getRange("X:Y").setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
+  // 4. FORMATTING: PERCENTAGES
+  dash.getRange("C3:C").setNumberFormat("0.00%");
+  dash.getRange("H3:H").setNumberFormat("0.00%");
+  dash.getRange("W3:W").setNumberFormat("0.00%");
 
- // COLOR RULES (Contribution Based)
- const rules = [];
- rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=$B3<$N3').setFontColor("#C62828").setBold(true).setRanges([dashboard.getRange("B3:B"), dashboard.getRange("N3:N")]).build()); // Price vs SMA 200
- rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=$M3<$N3').setFontColor("#C62828").setRanges([dashboard.getRange("M3:M")]).build()); // Death Cross
- rules.push(SpreadsheetApp.newConditionalFormatRule().whenNumberGreaterThan(70).setFontColor("#C62828").setRanges([dashboard.getRange("P3:P")]).build()); // RSI Overbought
- rules.push(SpreadsheetApp.newConditionalFormatRule().whenNumberGreaterThanOrEqualTo(0).setFontColor("#2E7D32").setBold(true).setRanges([dashboard.getRange("H3:H")]).build()); // ATH
- rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=REGEXMATCH($D3, "(?i)ZOMBIE|BUBBLE|PRICED")').setFontColor("#C62828").setBold(true).setRanges([dashboard.getRange("D3:D")]).build()); // Fund Weakness
- 
- // Background Heatmap
- rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=REGEXMATCH($E3&$F3, "(?i)PRIME|TRADE|BUY")').setBackground("#E8F5E9").setFontColor("#2E7D32").setBold(true).setRanges([dashboard.getRange("E3:F")]).build());
- rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=REGEXMATCH($E3&$F3, "(?i)STOP|REJECT|AVOID")').setBackground("#FFEBEE").setFontColor("#C62828").setBold(true).setRanges([dashboard.getRange("E3:F")]).build());
- rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=REGEXMATCH($E3&$F3, "(?i)WAIT|CHOP")').setBackground("#F5F5F5").setFontColor("#616161").setRanges([dashboard.getRange("E3:F")]).build());
+  // 5. COLOR RULES (INDICATOR INFLUENCE)
+  const rules = [];
+  
+  // Fundamental Health
+  rules.push(SpreadsheetApp.newConditionalFormatRule().whenTextEqualTo("💎 GEM (Value)").setFontColor("#2E7D32").setBold(true).setRanges([dash.getRange("D3:D")]).build());
+  rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=REGEXMATCH($D3, "(?i)ZOMBIE|BUBBLE|PRICED")').setFontColor("#C62828").setBold(true).setRanges([dash.getRange("D3:D")]).build());
 
- dashboard.setConditionalFormatRules(rules);
- dashboard.getRangeList(['C3:C', 'H3:H', 'W3:W']).setNumberFormat("0.00%");
+  // Momentum Contribution (RSI/MACD)
+  rules.push(SpreadsheetApp.newConditionalFormatRule().whenNumberLessThan(35).setFontColor("#2E7D32").setBold(true).setRanges([dash.getRange("P3:P")]).build());
+  rules.push(SpreadsheetApp.newConditionalFormatRule().whenNumberGreaterThan(70).setFontColor("#C62828").setRanges([dash.getRange("P3:P")]).build());
+  rules.push(SpreadsheetApp.newConditionalFormatRule().whenNumberLessThan(0).setFontColor("#C62828").setRanges([dash.getRange("Q3:Q")]).build());
+
+  // Regime Anchor (Price vs SMA 200)
+  rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=$B3<$N3').setFontColor("#C62828").setBold(true).setRanges([dash.getRange("B3:B"), dash.getRange("N3:N")]).build());
+
+  // Signal Turn Pulse
+  rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=$Z3=TRUE').setBackground("#00FFFF").setRanges([dash.getRange("A3:A")]).build());
+
+  dash.setConditionalFormatRules(rules);
+
+  // 6. BORDERS
+  fullRange.setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
+  headerRange.setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+  dash.setFrozenRows(2);
 }
 
 /**
