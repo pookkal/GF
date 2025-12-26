@@ -7,6 +7,11 @@
 * ==============================================================================
 */
 
+/**
+* ------------------------------------------------------------------
+*  Open LOGIc ENGINE (INSERT MENU)
+* ------------------------------------------------------------------
+*/
 
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
@@ -15,23 +20,48 @@ function onOpen() {
     .addSeparator()
     .addItem('1. Fetch Data Only', 'generateDataSheet')
     .addItem('2. Build Calculations', 'generateCalculationsSheet')
+    .addSeparator()
     .addItem('3. Refresh Dashboard Only', 'generateDashboardSheet')
     .addItem('4. Setup Chart Only', 'setupChartSheet')
     .addSeparator()
-    .addItem('🔔 Start Market Monitor', 'startMarketMonitor') // New
-    .addItem('🔕 Stop Monitor', 'stopMarketMonitor')       // New
+    .addItem('📖 Open Reference Guide', 'generateReferenceSheet')
+    .addSeparator()
+    .addItem('🔔 Start Market Monitor', 'startMarketMonitor')
+    .addItem('🔕 Stop Monitor', 'stopMarketMonitor')
     .addItem('📩 Test Alert Now', 'checkSignalsAndSendAlerts')
     .addToUi();
 }
 
+/**
+* ------------------------------------------------------------------
+* GLOBAL TRIGGER ENGINE (B1 CHECKBOX CLEANUP)
+* ------------------------------------------------------------------
+*/
+function onEdit(e) {
+  const range = e.range;
+  const sheet = range.getSheet();
+  const a1 = range.getA1Notation();
+
+  if (sheet.getName() === "DASHBOARD" && a1 === "B1" && e.value === "TRUE") {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    ss.toast("Recalculating Signals...", "⚙️ SYSTEM", 3);
+    
+    try {
+      generateCalculationsSheet(); 
+      generateDashboardSheet();    // Rebuilds UI and resets checkbox naturally
+      ss.toast("Terminal Synchronized.", "✅ DONE", 2);
+    } catch (err) {
+      sheet.getRange("B1").setValue("FALSE"); // Force cleanup on fail
+      ss.toast("Error: " + err.toString(), "⚠️ FAIL", 5);
+    }
+  }
+}
 
 /**
 * ------------------------------------------------------------------
 * 1. CUSTOM MATH FUNCTIONS
 * ------------------------------------------------------------------
 */
-
-
 function LIVERSI(history, currentPrice) {
   if (!history || !currentPrice) return 50;
   let raw = history.flat();
@@ -61,7 +91,6 @@ function LIVERSI(history, currentPrice) {
   return Number((100 - (100 / (1 + (avgGain / avgLoss)))).toFixed(2));
 }
 
-
 function LIVEMACD(history, currentPrice) {
   if (!history || !currentPrice) return 0;
   let raw = history.flat();
@@ -72,7 +101,6 @@ function LIVEMACD(history, currentPrice) {
   }
   closes.push(currentPrice);
   if (closes.length < 26) return 0;
-
 
   function calculateEMA(data, period) {
     let k = 2 / (period + 1);
@@ -85,7 +113,6 @@ function LIVEMACD(history, currentPrice) {
     return emaArray;
   }
 
-
   const ema12 = calculateEMA(closes, 12);
   const ema26 = calculateEMA(closes, 26);
   let macdLine = [];
@@ -96,19 +123,17 @@ function LIVEMACD(history, currentPrice) {
   return Number((macdLine[macdLine.length - 1] - signalLineArr[signalLineArr.length - 1]).toFixed(3));
 }
 
-
 /**
 * ------------------------------------------------------------------
 * 2. CORE AUTOMATION
 * ------------------------------------------------------------------
 */
 
-
 function FlushAllSheetsAndBuild() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheetsToDelete = ["DATA", "CALCULATIONS", "CHART", "DASHBOARD"];
   const ui = SpreadsheetApp.getUi();
-  if (ui.alert('🚨 Full Rebuild', 'Activate V111 Hybrid Text?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  if (ui.alert('🚨 Full Rebuild', 'Rebuild the sheets?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
 
 
   sheetsToDelete.forEach(name => {
@@ -116,166 +141,29 @@ function FlushAllSheetsAndBuild() {
     if (sheet) ss.deleteSheet(sheet);
   });
 
-
   ui.showModelessDialog(HtmlService.createHtmlOutput("<b>1/4:</b> Syncing Global Data..."), "Status");
   generateDataSheet();
   SpreadsheetApp.flush();
   Utilities.sleep(2000);
 
-
   ui.showModelessDialog(HtmlService.createHtmlOutput("<b>2/4:</b> Integrating Indicators..."), "Status");
   generateCalculationsSheet();
   SpreadsheetApp.flush();
 
-
   ui.showModelessDialog(HtmlService.createHtmlOutput("<b>3/4:</b> Building Dashboard..."), "Status");
   generateDashboardSheet();
   SpreadsheetApp.flush();
-
 
   ui.showModelessDialog(HtmlService.createHtmlOutput("<b>4/4:</b> Constructing Chart..."), "Status");
   setupChartSheet();
   ui.alert('✅ Rebuild Complete', 'V111 Online. Data links restored.', ui.ButtonSet.OK);
 }
 
-
-function onEdit(e) {
-  const sheet = e.range.getSheet();
-  if (sheet.getName() === "INPUT" && (e.range.getA1Notation() === "B1" || e.range.getA1Notation() === "C1")) {
-    generateDashboardSheet();
-  }
-  if (sheet.getName() === "CHART") {
-    const watchList = ["B1", "D2", "A3", "B3", "C3"];
-    if (watchList.includes(e.range.getA1Notation()) || (e.range.getRow() === 1 && e.range.getColumn() <= 4)) {
-      updateDynamicChart();
-    }
-  }
-}
-
-
 /**
 * ------------------------------------------------------------------
-* 3. CHART ENGINE
+* 3. DATA ENGINE
 * ------------------------------------------------------------------
 */
-
-
-function updateDynamicChart() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("CHART");
-  const dataSheet = ss.getSheetByName("DATA");
-  if (!sheet || !dataSheet) return;
-
-
-  SpreadsheetApp.flush();
-
-
-  sheet.getRange("E5").setValue("Updated: " + Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), "HH:mm:ss")).setFontColor("gray").setFontSize(8).setHorizontalAlignment("right");
-
-
-  const ticker = sheet.getRange("B1").getValue();
-  const isWeekly = sheet.getRange("D2").getValue() === "WEEKLY";
-  const years = sheet.getRange("A3").getValue() || 0;
-  const months = sheet.getRange("B3").getValue() || 0;
-  const days = sheet.getRange("C3").getValue() || 0;
-  const now = new Date();
-  let startDate = new Date(now.getFullYear() - years, now.getMonth() - months, now.getDate() - days);
-  if ((now - startDate) < (7 * 24 * 60 * 60 * 1000)) {
-    startDate = new Date();
-    startDate.setDate(now.getDate() - 14);
-  }
-
-
-  const supportVal = Number(sheet.getRange("B32").getValue()) || 0;
-  const resistanceVal = Number(sheet.getRange("B33").getValue()) || 0;
-  let livePrice = Number(sheet.getRange("B8").getValue()) || 0;
-
-
-  const rawHeaders = dataSheet.getRange(2, 1, 1, dataSheet.getLastColumn()).getValues()[0];
-  const colIdx = rawHeaders.indexOf(ticker);
-  if (colIdx === -1) {
-    sheet.getRange("E1").setValue("⚠️ Ticker Not Found");
-    return;
-  }
-
-
-  const rawData = dataSheet.getRange(1, colIdx + 1, dataSheet.getLastRow(), 6).getValues();
-  let masterData = [], viewVols = [], prices = [];
-
-
-  for (let i = 4; i < rawData.length; i++) {
-    let row = rawData[i], d = row[0], close = Number(row[4]), vol = Number(row[5]);
-    if (!d || !(d instanceof Date) || isNaN(close) || close < 0.01) continue;
-    if (d < startDate) continue;
-    if (isWeekly && d.getDay() !== 5) continue;
-
-
-    let slice = rawData.slice(Math.max(4, i - 200), i + 1).map(r => r[4]);
-    let s20 = slice.length >= 20 ? Number((slice.slice(-20).reduce((a, b) => a + b, 0) / 20).toFixed(2)) : null;
-    let s50 = slice.length >= 50 ? Number((slice.slice(-50).reduce((a, b) => a + b, 0) / 50).toFixed(2)) : null;
-    let s200 = slice.length >= 200 ? Number((slice.slice(-200).reduce((a, b) => a + b, 0) / 200).toFixed(2)) : null;
-
-
-    masterData.push([
-      Utilities.formatDate(d, ss.getSpreadsheetTimeZone(), "MMM dd"),
-      close,
-      (close >= (i > 4 ? rawData[i - 1][4] : close)) ? vol : null,
-      (close < (i > 4 ? rawData[i - 1][4] : close)) ? vol : null,
-      s20, s50, s200, resistanceVal, supportVal
-    ]);
-
-
-    viewVols.push(vol); prices.push(close);
-    if (s20) prices.push(s20); if (s50) prices.push(s50); if (s200) prices.push(s200);
-  }
-
-
-  let candleLabel = "🔴 LIVE";
-  if (livePrice === 0 && prices.length > 0) {
-    livePrice = prices[prices.length - 1];
-    candleLabel = "⏳ SYNCING";
-  }
-
-
-  if (livePrice > 0) {
-    let allCloses = rawData.slice(4).map(r => Number(r[4])).filter(n => n > 0);
-    let sma20Arr = allCloses.slice(-19); sma20Arr.push(livePrice);
-    let sma50Arr = allCloses.slice(-49); sma50Arr.push(livePrice);
-    let sma200Arr = allCloses.slice(-199); sma200Arr.push(livePrice);
-    let liveS20 = sma20Arr.length >= 20 ? sma20Arr.reduce((a, b) => a + b, 0) / 20 : null;
-    let liveS50 = sma50Arr.length >= 50 ? sma50Arr.reduce((a, b) => a + b, 0) / 50 : null;
-    let liveS200 = sma200Arr.length >= 200 ? sma200Arr.reduce((a, b) => a + b, 0) / 200 : null;
-    masterData.push([candleLabel, livePrice, null, null, liveS20, liveS50, liveS200, resistanceVal, supportVal]);
-    prices.push(livePrice);
-  }
-
-
-  sheet.getRange(3, 26, 2000, 9).clearContent();
-  if (masterData.length === 0) return;
-  if (supportVal > 0) prices.push(supportVal);
-  if (resistanceVal > 0) prices.push(resistanceVal);
-
-
-  const minP = Math.min(...prices.filter(p => p > 0)) * 0.98;
-  const maxP = Math.max(...prices.filter(p => p > 0)) * 1.02;
-  const maxVol = Math.max(...viewVols);
-
-
-  sheet.getRange(2, 26, 1, 9).setValues([["Date", "Price", "Bull Vol", "Bear Vol", "SMA 20", "SMA 50", "SMA 200", "Resistance", "Support"]]).setFontWeight("bold").setFontColor("white");
-  sheet.getRange(3, 26, masterData.length, 9).setValues(masterData);
-  SpreadsheetApp.flush();
-  sheet.getCharts().forEach(c => sheet.removeChart(c));
-  const chart = sheet.newChart().setChartType(Charts.ChartType.COMBO).addRange(sheet.getRange(2, 26, masterData.length + 1, 9)).setOption('useFirstRowAsHeaders', true).setOption('series', { 0: { type: 'line', color: '#1A73E8', lineWidth: 3, labelInLegend: 'Price' }, 1: { type: 'bars', color: '#2E7D32', targetAxisIndex: 1, labelInLegend: 'Bull Vol' }, 2: { type: 'bars', color: '#C62828', targetAxisIndex: 1, labelInLegend: 'Bear Vol' }, 3: { type: 'line', color: '#FBBC04', lineWidth: 1.5, labelInLegend: 'SMA 20' }, 4: { type: 'line', color: '#9C27B0', lineWidth: 1.5, labelInLegend: 'SMA 50' }, 5: { type: 'line', color: '#FF9800', lineWidth: 2, labelInLegend: 'SMA 200' }, 6: { type: 'line', color: '#B71C1C', lineDashStyle: [4, 4], labelInLegend: 'Resistance' }, 7: { type: 'line', color: '#0D47A1', lineDashStyle: [4, 4], labelInLegend: 'Support' } }).setOption('vAxes', { 0: { viewWindow: { min: minP, max: maxP } }, 1: { viewWindow: { min: 0, max: maxVol * 4 }, textStyle: { color: '#666' }, format: 'short' } }).setOption('legend', { position: 'top', textStyle: { fontSize: 10 } }).setPosition(5, 3, 0, 0).setOption('width', 1150).setOption('height', 650).build();
-  sheet.insertChart(chart);
-}
-
-
-/**
-* ------------------------------------------------------------------
-* 4. DATA ENGINE
-* ------------------------------------------------------------------
-*/
-
 
 function generateDataSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -296,7 +184,6 @@ function generateDataSheet() {
   });
 }
 
-
 function getCleanTickers(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 3) return [];
@@ -313,7 +200,7 @@ function forceExpandSheet(sheet, targetCols) {
 
 /**
 * ------------------------------------------------------------------
-* 5. CALCULATION ENGINE (REVISED HEADER & FREEZE)
+* 4. CALCULATION ENGINE (V300 ALPHA - FULL AUDIT CLARITY)
 * ------------------------------------------------------------------
 */
 function generateCalculationsSheet() {
@@ -323,162 +210,163 @@ function generateCalculationsSheet() {
   if (!dataSheet) return;
   const tickers = getCleanTickers(inputSheet);
   let calcSheet = ss.getSheetByName("CALCULATIONS") || ss.insertSheet("CALCULATIONS");
+
+  const stateMap = {};
+  if (calcSheet.getLastRow() >= 3) {
+    const existingData = calcSheet.getRange(3, 1, calcSheet.getLastRow() - 2, 26).getValues();
+    existingData.forEach(row => { if (row[0]) stateMap[row[0]] = row[25]; });
+  }
+
   calcSheet.clear().clearFormats();
 
+  // Add TIMESTAMP (Cell A1) ---
+  const syncTime = Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), "yyyy-MM-dd HH:mm:ss");
+  calcSheet.getRange("A1").setValue(syncTime)
+    .setFontSize(8)
+    .setFontColor("#757575")
+    .setFontStyle("italic");
 
-  // ID Header (Independent A) and Core Ident (B-F)
-  calcSheet.getRange("A1").setValue("ID").setBackground("#212121").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
+  // --- COLUMN GROUP HEADERS ---
   calcSheet.getRange("B1:F1").merge().setValue("[ CORE IDENT ]").setBackground("#263238").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
   calcSheet.getRange("G1:I1").merge().setValue("[ PERFORMANCE ]").setBackground("#0D47A1").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
   calcSheet.getRange("J1:R1").merge().setValue("[ MOMENTUM ]").setBackground("#1B5E20").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
   calcSheet.getRange("S1:W1").merge().setValue("[ RISK LEVELS ]").setBackground("#B71C1C").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
   calcSheet.getRange("X1:Y1").merge().setValue("[ SPLIT ANALYST ]").setBackground("#424242").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
-  calcSheet.getRange("Z1").setValue("MONITOR").setBackground("#212121").setFontColor("white").setHorizontalAlignment("center").setFontWeight("bold");
-
 
   const headers = [["Ticker", "Price", "Change %", "FUNDAMENTAL", "SIGNAL", "DECISION", "ATH (TRUE)", "ATH Diff %", "R:R Quality", "Trend Score", "Trend State", "SMA 20", "SMA 50", "SMA 200", "Vol Trend", "RSI", "MACD Hist", "Divergence", "Support", "Target (3:1)", "Resistance", "ATR (14)", "Bollinger %B", "TECH_REASON", "FUND_REASON", "LAST_STATE"]];
-  const headerRange = calcSheet.getRange(2, 1, 1, 26);
-  headerRange.setValues(headers).setBackground("#212121").setFontColor("white").setFontWeight("bold");
+  calcSheet.getRange(2, 1, 1, 26).setValues(headers).setBackground("#212121").setFontColor("white").setFontWeight("bold");
+
   const formulas = [];
+  const restoredStates = [];
+
   tickers.forEach((ticker, i) => {
-    const rowNum = i + 3, tickerDataStart = (i * 7) + 1, closeCol = columnToLetter(tickerDataStart + 4), lastRow = `COUNTA(DATA!$${closeCol}:$${closeCol})`;
+    const rowNum = i + 3;
+    const tDS = (i * 7) + 1;
+    const closeCol = columnToLetter(tDS + 4);
+    const lastRow = `COUNTA(DATA!$${closeCol}:$${closeCol})`;
+    restoredStates.push([stateMap[ticker] || ""]);
+
     formulas.push([
       `=ROUND(IFERROR(GOOGLEFINANCE("${ticker}", "price")), 2)`,
       `=IFERROR(GOOGLEFINANCE("${ticker}", "changepct")/100, 0)`,
       `=IFERROR(LET(eps, GOOGLEFINANCE(A${rowNum}, "eps"), pe, GOOGLEFINANCE(A${rowNum}, "pe"), IFS(AND(eps>0, pe>0, pe<25), "💎 GEM (Value)", AND(eps>0, pe>50), "⚠️ PRICED PERF.", eps<0, "💀 ZOMBIE", AND(pe>30, eps<0.1), "🔴 BUBBLE", TRUE, "⚖️ FAIR")), "-")`,
-      `=IFERROR(IFS(B${rowNum} < S${rowNum}, "STOP LOSS", B${rowNum} >= U${rowNum}, "RESISTANCE REJECT", AND(B${rowNum} <= S${rowNum}*1.02, P${rowNum} < 35), "BOUNCE PLAY", AND(W${rowNum} > 1.0, O${rowNum} > 1.5), "VOLATILITY SQUEEZE", B${rowNum} < N${rowNum}, "AVOID (BEAR)", AND(B${rowNum} > N${rowNum}, O${rowNum} > 1.2, B${rowNum} > T${rowNum}, Q${rowNum} > 0), "STRONG BREAKOUT", AND(B${rowNum} > N${rowNum}, W${rowNum} < 0.15, P${rowNum} < 35, Q${rowNum} > 0), "STRONG BUY (OVERSOLD)", AND(B${rowNum} > N${rowNum}, R${rowNum} = "BULLISH DIV", Q${rowNum} > -0.5), "ACCUMULATE (DIV)", AND(B${rowNum} > N${rowNum}, B${rowNum} > L${rowNum}, B${rowNum} < T${rowNum}, Q${rowNum} > 0), "RIDE TREND", TRUE, "WAIT (CHOP)"), "Wait")`,
-      `=IFS(REGEXMATCH(E${rowNum}, "STOP"), "🛑 STOP OUT", REGEXMATCH(E${rowNum}, "REJECT|TAKE"), "💰 CASH OUT", AND(REGEXMATCH(E${rowNum}, "STRONG|ACCUMULATE|BREAKOUT|BOUNCE|SQUEEZE"), D${rowNum}="💎 GEM (Value)"), "💎 PRIME BUY", AND(REGEXMATCH(E${rowNum}, "STRONG|ACCUMULATE|BREAKOUT|BOUNCE|SQUEEZE"), D${rowNum}="💀 ZOMBIE"), "⚠️ GAMBLE", REGEXMATCH(E${rowNum}, "STRONG|ACCUMULATE|BREAKOUT|BOUNCE|SQUEEZE"), "🚀 TRADE", E${rowNum}="RIDE TREND", "🌊 HOLD (RIDE)", E${rowNum}="AVOID (BEAR)", "💤 AVOID", TRUE, "⏳ WAIT")`,
-      `=IFERROR(DATA!${columnToLetter(tickerDataStart + 1)}3, "-")`,
+      `=IF(OR(ISBLANK(B${rowNum}), B${rowNum}=0), "🔄 LOADING...", IFERROR(IFS(B${rowNum}<S${rowNum}, "STOP LOSS", B${rowNum}>=U${rowNum}*0.99, "RESISTANCE TEST", AND(O${rowNum}>1.5, B${rowNum}>L${rowNum}, Q${rowNum}>0), "RVOL BREAKOUT", AND(P${rowNum}<35, B${rowNum}>S${rowNum}), "RSI SUPPORT BOUNCE", AND(W${rowNum}<0.2, Q${rowNum}>0), "VOLATILITY SQUEEZE", B${rowNum}<N${rowNum}, "BEAR REGIME", TRUE, "CHOP"), "CHOP"))`,
+      `=IF(E${rowNum}="🔄 LOADING...", "🔄 LOADING...", IFS(REGEXMATCH(E${rowNum}, "STOP"), "🛑 STOP OUT", AND(E${rowNum}="RVOL BREAKOUT", I${rowNum}>1.5, D${rowNum}="💎 GEM (Value)"), "💎 PRIME BUY", AND(E${rowNum}="RVOL BREAKOUT", I${rowNum}<1.1), "⚠️ POOR R:R (AVOID)", AND(E${rowNum}="RVOL BREAKOUT", O${rowNum}<1.2), "🎣 FAKE-OUT (NO VOL)", AND(B${rowNum}>L${rowNum}+(2*V${rowNum})), "⏳ ATR OVEREXTENDED", AND(E${rowNum}="RSI SUPPORT BOUNCE", B${rowNum}>N${rowNum}), "🚀 TRADE", E${rowNum}="BEAR REGIME", "💤 AVOID", TRUE, "⏳ WAIT"))`,
+      `=IFERROR(DATA!${columnToLetter(tDS + 1)}3, "-")`,
       `=IFERROR((B${rowNum}-G${rowNum})/G${rowNum}, 0)`,
       `=IFERROR(ROUND((U${rowNum}-B${rowNum})/MAX(0.01, B${rowNum}-S${rowNum}), 2), 0)`,
-      `=REPT("★", (B${rowNum}>AVERAGE(OFFSET(DATA!$${closeCol}$4, ${lastRow}-20, 0, 20))) + (B${rowNum}>AVERAGE(OFFSET(DATA!$${closeCol}$4, ${lastRow}-50, 0, 50))))`,
-      `=IF(B${rowNum}>AVERAGE(OFFSET(DATA!$${closeCol}$4, ${lastRow}-200, 0, 200)), "BULL REGIME", "BEAR REGIME")`,
+      `=REPT("★", (B${rowNum}>L${rowNum}) + (B${rowNum}>M${rowNum}) + (B${rowNum}>N${rowNum}))`, 
+      `=IF(B${rowNum}>N${rowNum}, "BULL REGIME", "BEAR REGIME")`,
       `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$4, ${lastRow}-20, 0, 20)), 0), 2)`,
       `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$4, ${lastRow}-50, 0, 50)), 0), 2)`,
       `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$4, ${lastRow}-200, 0, 200)), 0), 2)`,
-      `=ROUND(IFERROR(OFFSET(DATA!$${columnToLetter(tickerDataStart + 5)}$4, ${lastRow}-1, 0) / AVERAGE(OFFSET(DATA!$${columnToLetter(tickerDataStart + 5)}$4, ${lastRow}-21, 0, 20)), 1), 2)`,
+      `=ROUND(IFERROR(OFFSET(DATA!$${columnToLetter(tDS+5)}$4, ${lastRow}-1, 0) / AVERAGE(OFFSET(DATA!$${columnToLetter(tDS+5)}$4, ${lastRow}-21, 0, 20)), 1), 2)`,
       `=LIVERSI(DATA!$${closeCol}$4:$${closeCol}, B${rowNum})`,
       `=LIVEMACD(DATA!$${closeCol}$4:$${closeCol}, B${rowNum})`,
-      `=IFERROR(IFS(AND(B${rowNum} < INDEX(DATA!$${closeCol}:$${closeCol}, ${lastRow}-14), P${rowNum} > 50), "BULLISH DIV", AND(B${rowNum} > INDEX(DATA!$${closeCol}:$${closeCol}, ${lastRow}-14), P${rowNum} < 50), "BEARISH DIV", TRUE, "-"), "-")`,
-      `=ROUND(IFERROR(MIN(OFFSET(DATA!$${columnToLetter(tickerDataStart + 3)}$4, ${lastRow}-21, 0, 20)), B${rowNum}*0.9), 2)`,
+      `=IFERROR(IFS(AND(B${rowNum}<INDEX(DATA!$${closeCol}:$${closeCol}, ${lastRow}-14), P${rowNum}>50), "BULLISH DIV", AND(B${rowNum}>INDEX(DATA!$${closeCol}:$${closeCol}, ${lastRow}-14), P${rowNum}<50), "BEARISH DIV", TRUE, "-"), "-")`,
+      `=ROUND(IFERROR(MIN(OFFSET(DATA!$${columnToLetter(tDS+3)}$4, ${lastRow}-21, 0, 20)), B${rowNum}*0.9), 2)`,
       `=ROUND(B${rowNum} + ((B${rowNum}-S${rowNum}) * 3), 2)`,
-      `=ROUND(IFERROR(MAX(OFFSET(DATA!$${columnToLetter(tickerDataStart + 2)}$4, ${lastRow}-51, 0, 50)), B${rowNum}*1.1), 2)`,
-      `=ROUND(IFERROR(AVERAGE(ARRAYFORMULA(OFFSET(DATA!$${columnToLetter(tickerDataStart + 2)}$4, ${lastRow}-14, 0, 14)-OFFSET(DATA!$${columnToLetter(tickerDataStart + 3)}$4, ${lastRow}-14, 0, 14))), 0), 2)`,
-      `=ROUND(IFERROR(((B${rowNum}-AVERAGE(OFFSET(DATA!$${closeCol}$4, ${lastRow}-20, 0, 20))) / (4*STDEV(OFFSET(DATA!$${closeCol}$4, ${lastRow}-20, 0, 20)))) + 0.5, 0.5), 2)`,
-
-      // X: TECH REASONING
-      `="1. TREND: " & K${rowNum} & ". Price ($" & B${rowNum} & ") is " & IF(B${rowNum}>N${rowNum}, "stable above", "weak below") & " 200SMA anchor." & CHAR(10) &
-      "2. MOMENTUM: RSI " & P${rowNum} & " (" & IF(AND(P${rowNum}>40,P${rowNum}<60),"Stable","Action") & ") + MACD " & Q${rowNum} & "." & CHAR(10) &
-      "3. STRUCTURE: " & IFS(AND(W${rowNum}>0.2, W${rowNum}<0.8), "Mid-Channel (No Edge).", W${rowNum}<=0.2, "Support Floor.", TRUE, "Breakout/Resistance.")`,
-
-      // Y: FUND REASONING
-      `="1. VALUATION: " & D${rowNum} & ". P/E " & IFERROR(GOOGLEFINANCE(A${rowNum}, "pe"),"-") & "." & CHAR(10) &
-      "2. VERDICT: " & F${rowNum} & ". Signal Turn Monitor is " & IF(Z${rowNum}="","Pending","Watching " & Z${rowNum})`
+      `=ROUND(IFERROR(MAX(OFFSET(DATA!$${columnToLetter(tDS+2)}$4, ${lastRow}-51, 0, 50)), B${rowNum}*1.1), 2)`,
+      `=ROUND(IFERROR(AVERAGE(ARRAYFORMULA(OFFSET(DATA!$${columnToLetter(tDS+2)}$4, ${lastRow}-14, 0, 14)-OFFSET(DATA!$${columnToLetter(tDS+3)}$4, ${lastRow}-14, 0, 14))), 0), 2)`,
+      `=ROUND(IFERROR(((B${rowNum}-L${rowNum}) / (4*STDEV(OFFSET(DATA!$${closeCol}$4, ${lastRow}-20, 0, 20)))) + 0.5, 0.5), 2)`,
+      
+      // X: REFINED TECH AUDIT (Explicit Indicators)
+      `="1. VOL CONVICTION (RVOL): " & IF(O${rowNum}>1.5, "Strong Institutional RVOL (" & O${rowNum} & "x).", "Low RVOL (" & O${rowNum} & "x). Negative Drag.") & CHAR(10) & 
+        "2. STRETCH (ATR/SMA): " & IF(B${rowNum} > L${rowNum} + (2*V${rowNum}), "Overextended > 2x ATR. Mean Reversion Risk.", "Safe Zone. Price within 2x ATR of SMA 20.") & CHAR(10) &
+        "3. RR SCORE: " & I${rowNum} & "x. " & IF(I${rowNum}>=3, "Institutional 3:1+ edge.", "Sub-optimal payout vs risk.") & CHAR(10) &
+        "4. MOMENTUM: RSI (" & P${rowNum} & ") is " & IF(P${rowNum}>70,"Overbought",IF(P${rowNum}<30,"Oversold","Stable")) & ". MACD is " & IF(Q${rowNum}>0,"Bullish.","Weak.")`,
+        
+      // Y: REFINED FUND AUDIT (Explicit Indicators)
+      `="1. VALUATION: " & D${rowNum} & ". P/E of " & IFERROR(GOOGLEFINANCE(A${rowNum}, "pe"),"N/A") & " with positive EPS." & CHAR(10) & 
+        "2. REGIME (SMA 200): " & K${rowNum} & ". Ticker is " & IF(B${rowNum}>N${rowNum}, "Long-term Bullish above structural SMA 200.", "Long-term Bearish below SMA 200 resistance.") & CHAR(10) & 
+        "3. VERDICT: " & F${rowNum} & ". Consensus of Momentum (RSI/MACD) and Structure (SMA)." `
     ]);
   });
+
   calcSheet.getRange(3, 1, tickers.length, 1).setValues(tickers.map(t => [t]));
   calcSheet.getRange(3, 2, formulas.length, 24).setFormulas(formulas);
-  SpreadsheetApp.flush();
+  
+  // APPLY % FORMATS
+  calcSheet.getRange("C3:C").setNumberFormat("0.00%");
+  calcSheet.getRange("H3:H").setNumberFormat("0.00%");
+  calcSheet.getRange("W3:W").setNumberFormat("0.00%");
 
-
-  // UI & BORDERS
-  calcSheet.setFrozenRows(2);
-  calcSheet.setFrozenColumns(1);
-  for (let col = 1; col <= 23; col++) calcSheet.setColumnWidth(col, 70);
-  calcSheet.setColumnWidth(24, 500); calcSheet.setColumnWidth(25, 500); calcSheet.setColumnWidth(26, 100);
-  calcSheet.getRange("A:W").setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP);
-  calcSheet.getRange("X:Y").setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
+  // NEGATIVE DRAG FORMATTING RULES
   const lastRowVal = calcSheet.getLastRow();
-  const fullRange = calcSheet.getRange(1, 1, lastRowVal, 26);
-  fullRange.setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
-  headerRange.setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+  const rules = [
+    SpreadsheetApp.newConditionalFormatRule().whenNumberLessThan(0).setFontColor("#C62828").setBold(true).setRanges([calcSheet.getRange("C3:C" + lastRowVal), calcSheet.getRange("H3:H" + lastRowVal), calcSheet.getRange("Q3:Q" + lastRowVal)]).build(),
+    SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=OR(P3>70, P3<30)').setFontColor("#C62828").setBold(true).setRanges([calcSheet.getRange("P3:P" + lastRowVal)]).build()
+  ];
+  calcSheet.setConditionalFormatRules(rules);
+
+  SpreadsheetApp.flush();
+  calcSheet.setFrozenRows(2);
 }
 
 /**
 * ------------------------------------------------------------------
-* 6. DASHBOARD ENGINE (UPDATED: TRIPLE-TIER FUNDAMENTALS + HIGH CONTRAST BORDERS)
+* 5. DASHBOARD ENGINE (V225 - FINAL UI & AUDIT SYNC)
 * ------------------------------------------------------------------
 */
 function generateDashboardSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const inputSheet = ss.getSheetByName("INPUT");
   if (!inputSheet) return;
-
-  let dashboard = ss.getSheetByName("DASHBOARD") || ss.insertSheet("DASHBOARD", inputSheet.getIndex() + 1);
+  
+  let dashboard = ss.getSheetByName("DASHBOARD") || ss.insertSheet("DASHBOARD");
   dashboard.clear().clearFormats();
+  
+  // Row 1 & 2 Setup
+  dashboard.getRange("A1").setValue("UPDATE").setBackground("#212121").setFontColor("white").setFontWeight("bold").setHorizontalAlignment("center");
+  dashboard.getRange("B1").insertCheckboxes().setBackground("#212121").setHorizontalAlignment("center");
+  dashboard.getRange("C1:E1").merge().setBackground("#000000").setFontColor("#00FF00").setFontWeight("bold").setFontSize(9).setHorizontalAlignment("center").setVerticalAlignment("middle").setBorder(true, true, true, true, null, null, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID_MEDIUM).setValue(Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), "MMM dd, yyyy | HH:mm:ss"));
 
   const headers = [["Ticker", "Price", "Change %", "FUNDAMENTAL", "SIGNAL", "DECISION", "ATH (TRUE)", "ATH Diff %", "R:R Quality", "Trend Score", "Trend State", "SMA 20", "SMA 50", "SMA 200", "Vol Trend", "RSI", "MACD Hist", "Divergence", "Support", "Target (3:1)", "Resistance", "ATR (14)", "Bollinger %B", "TECH ANALYSIS", "FUND ANALYSIS"]];
-  const headerRange = dashboard.getRange(2, 1, 1, 25);
+  dashboard.getRange(2, 1, 1, 25).setValues(headers).setBackground("#212121").setFontColor("white").setFontWeight("bold").setHorizontalAlignment("center").setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
 
-  headerRange.setValues(headers)
-    .setBackground("#212121")
-    .setFontColor("white")
-    .setFontWeight("bold")
-    .setHorizontalAlignment("center");
-
+  // Data Injection
   const formula = '=IFERROR(SORT(FILTER(CALCULATIONS!$A$3:$Y, ISNUMBER(MATCH(CALCULATIONS!$A$3:$A, FILTER(INPUT!$A$3:$A, (IF(OR(INPUT!$B$1="", INPUT!$B$1="ALL"), 1, REGEXMATCH(INPUT!$B$3:$B, "(?i)\\b(" & SUBSTITUTE(SUBSTITUTE(INPUT!$B$1, ", ", "|"), ",", "|") & ")\\b"))) * (IF(OR(INPUT!$C$1="", INPUT!$C$1="ALL"), 1, REGEXMATCH(INPUT!$C$3:$C, "(?i)\\b(" & SUBSTITUTE(SUBSTITUTE(INPUT!$C$1, ", ", "|"), ",", "|") & ")\\b")))), 0))), 3, FALSE), "No Matches Found")';
   dashboard.getRange("A3").setFormula(formula);
 
-  SpreadsheetApp.flush();
-  const lastRow = Math.max(dashboard.getLastRow(), 3);
-  const dataRange = dashboard.getRange(3, 1, lastRow - 2, 25);
+  SpreadsheetApp.flush(); 
+  const lastRow = dashboard.getLastRow();
+  
+  if (lastRow >= 3) {
+    const dataRange = dashboard.getRange(3, 1, lastRow - 2, 25);
+    
+    // FORMATTING GOVERNANCE
+    dashboard.setRowHeights(3, lastRow - 2, 28); 
+    dashboard.getRange(3, 1, lastRow - 2, 23).setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP);
+    dashboard.getRange(3, 24, lastRow - 2, 2).setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
+    dataRange.setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID).setHorizontalAlignment("left").setVerticalAlignment("middle");
 
-  // 1. STYLE & SYSTEM BORDERS
-  dataRange.setHorizontalAlignment("left");
+    // COLOR RULES
+    const rules = [];
+    // Red Flags (Font Only)
+    rules.push(SpreadsheetApp.newConditionalFormatRule().whenNumberLessThan(0).setFontColor("#C62828").setBold(true).setRanges([dashboard.getRange("C3:C"+lastRow), dashboard.getRange("H3:H"+lastRow), dashboard.getRange("Q3:Q"+lastRow)]).build());
+    rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=OR(P3>70, P3<30)').setFontColor("#C62828").setBold(true).setRanges([dashboard.getRange("P3:P"+lastRow)]).build());
+    // Decision States (Background)
+    rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=REGEXMATCH($E3&$F3, "PRIME|TRADE|BREAKOUT")').setBackground("#E8F5E9").setFontColor("#2E7D32").setBold(true).setRanges([dashboard.getRange("E3:F"+lastRow)]).build());
+    rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=REGEXMATCH($E3&$F3, "FAKE-OUT|OVEREXTENDED")').setBackground("#FFF3E0").setFontColor("#E65100").setBold(true).setRanges([dashboard.getRange("E3:F"+lastRow)]).build());
+    rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=REGEXMATCH($E3&$F3, "STOP|AVOID|REGIME")').setBackground("#FFEBEE").setFontColor("#C62828").setBold(true).setRanges([dashboard.getRange("E3:F"+lastRow)]).build());
+    rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=REGEXMATCH($E3&$F3, "CHOP|WAIT|LOADING")').setBackground("#F5F5F5").setFontColor("#9E9E9E").setRanges([dashboard.getRange("E3:F"+lastRow)]).build());
+    rules.push(SpreadsheetApp.newConditionalFormatRule().whenTextContains("GEM").setBackground("#E8F5E9").setFontColor("#2E7D32").setBold(true).setRanges([dashboard.getRange("D3:D"+lastRow)]).build());
 
-  // Data Grid: Black Border
-  dashboard.getRange(3, 1, lastRow - 2, 25)
-    .setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
-
-  // Header Row: White Border
-  headerRange.setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+    dashboard.setConditionalFormatRules(rules);
+  }
 
   dashboard.setFrozenRows(2);
   dashboard.setFrozenColumns(1);
   for (let col = 1; col <= 23; col++) dashboard.setColumnWidth(col, 75);
-  dashboard.setColumnWidth(24, 450); dashboard.setColumnWidth(25, 450);
-  dashboard.getRange("A:W").setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP);
-
-  // 2. CONDITIONAL FORMATTING RULES
-  const rules = [];
-
-  // TIER 1: GEM (Value) -> GREEN
-  rules.push(SpreadsheetApp.newConditionalFormatRule()
-    .whenTextContains("GEM")
-    .setBackground("#E8F5E9").setFontColor("#2E7D32").setBold(true)
-    .setRanges([dashboard.getRange("D3:D")]).build());
-
-  // TIER 2: FAIR -> NORMAL (No specific rule needed, defaults to white/transparent)
-  // Logic is handled by ensuring the "Rest" rule excludes "FAIR"
-
-  // TIER 3: REST (Zombie, Bubble, etc.) -> RED
-  // This rule triggers if it's NOT empty, NOT a Gem, and NOT Fair.
-  rules.push(SpreadsheetApp.newConditionalFormatRule()
-    .whenFormulaSatisfied('=AND($D3<>"", NOT(REGEXMATCH($D3, "GEM|FAIR")))')
-    .setBackground("#FFEBEE").setFontColor("#C62828")
-    .setRanges([dashboard.getRange("D3:D")]).build());
-
-  // Performance Red Fonts for Negative Values
-  rules.push(SpreadsheetApp.newConditionalFormatRule()
-    .whenNumberLessThan(0)
-    .setFontColor("#C62828").setBold(true)
-    .setRanges([dashboard.getRange("C3:C"), dashboard.getRange("H3:H")])
-    .build());
-
-  // Signal Heatmap (Standard V225)
-  rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=REGEXMATCH($E3&$F3, "(?i)PRIME|TRADE|BUY")').setBackground("#E8F5E9").setFontColor("#2E7D32").setBold(true).setRanges([dashboard.getRange("E3:F")]).build());
-  rules.push(SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=REGEXMATCH($E3&$F3, "(?i)STOP|REJECT|AVOID")').setBackground("#FFEBEE").setFontColor("#C62828").setBold(true).setRanges([dashboard.getRange("E3:F")]).build());
-
-  dashboard.setConditionalFormatRules(rules);
+  dashboard.setColumnWidth(24, 350); dashboard.setColumnWidth(25, 350);
   dashboard.getRangeList(['C3:C', 'H3:H', 'W3:W']).setNumberFormat("0.00%");
 }
 
 /**
 * ------------------------------------------------------------------
-* 7. SETUP CHART SHEET (UI DUAL BOX SYMMETRY + COLORS)
+* 6. SETUP CHART SHEET (UI DUAL BOX SYMMETRY + COLORS)
 * ------------------------------------------------------------------
 */
-
 
 function setupChartSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -552,9 +440,6 @@ function setupChartSheet() {
     ["BOLLINGER %B", `=IFERROR(VLOOKUP(${t}, CALCULATIONS!$A$3:$Y, 23, 0), 0)`]
   ];
 
-
-
-
   chartSheet.getRange(5, 1, data.length, 1).setValues(data.map(r => [r[0]])).setFontWeight("bold");
   chartSheet.getRange(5, 2, data.length, 1).setFormulas(data.map(r => [r[1]]));
   [13, 22, 31].forEach(r => chartSheet.getRange(r, 1, 1, 2).setBackground("#444").setFontColor("white").setHorizontalAlignment("center"));
@@ -571,29 +456,121 @@ function setupChartSheet() {
   const rsiRed = SpreadsheetApp.newConditionalFormatRule().whenNumberGreaterThan(70).setFontColor("#D32F2F").setRanges([chartSheet.getRange("B26")]).build(); // RSI Row
   const rsiGreen = SpreadsheetApp.newConditionalFormatRule().whenNumberLessThan(30).setFontColor("#388E3C").setRanges([chartSheet.getRange("B26")]).build();
 
-
   // MACD Colors
   const macdRed = SpreadsheetApp.newConditionalFormatRule().whenNumberLessThan(0).setFontColor("#D32F2F").setRanges([chartSheet.getRange("B27")]).build(); // MACD Row
   const macdGreen = SpreadsheetApp.newConditionalFormatRule().whenNumberGreaterThan(0).setFontColor("#388E3C").setRanges([chartSheet.getRange("B27")]).build();
 
-
   // P/E Ratio (Expensive)
   const peRed = SpreadsheetApp.newConditionalFormatRule().whenNumberGreaterThan(50).setFontColor("#D32F2F").setRanges([chartSheet.getRange("B16")]).build();
-
 
   const ruleSMA200 = SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=B25>B8').setFontColor("#D32F2F").setRanges([chartSheet.getRange("B25")]).build();
   const ruleSMA50 = SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=B24>B8').setFontColor("#D32F2F").setRanges([chartSheet.getRange("B24")]).build();
 
-
   chartSheet.setConditionalFormatRules([ruleNegChange, ruleBearish, rsiRed, rsiGreen, macdRed, macdGreen, peRed, ruleSMA200, ruleSMA50]);
-
 
   updateDynamicChart();
 }
 
+function updateDynamicChart() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("CHART");
+  const dataSheet = ss.getSheetByName("DATA");
+  if (!sheet || !dataSheet) return;
+
+  SpreadsheetApp.flush();
+
+  sheet.getRange("E5").setValue("Updated: " + Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), "HH:mm:ss")).setFontColor("gray").setFontSize(8).setHorizontalAlignment("right");
+
+
+  const ticker = sheet.getRange("B1").getValue();
+  const isWeekly = sheet.getRange("D2").getValue() === "WEEKLY";
+  const years = sheet.getRange("A3").getValue() || 0;
+  const months = sheet.getRange("B3").getValue() || 0;
+  const days = sheet.getRange("C3").getValue() || 0;
+  const now = new Date();
+  let startDate = new Date(now.getFullYear() - years, now.getMonth() - months, now.getDate() - days);
+  if ((now - startDate) < (7 * 24 * 60 * 60 * 1000)) {
+    startDate = new Date();
+    startDate.setDate(now.getDate() - 14);
+  }
+
+  const supportVal = Number(sheet.getRange("B32").getValue()) || 0;
+  const resistanceVal = Number(sheet.getRange("B33").getValue()) || 0;
+  let livePrice = Number(sheet.getRange("B8").getValue()) || 0;
+
+  const rawHeaders = dataSheet.getRange(2, 1, 1, dataSheet.getLastColumn()).getValues()[0];
+  const colIdx = rawHeaders.indexOf(ticker);
+  if (colIdx === -1) {
+    sheet.getRange("E1").setValue("⚠️ Ticker Not Found");
+    return;
+  }
+
+  const rawData = dataSheet.getRange(1, colIdx + 1, dataSheet.getLastRow(), 6).getValues();
+  let masterData = [], viewVols = [], prices = [];
+
+
+  for (let i = 4; i < rawData.length; i++) {
+    let row = rawData[i], d = row[0], close = Number(row[4]), vol = Number(row[5]);
+    if (!d || !(d instanceof Date) || isNaN(close) || close < 0.01) continue;
+    if (d < startDate) continue;
+    if (isWeekly && d.getDay() !== 5) continue;
+
+    let slice = rawData.slice(Math.max(4, i - 200), i + 1).map(r => r[4]);
+    let s20 = slice.length >= 20 ? Number((slice.slice(-20).reduce((a, b) => a + b, 0) / 20).toFixed(2)) : null;
+    let s50 = slice.length >= 50 ? Number((slice.slice(-50).reduce((a, b) => a + b, 0) / 50).toFixed(2)) : null;
+    let s200 = slice.length >= 200 ? Number((slice.slice(-200).reduce((a, b) => a + b, 0) / 200).toFixed(2)) : null;
+
+
+    masterData.push([
+      Utilities.formatDate(d, ss.getSpreadsheetTimeZone(), "MMM dd"),
+      close,
+      (close >= (i > 4 ? rawData[i - 1][4] : close)) ? vol : null,
+      (close < (i > 4 ? rawData[i - 1][4] : close)) ? vol : null,
+      s20, s50, s200, resistanceVal, supportVal
+    ]);
+
+    viewVols.push(vol); prices.push(close);
+    if (s20) prices.push(s20); if (s50) prices.push(s50); if (s200) prices.push(s200);
+  }
+
+  let candleLabel = "🔴 LIVE";
+  if (livePrice === 0 && prices.length > 0) {
+    livePrice = prices[prices.length - 1];
+    candleLabel = "⏳ SYNCING";
+  }
+
+  if (livePrice > 0) {
+    let allCloses = rawData.slice(4).map(r => Number(r[4])).filter(n => n > 0);
+    let sma20Arr = allCloses.slice(-19); sma20Arr.push(livePrice);
+    let sma50Arr = allCloses.slice(-49); sma50Arr.push(livePrice);
+    let sma200Arr = allCloses.slice(-199); sma200Arr.push(livePrice);
+    let liveS20 = sma20Arr.length >= 20 ? sma20Arr.reduce((a, b) => a + b, 0) / 20 : null;
+    let liveS50 = sma50Arr.length >= 50 ? sma50Arr.reduce((a, b) => a + b, 0) / 50 : null;
+    let liveS200 = sma200Arr.length >= 200 ? sma200Arr.reduce((a, b) => a + b, 0) / 200 : null;
+    masterData.push([candleLabel, livePrice, null, null, liveS20, liveS50, liveS200, resistanceVal, supportVal]);
+    prices.push(livePrice);
+  }
+
+  sheet.getRange(3, 26, 2000, 9).clearContent();
+  if (masterData.length === 0) return;
+  if (supportVal > 0) prices.push(supportVal);
+  if (resistanceVal > 0) prices.push(resistanceVal);
+
+  const minP = Math.min(...prices.filter(p => p > 0)) * 0.98;
+  const maxP = Math.max(...prices.filter(p => p > 0)) * 1.02;
+  const maxVol = Math.max(...viewVols);
+
+  sheet.getRange(2, 26, 1, 9).setValues([["Date", "Price", "Bull Vol", "Bear Vol", "SMA 20", "SMA 50", "SMA 200", "Resistance", "Support"]]).setFontWeight("bold").setFontColor("white");
+  sheet.getRange(3, 26, masterData.length, 9).setValues(masterData);
+  SpreadsheetApp.flush();
+  sheet.getCharts().forEach(c => sheet.removeChart(c));
+  const chart = sheet.newChart().setChartType(Charts.ChartType.COMBO).addRange(sheet.getRange(2, 26, masterData.length + 1, 9)).setOption('useFirstRowAsHeaders', true).setOption('series', { 0: { type: 'line', color: '#1A73E8', lineWidth: 3, labelInLegend: 'Price' }, 1: { type: 'bars', color: '#2E7D32', targetAxisIndex: 1, labelInLegend: 'Bull Vol' }, 2: { type: 'bars', color: '#C62828', targetAxisIndex: 1, labelInLegend: 'Bear Vol' }, 3: { type: 'line', color: '#FBBC04', lineWidth: 1.5, labelInLegend: 'SMA 20' }, 4: { type: 'line', color: '#9C27B0', lineWidth: 1.5, labelInLegend: 'SMA 50' }, 5: { type: 'line', color: '#FF9800', lineWidth: 2, labelInLegend: 'SMA 200' }, 6: { type: 'line', color: '#B71C1C', lineDashStyle: [4, 4], labelInLegend: 'Resistance' }, 7: { type: 'line', color: '#0D47A1', lineDashStyle: [4, 4], labelInLegend: 'Support' } }).setOption('vAxes', { 0: { viewWindow: { min: minP, max: maxP } }, 1: { viewWindow: { min: 0, max: maxVol * 4 }, textStyle: { color: '#666' }, format: 'short' } }).setOption('legend', { position: 'top', textStyle: { fontSize: 10 } }).setPosition(5, 3, 0, 0).setOption('width', 1150).setOption('height', 650).build();
+  sheet.insertChart(chart);
+}
+
 /**
 * ------------------------------------------------------------------
-* 8. AUTOMATED ALERT & MONITOR SYSTEM
+* 7. AUTOMATED ALERT & MONITOR SYSTEM
 * ------------------------------------------------------------------
 */
 
@@ -615,6 +592,7 @@ function stopMarketMonitor() {
   SpreadsheetApp.getUi().alert('🔕 MONITOR STOPPED', 'Automated checks disabled.', SpreadsheetApp.getUi().ButtonSet.OK);
 }
 
+
 function checkSignalsAndSendAlerts() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const calcSheet = ss.getSheetByName("CALCULATIONS");
@@ -623,30 +601,101 @@ function checkSignalsAndSendAlerts() {
   const lastRow = calcSheet.getLastRow();
   if (lastRow < 3) return;
 
-  // Range: Ticker (A), Decision (F), Last Alert (Z - Col 26)
+  // READ RAW DATA FROM CALCULATIONS ONLY
+  // Index Mapping (0-based for the array):
+  // 0: Ticker (Col A)
+  // 5: DECISION (Col F)
+  // 25: LAST_STATE (Col Z)
   const range = calcSheet.getRange(3, 1, lastRow - 2, 26);
   const data = range.getValues();
   let newAlerts = [];
-  let updateRows = [];
 
   data.forEach((row, index) => {
     const ticker = row[0];
-    const currentDecision = row[5];
-    const lastNotifiedDecision = row[25]; // Column Z
+    const currentDecision = row[5];    // Column F
+    const lastNotifiedState = row[25]; // Column Z (Preserved Memory)
 
-    // Alert if the decision has CHANGED and is actionable
-    if (currentDecision !== lastNotifiedDecision) {
-      if (/(PRIME|TRADE|STOP|CASH|BOUNCE|BREAKOUT)/i.test(currentDecision)) {
-        newAlerts.push(`🔄 SIGNAL TURN: ${ticker} is now ${currentDecision} (was ${lastNotifiedDecision || 'Unknown'})`);
+    if (!ticker || !currentDecision) return;
+
+    // Logic: If state has changed and matches actionable criteria
+    if (currentDecision !== lastNotifiedState) {
+      const isActionable = /(PRIME|TRADE|STOP|CASH|BOUNCE|BREAKOUT)/i.test(currentDecision);
+      
+      if (isActionable) {
+        newAlerts.push(`📍 TICKER: ${ticker}\n   NEW SIGNAL: ${currentDecision}\n   PREVIOUS: ${lastNotifiedState || 'Initial Scan'}`);
       }
-      // Log the new state in Column Z to prevent duplicate alerts
+
+      // Update Column Z in CALCULATIONS immediately to "lock in" the new state
       calcSheet.getRange(index + 3, 26).setValue(currentDecision);
     }
   });
 
   if (newAlerts.length > 0) {
     const email = Session.getActiveUser().getEmail();
-    MailApp.sendEmail(email, "📈 Terminal Alert: New Signal Turn",
-      "The system detected the following status changes:\n\n" + newAlerts.join("\n") + "\n\nLink: " + ss.getUrl());
+    const subject = `📈 Terminal Alert: ${newAlerts.length} New Signal Change(s)`;
+    const body = "The Institutional Terminal has detected signal turns in the CALCULATIONS engine:\n\n" + 
+                 newAlerts.join("\n\n") + 
+                 "\n\nView Terminal: " + ss.getUrl();
+    
+    MailApp.sendEmail(email, subject, body);
   }
+}
+
+/**
+* ------------------------------------------------------------------
+* REFERENCE GUIDE (V300 FINAL - README & SOP INTEGRATION)
+* ------------------------------------------------------------------
+*/
+function generateReferenceSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let refSheet = ss.getSheetByName("REFERENCE") || ss.insertSheet("REFERENCE");
+  refSheet.clear().clearFormats();
+  
+  refSheet.setColumnWidth(1, 200); 
+  refSheet.setColumnWidth(2, 200); 
+  refSheet.setColumnWidth(3, 750); 
+
+  // --- HEADER: SYSTEM SOP ---
+  refSheet.getRange("A1:C1").merge().setValue("README: INSTITUTIONAL TERMINAL SOP (STABLE_MASTER_DEC25_BASE_v1_3)")
+    .setBackground("#004D40").setFontColor("#00FF00").setFontWeight("bold").setFontSize(14).setHorizontalAlignment("center");
+
+  let row = 2;
+  const readmeData = [
+    ["SOP 1.0", "IDENTIFY VERDICT", "Look at Column F. GREEN = Mathematical Confluence. ORANGE = Safety Block. RED = Structural Failure."],
+    ["SOP 2.0", "AUDIT THE GAP", "If Column E has a Signal but Column F is 'WAIT', check Column O (RVOL) or Column V (ATR) to find the safety violation."],
+    ["SOP 3.0", "DRAG ANALYSIS", "Any RED BOLD FONT indicates 'Negative Drag'. Even in a Bull Regime, individual indicator drag can delay an entry."],
+    ["SOP 4.0", "SIDEBAR AUDIT", "Use the 'View Full Audit' tool to read the multi-line reasoning in Columns X & Y for high-conviction verification."]
+  ];
+  refSheet.getRange(row, 1, 4, 3).setValues(readmeData).setWrap(true).setBackground("#E0F2F1");
+  refSheet.getRange(row, 1, 4, 1).setFontWeight("bold");
+
+  // --- PREVIOUS LOGIC TABLES (Red Flags & Verdicts) ---
+  row = 7;
+  refSheet.getRange(row, 1, 1, 3).setValues([["INDICATOR FLAG", "THRESHOLD", "NEGATIVE DRAG MEANING"]])
+    .setBackground("#B71C1C").setFontColor("white").setFontWeight("bold");
+    
+  const dragData = [
+    ["Price Momentum", "Change % < 0", "Ticker is losing value relative to previous close."],
+    ["ATH Distance", "ATH Diff % < 0", "Current drawdown. Negative values indicate discount or decay."],
+    ["RSI Extreme", "> 70 OR < 30", "Overbought (>70) = Reversal Risk. Oversold (<30) = Panic Selling."],
+    ["MACD Direction", "MACD Hist < 0", "Bearish momentum. Selling pressure outweighs buying."],
+    ["Structural Failure", "Price < SMA 200", "Lost long-term institutional support (Bear Regime)."]
+  ];
+  refSheet.getRange(row + 1, 1, dragData.length, 3).setValues(dragData).setWrap(true);
+
+  row = 14;
+  refSheet.getRange(row, 1, 1, 3).setValues([["VERDICT", "VALUE", "SAFETY & RISK AUDIT"]])
+    .setBackground("#263238").setFontColor("white").setFontWeight("bold");
+    
+  const fData = [
+    ["Optimal Entry", "💎 PRIME BUY", "GEM Valuation + RVOL Breakout + 3:1 Profit-to-Risk Edge."],
+    ["Safety Block", "⏳ ATR OVEREXTENDED", "Price is > 2x ATR from SMA 20. Do not chase."],
+    ["Volume Block", "🎣 FAKE-OUT", "Breakout pattern detected but RVOL < 1.1 (No bank support)."],
+    ["Mandated Exit", "🛑 STOP OUT", "Price breached Support Floor. Capital preservation mode."]
+  ];
+  refSheet.getRange(row + 1, 1, fData.length, 3).setValues(fData).setWrap(true);
+
+  refSheet.getRange("A1:C30").setVerticalAlignment("middle").setBorder(true, true, true, true, true, true, "#D3D3D3", SpreadsheetApp.BorderStyle.SOLID);
+  refSheet.setFrozenRows(1);
+  ss.toast("SOP Reference Guide Updated.", "📖 DONE");
 }
