@@ -1,6 +1,6 @@
 /**
 * ==============================================================================
-* BASELINE LABEL: STABLE_MASTER_DEC25_BASE_v2_2 
+* BASELINE LABEL: STABLE_MASTER_DEC25_BASE_v2_3
 * ==============================================================================
 */
 
@@ -34,6 +34,9 @@ function onOpen() {
 * GLOBAL TRIGGER ENGINE (B1 CHECKBOX CLEANUP + INPUT FILTER REFRESH)
 * ------------------------------------------------------------------
 */
+// ------------------------------------------------------------
+// UPDATED onEdit(e) — watches the NEW CHART control cells
+// ------------------------------------------------------------
 function onEdit(e) {
   const range = e.range;
   const sheet = range.getSheet();
@@ -54,22 +57,7 @@ function onEdit(e) {
     return;
   }
 
- //2) DASHBOARD refresh only (DASHBOARD!D1)
- if (sheet.getName() === "DASHBOARD" && a1 === "D1" && e.value === "TRUE") {
-  ss.toast("Refreshing Dashboard...", "⚙️ SYSTEM", 2);
-  try {
-    generateDashboardSheet();
-    sheet.getRange("D1").setValue(false);
-    ss.toast("Dashboard Refreshed.", "✅ DONE", 2);
-  } catch (err) {
-    sheet.getRange("D1").setValue(false);
-    ss.toast("Error: " + err.toString(), "⚠️ FAIL", 5);
-  }
-  return;
- }
-
-
-  // 3) INPUT filters (INPUT!B1 / INPUT!C1) -> refresh dashboard
+  // 2) INPUT filters -> refresh dashboard
   if (sheet.getName() === "INPUT" && (a1 === "B1" || a1 === "C1")) {
     try {
       generateDashboardSheet();
@@ -80,10 +68,14 @@ function onEdit(e) {
     return;
   }
 
-  // 4) CHART controls -> update dynamic chart
+  // 3) CHART controls -> update dynamic chart
+  // New layout controls:
+  // - A1:B1 merged ticker (value read from A1)
+  // - B2 years, B3 months, B4 days
+  // - B6 interval (DAILY/WEEKLY)
   if (sheet.getName() === "CHART") {
-    const watchList = ["B1", "D2", "A3", "B3", "C3"];
-    if (watchList.includes(a1) || (range.getRow() === 1 && range.getColumn() <= 4)) {
+    const watchList = ["A1", "B2", "B3", "B4", "B6"];
+    if (watchList.includes(a1) || (range.getRow() <= 6 && range.getColumn() <= 5)) {
       try {
         updateDynamicChart();
       } catch (err) {
@@ -814,9 +806,6 @@ function generateCalculationsSheet() {
   calcSheet.setFrozenRows(2);
 }
 
-
-
-
 /**
 * ------------------------------------------------------------------
 * 5. DASHBOARD ENGINE
@@ -1291,236 +1280,195 @@ function generateDashboardSheet() {
   SpreadsheetApp.flush();
 }
 
-
-/**
-* ------------------------------------------------------------------
-* 6. SETUP CHART SHEET (indices updated to latest CALCULATIONS map)
-* ------------------------------------------------------------------
-*/
 function setupChartSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const inputSheet = ss.getSheetByName("INPUT");
-  const calcSheet = ss.getSheetByName("CALCULATIONS");
-  if (!inputSheet || !calcSheet) return;
+  const input = ss.getSheetByName("INPUT");
+  const calc = ss.getSheetByName("CALCULATIONS");
+  if (!input || !calc) throw new Error("Missing INPUT or CALCULATIONS sheet");
 
-  const tickers = getCleanTickers(inputSheet);
-  const chartSheet = ss.getSheetByName("CHART") || ss.insertSheet("CHART");
-
-  chartSheet.clear().clearFormats();
-  forceExpandSheet(chartSheet, 60);
+  const tickers = getCleanTickers(input);
+  let sh = ss.getSheetByName("CHART") || ss.insertSheet("CHART");
+  sh.clear().clearFormats();
+  forceExpandSheet(sh, 60);
 
   // ------------------------------------------------------------
-  // Layout
+  // Column sizing / alignment
   // ------------------------------------------------------------
-  chartSheet.setColumnWidth(1, 180); // A
-  chartSheet.setColumnWidth(2, 120); // B
-  chartSheet.setColumnWidth(3, 120); // C
-  chartSheet.setColumnWidth(4, 120); // D
-  chartSheet.setColumnWidth(5, 125); // E
-  chartSheet.setColumnWidth(6, 125); // F
-  chartSheet.setColumnWidth(7, 125); // G
-  chartSheet.setColumnWidth(8, 125); // H
+  sh.setColumnWidth(1, 85);    // A ~10 chars
+  sh.setColumnWidth(2, 125);   // B ✅ ~15 chars
+  sh.setColumnWidth(3, 520);   // C Tech Notes
+  sh.setColumnWidth(4, 520);   // D Fund Notes
+  sh.setColumnWidth(5, 18);    // spacer
 
-  const headerRange = chartSheet.getRange("A1:H4");
-  headerRange
+  // ✅ B must be left-aligned + wrapped
+  sh.getRange("B:B").setHorizontalAlignment("left").setWrap(true);
+  sh.getRange("A:A").setHorizontalAlignment("left");
+
+  // Dense top area
+  sh.setRowHeights(1, 7, 18);
+
+  // ------------------------------------------------------------
+  // Control panel A1:B6
+  // ------------------------------------------------------------
+  sh.getRange("A1:B6")
     .setBackground("#000000")
     .setFontColor("#FFFF00")
-    .setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID);
+    .setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID)
+    .setVerticalAlignment("middle");
 
-  chartSheet.getRange("A1").setValue("TICKER:").setFontWeight("bold");
-
-  chartSheet.getRange("B1:D1")
-    .merge()
+  // Ticker in merged A1:B1 (value lives in A1)
+  sh.getRange("A1:B1").merge()
+    .setValue(tickers[0] || "")
+    .setFontWeight("bold")
+    .setFontSize(11)
+    .setHorizontalAlignment("center")
+    .setFontColor("#FF80AB")
     .setDataValidation(
       SpreadsheetApp.newDataValidation()
-        .requireValueInList(tickers.length ? tickers : [""])
+        .requireValueInList(tickers.length ? tickers : [""], true)
         .build()
-    )
-    .setValue(tickers.length ? tickers[0] : "")
-    .setFontWeight("bold")
-    .setHorizontalAlignment("center")
-    .setFontSize(12)
-    .setFontColor("#FF80AB");
+    );
 
-  // ------------------------------------------------------------
-  // Helper: Alias-aware MATCH() chain inside a Sheets formula
-  // ------------------------------------------------------------
-  const matchAny = (names) => {
-    // Produces: IFERROR(MATCH("A",CALCULATIONS!$A$2:$ZZ$2,0),IFERROR(MATCH("B",...),MATCH("C",...)))
-    const quoted = names.map(n => `"${n}"`);
-    if (quoted.length === 1) return `MATCH(${quoted[0]}, CALCULATIONS!$A$2:$ZZ$2, 0)`;
-    let expr = `MATCH(${quoted[quoted.length - 1]}, CALCULATIONS!$A$2:$ZZ$2, 0)`;
-    for (let i = quoted.length - 2; i >= 0; i--) {
-      expr = `IFERROR(MATCH(${quoted[i]}, CALCULATIONS!$A$2:$ZZ$2, 0), ${expr})`;
-    }
-    return expr;
-  };
+  sh.getRange("A2:A6").setValues([["YEAR"], ["MONTH"], ["DAY"], ["DATE"], ["INTERVAL"]]).setFontWeight("bold");
 
-  const V = (aliases) => {
-    // Alias-aware header lookup: VLOOKUP(ticker, A3:ZZ, matchAny([...]), 0)
-    return `=IFERROR(VLOOKUP($B$1, CALCULATIONS!$A$3:$ZZ, ${matchAny(aliases)}, 0), "—")`;
-  };
+  const listValidation = (arr) =>
+    SpreadsheetApp.newDataValidation().requireValueInList(arr, true).build();
 
-  const Vnum = (aliases) => {
-    return `=IFERROR(VLOOKUP($B$1, CALCULATIONS!$A$3:$ZZ, ${matchAny(aliases)}, 0), 0)`;
-  };
+  // B2/B3/B4 start at 0; default values: 1,0,0
+  sh.getRange("B2").setDataValidation(listValidation(Array.from({ length: 11 }, (_, i) => i))).setValue(1).setFontColor("#FF80AB");
+  sh.getRange("B3").setDataValidation(listValidation(Array.from({ length: 13 }, (_, i) => i))).setValue(0).setFontColor("#FF80AB");
+  sh.getRange("B4").setDataValidation(listValidation(Array.from({ length: 32 }, (_, i) => i))).setValue(0).setFontColor("#FF80AB");
 
-  // ------------------------------------------------------------
-  // Reasoning boxes (TECH / FUND) – now alias-safe + width-safe
-  // ------------------------------------------------------------
-  chartSheet.getRange("E1:F4").merge()
-    .setWrap(true).setVerticalAlignment("top").setFontSize(10)
-    .setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID);
+  // Date = TODAY() minus (years+months+days)
+  sh.getRange("B5").setFormula("=EDATE(TODAY(), -(12*B2+B3)) - B4").setNumberFormat("yyyy-mm-dd").setFontColor("#FF80AB");
 
-  chartSheet.getRange("G1:H4").merge()
-    .setWrap(true).setVerticalAlignment("top").setFontSize(10)
-    .setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID);
-
-  chartSheet.getRange("E1").setFormula(
-    V(["TECH_REASON", "Tech Notes", "TECH ANALYSIS", "TECH_ANALYSIS"])
-  );
-  chartSheet.getRange("G1").setFormula(
-    V(["FUND_REASON", "Fund Notes", "FUND ANALYSIS", "FUND_ANALYSIS"])
-  );
-
-  // ------------------------------------------------------------
-  // Date controls
-  // ------------------------------------------------------------
-  chartSheet.getRange("A2:C2").setValues([["YEAR", "MONTH", "DAY"]])
-    .setFontWeight("bold").setHorizontalAlignment("center");
-
-  const numRule = (max) =>
-    SpreadsheetApp.newDataValidation()
-      .requireValueInList(Array.from({ length: max + 1 }, (_, i) => i))
-      .build();
-
-  chartSheet.getRange("A3").setDataValidation(numRule(5)).setValue(1)
-    .setHorizontalAlignment("center").setFontColor("#FF80AB");
-  chartSheet.getRange("B3").setDataValidation(numRule(12)).setValue(0)
-    .setHorizontalAlignment("center").setFontColor("#FF80AB");
-  chartSheet.getRange("C3").setDataValidation(numRule(31)).setValue(0)
-    .setHorizontalAlignment("center").setFontColor("#FF80AB");
-
-  chartSheet.getRange("D2")
-    .setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(["DAILY", "WEEKLY"]).build())
+  sh.getRange("B6")
+    .setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(["DAILY", "WEEKLY"], true).build())
     .setValue("DAILY")
     .setFontWeight("bold")
-    .setHorizontalAlignment("center")
     .setFontColor("#FF80AB");
 
-  chartSheet.getRange("A4").setValue("DATE").setFontWeight("bold");
-  chartSheet.getRange("B4").setFormula("=DATE(YEAR(TODAY())-A3, MONTH(TODAY())-B3, DAY(TODAY())-C3)")
-    .setNumberFormat("yyyy-mm-dd");
+  // ------------------------------------------------------------
+  // Reasons: C1:C6 and D1:D6
+  // CALCULATIONS: Z=TECH NOTES, AA=FUND NOTES
+  // ------------------------------------------------------------
+  sh.getRange("C1:C6").merge()
+    .setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP)
+    .setVerticalAlignment("top")
+    .setHorizontalAlignment("left")
+    .setFontSize(10)
+    .setFontColor("#FFD54F")
+    .setBackground("#0B0B0B")
+    .setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID)
+    .setFormula('=IFERROR(INDEX(CALCULATIONS!$Z$3:$Z, MATCH($A$1, CALCULATIONS!$A$3:$A, 0)), "—")');
+
+  sh.getRange("D1:D6").merge()
+    .setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP)
+    .setVerticalAlignment("top")
+    .setHorizontalAlignment("left")
+    .setFontSize(10)
+    .setFontColor("#FFD54F")
+    .setBackground("#0B0B0B")
+    .setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID)
+    .setFormula('=IFERROR(INDEX(CALCULATIONS!$AA$3:$AA, MATCH($A$1, CALCULATIONS!$A$3:$A, 0)), "—")');
+
+  // Row 7 reserved empty
+  sh.getRange("A7:E7").clearContent();
+  sh.setRowHeight(7, 18);
 
   // ------------------------------------------------------------
-  // Sidebar (A5:B...) — RENAMED labels + alias-safe pulls
+  // Sidebar (starts row 8) + add R:R
   // ------------------------------------------------------------
-  const t = "$B$1";
+  const t = "$A$1";
+  const startRow = 8;
 
-  const data = [
-    ["SIGNAL", V(["SIGNAL", "SIGNAL (TECH ENGINE)", "SIGNAL (RAW)"])],
-    ["DECISION", V(["DECISION", "DECISION (FINAL)"])],
-    ["FUNDAMENTAL", V(["FUNDAMENTAL", "FUNDAMENTALS"])],
-    ["PRICE", `=IFERROR(GOOGLEFINANCE(${t}, "price"), 0)`],
-    ["CHANGE ($)", `=IFERROR(B8 - GOOGLEFINANCE(${t}, "closeyest"), 0)`],
-    ["CHANGE (%)", `=IFERROR(GOOGLEFINANCE(${t}, "changepct")/100, 0)`],
+  const IDX = (colLetter, fallback) =>
+    `=IFERROR(INDEX(CALCULATIONS!$${colLetter}$3:$${colLetter}, MATCH(${t}, CALCULATIONS!$A$3:$A, 0)), ${fallback})`;
+
+  const rows = [
+    ["SIGNAL",   IDX("B", '"Wait"')],
+    ["FUND",     IDX("D", '"-"')],          // swapped earlier
+    ["DECISION", IDX("C", '"-"')],
+    ["PRICE",    `=IFERROR(GOOGLEFINANCE(${t}, "price"), 0)`],
+    ["CHG%",     `=IFERROR(GOOGLEFINANCE(${t}, "changepct")/100, 0)`],
+    ["R:R",      IDX("J", "0")],            // ✅ R:R added
     ["", ""],
 
     ["[ PERFORMANCE ]", ""],
-    ["VOL TREND", Vnum(["VOL TREND", "RVOL", "RELATIVE VOLUME", "VOLUME TREND"])],
-    ["ATH (TRUE)", Vnum(["ATH (TRUE)", "ATH"])],
-    ["ATH DIFF %", Vnum(["ATH DIFF %", "DIFF FROM ATH %", "% FROM ATH"])],
-    ["R:R QUALITY", Vnum(["R:R QUALITY", "RR QUALITY", "RR", "R:R"])],
+    ["VOL TREND", IDX("G", "0")],
+    ["ATH",       IDX("H", "0")],
+    ["ATH %",     IDX("I", "0")],
     ["", ""],
 
     ["[ TREND ]", ""],
-    ["TREND STATE", V(["TREND STATE", "Trend State", "REGIME", "MARKET REGIME"])],
-    ["SMA 20", Vnum(["SMA 20", "SMA20"])],
-    ["SMA 50", Vnum(["SMA 50", "SMA50"])],
-    ["SMA 200", Vnum(["SMA 200", "SMA200"])],
-    ["", ""],
-
-    ["[ MOMENTUM ]", ""],
-    ["RSI", Vnum(["RSI", "RSI (14)"])],
-    ["MACD HIST", Vnum(["MACD HIST", "MACD Hist", "MACD HISTOGRAM", "MACD HIST."])],
-    ["DIVERGENCE", V(["DIVERGENCE"])],
-    ["ADX (14)", Vnum(["ADX (14)", "ADX", "ADX14"])],
-    ["STOCH %K (14)", Vnum(["STOCH %K (14)", "STOCH %K", "STOCH K", "STOCHK"])],
+    ["SMA 20", IDX("M", "0")],
+    ["SMA 50", IDX("N", "0")],
+    ["SMA 200",IDX("O", "0")],
+    ["RSI",    IDX("P", "50")],
+    ["MACD",   IDX("Q", "0")],
+    ["DIV",    IDX("R", '"-"')],
+    ["ADX",    IDX("S", "0")],
+    ["STO",    IDX("T", "0")],
     ["", ""],
 
     ["[ LEVELS ]", ""],
-    ["SUPPORT", Vnum(["SUPPORT", "SUPPORT FLOOR"])],
-    ["RESISTANCE", Vnum(["RESISTANCE", "RESISTANCE CEILING"])],
-    ["TARGET (3:1)", Vnum(["TARGET (3:1)", "TARGET (3R)", "TARGET (3:1 R:R)", "TARGET (3:1 R:R)"])],
-    ["ATR (14)", Vnum(["ATR (14)", "ATR", "ATR14"])],
-    ["BOLLINGER %B", Vnum(["BOLLINGER %B", "BB %B", "%B"])]
+    // Use labels that chart reader understands (SUPPORT/RESISTANCE)
+    ["SUPPORT",    IDX("U", "0")],
+    ["RESISTANCE", IDX("V", "0")],
+    ["TARGET",     IDX("W", "0")],
+    ["ATR",        IDX("X", "0")],
+    ["%B",         IDX("Y", "0")]
   ];
 
-  const startRow = 5;
-
-  // Write sidebar labels + formulas
-  chartSheet.getRange(startRow, 1, data.length, 1)
-    .setValues(data.map(r => [r[0]]))
-    .setFontWeight("bold");
-
-  chartSheet.getRange(startRow, 2, data.length, 1)
-    .setFormulas(data.map(r => [r[1]]));
+  sh.getRange(startRow, 1, rows.length, 1).setValues(rows.map(r => [r[0]])).setFontWeight("bold");
+  sh.getRange(startRow, 2, rows.length, 1).setFormulas(rows.map(r => [r[1]]));
 
   // Style section headers
-  data.forEach((r, i) => {
+  rows.forEach((r, i) => {
     const label = String(r[0] || "");
     if (label.startsWith("[")) {
-      chartSheet.getRange(startRow + i, 1, 1, 2)
-        .setBackground("#444")
+      sh.getRange(startRow + i, 1, 1, 2)
+        .setBackground("#424242")
         .setFontColor("white")
-        .setHorizontalAlignment("center")
         .setFontWeight("bold");
     }
   });
 
+  sh.setRowHeights(startRow, rows.length, 18);
+
+  // ------------------------------------------------------------
+  // Number formats (robust by row numbers given this fixed sidebar layout)
+  // ------------------------------------------------------------
+  // PRICE row = startRow+3
+  sh.getRange(`B${startRow + 3}`).setNumberFormat("#,##0.00"); // PRICE
+  sh.getRange(`B${startRow + 4}`).setNumberFormat("0.00%");    // CHG%
+  sh.getRange(`B${startRow + 5}`).setNumberFormat("0.00");     // R:R
+
+  // PERFORMANCE
+  sh.getRange(`B${startRow + 8}`).setNumberFormat("0.00");     // VOL TREND
+  sh.getRange(`B${startRow + 9}`).setNumberFormat("#,##0.00"); // ATH
+  sh.getRange(`B${startRow + 10}`).setNumberFormat("0.00%");   // ATH %
+
+  // TREND
+  // SMA rows
+  sh.getRange(`B${startRow + 13}:B${startRow + 15}`).setNumberFormat("#,##0.00");
+  sh.getRange(`B${startRow + 16}`).setNumberFormat("0.00");    // RSI
+  sh.getRange(`B${startRow + 17}`).setNumberFormat("0.000");   // MACD
+  sh.getRange(`B${startRow + 19}`).setNumberFormat("0.00");    // ADX
+  sh.getRange(`B${startRow + 20}`).setNumberFormat("0.00%");   // STO (0..1)
+
+  // LEVELS
+  sh.getRange(`B${startRow + 23}:B${startRow + 26}`).setNumberFormat("#,##0.00"); // SUPPORT/RES/TARGET/ATR
+  sh.getRange(`B${startRow + 27}`).setNumberFormat("0.00%"); // %B (0..1)
+
   SpreadsheetApp.flush();
-
-  // Align values column
-  chartSheet.getRange(`B${startRow}:B${startRow + data.length - 1}`).setHorizontalAlignment("left");
-
-  // Formats (safe; does not break if blank)
-  chartSheet.getRangeList(["B8", "B9", "B15", "B17:B21", "B29:B33"]).setNumberFormat("#,##0.00");
-  chartSheet.getRangeList(["B10", "B11", "B6"]).setNumberFormat("0.00%"); // Change %, ATH diff %, Change %
-
-  // Conditional formatting (lightweight)
-  const rules = [];
-
-  // Negative change red (CHANGE $ and CHANGE %)
-  rules.push(
-    SpreadsheetApp.newConditionalFormatRule()
-      .whenNumberLessThan(0)
-      .setFontColor("#D32F2F")
-      .setRanges([chartSheet.getRange("B9:B10")])
-      .build()
-  );
-
-  // RSI extremes (apply to full sidebar value column)
-  rules.push(
-    SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied('=OR($B5>70,$B5<30)')
-      .setFontColor("#D32F2F")
-      .setRanges([chartSheet.getRange(`B${startRow}:B${startRow + data.length - 1}`)])
-      .build()
-  );
-
-  chartSheet.setConditionalFormatRules(rules);
-
-  // Build initial chart (assumes you keep the single corrected updateDynamicChart())
-  updateDynamicChart();
+  updateDynamicChart(); // ensure chart & lines appear
 }
 
 
-
-/**
-* ------------------------------------------------------------------
-* Update chart using ONLY the CHART sidebar values (label-based)
-* ------------------------------------------------------------------
-*/
+/// ------------------------------------------------------------
+// updateDynamicChart() — timestamp REMOVED, row 7 left empty
+// ------------------------------------------------------------
 function updateDynamicChart() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName("CHART");
@@ -1529,63 +1477,50 @@ function updateDynamicChart() {
 
   SpreadsheetApp.flush();
 
-  // Timestamp
-  sheet.getRange("E5")
-    .setValue("Updated: " + Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), "HH:mm:ss"))
-    .setFontColor("gray")
-    .setFontSize(8)
-    .setHorizontalAlignment("right");
-
-  const ticker = String(sheet.getRange("B1").getValue() || "").trim();
+  // Ticker in A1 (merged A1:B1)
+  const ticker = String(sheet.getRange("A1").getValue() || "").trim();
   if (!ticker) return;
 
-  // Controls
-  const isWeekly = sheet.getRange("D2").getValue() === "WEEKLY";
-  const years = Number(sheet.getRange("A3").getValue()) || 0;
-  const months = Number(sheet.getRange("B3").getValue()) || 0;
-  const days = Number(sheet.getRange("C3").getValue()) || 0;
+  // Interval B6 + StartDate from B5 (source of truth)
+  const interval = String(sheet.getRange("B6").getValue() || "DAILY").toUpperCase();
+  const isWeekly = interval === "WEEKLY";
 
-  const now = new Date();
-  let startDate = new Date(now.getFullYear() - years, now.getMonth() - months, now.getDate() - days);
-  if ((now - startDate) < (7 * 24 * 60 * 60 * 1000)) {
+  let startDate = sheet.getRange("B5").getValue();
+  if (!(startDate instanceof Date)) {
+    const now = new Date();
     startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 14);
   }
 
-  // --- Sidebar values (label-based, alias-safe) ---
-  // PRICE label could be "PRICE" or "LIVE PRICE" depending on your sidebar
-  const priceMap = getSidebarValuesByLabels_(sheet, ["PRICE", "LIVE PRICE"]);
-  let livePrice = Number(priceMap["PRICE"] || priceMap["LIVE PRICE"]) || 0;
+  // ------------------------------------------------------------
+  // Sidebar values: robust label match (works with SUPPORT/SUP and RESISTANCE/RES)
+  // ------------------------------------------------------------
+  const sidebar = getSidebarValuesByLabels_(sheet, ["PRICE", "SUPPORT", "RESISTANCE", "SUP", "RES"]);
 
-  const levels = getSidebarLevels_(sheet);
-  const supportVal = Number(levels.support) || 0;
-  const resistanceVal = Number(levels.resistance) || 0;
+  const livePrice = Number(sidebar["PRICE"]) || 0;
+  const supportVal = Number(sidebar["SUPPORT"]) || Number(sidebar["SUP"]) || 0;
+  const resistanceVal = Number(sidebar["RESISTANCE"]) || Number(sidebar["RES"]) || 0;
 
-  // --- Find ticker block in DATA (row 2 contains ticker names per block) ---
-  const rawHeaders = dataSheet.getRange(2, 1, 1, dataSheet.getLastColumn()).getValues()[0];
-  const colIdx = rawHeaders.indexOf(ticker);
-  if (colIdx === -1) {
-    sheet.getRange("E1").setValue("⚠️ Ticker Not Found");
-    return;
-  }
+  // Find ticker column in DATA (row 2 has ticker headers)
+  const headers = dataSheet.getRange(2, 1, 1, dataSheet.getLastColumn()).getValues()[0];
+  const colIdx = headers.indexOf(ticker);
+  if (colIdx === -1) return;
 
   // Pull 6 cols: date, open, high, low, close, volume
-  const rawData = dataSheet.getRange(1, colIdx + 1, dataSheet.getLastRow(), 6).getValues();
+  const raw = dataSheet.getRange(1, colIdx + 1, dataSheet.getLastRow(), 6).getValues();
 
-  let masterData = [];
-  let viewVols = [];
+  let master = [];
+  let vols = [];
   let prices = [];
 
-  for (let i = 4; i < rawData.length; i++) {
-    const row = rawData[i];
-    const d = row[0];
-    const close = Number(row[4]);
-    const vol = Number(row[5]);
-
+  for (let i = 4; i < raw.length; i++) {
+    const d = raw[i][0];
+    const close = Number(raw[i][4]);
+    const vol = Number(raw[i][5]);
     if (!d || !(d instanceof Date) || !isFinite(close) || close < 0.01) continue;
     if (d < startDate) continue;
     if (isWeekly && d.getDay() !== 5) continue; // Fridays
 
-    const slice = rawData
+    const slice = raw
       .slice(Math.max(4, i - 200), i + 1)
       .map(r => Number(r[4]))
       .filter(n => isFinite(n) && n > 0);
@@ -1594,12 +1529,10 @@ function updateDynamicChart() {
     const s50 = slice.length >= 50 ? Number((slice.slice(-50).reduce((a, b) => a + b, 0) / 50).toFixed(2)) : null;
     const s200 = slice.length >= 200 ? Number((slice.slice(-200).reduce((a, b) => a + b, 0) / 200).toFixed(2)) : null;
 
-    const prevClose = (i > 4) ? Number(rawData[i - 1][4]) : close;
+    const prevClose = (i > 4) ? Number(raw[i - 1][4]) : close;
 
-    // IMPORTANT: Z-section order is:
-    // Date, Price, BullVol, BearVol, SMA20, SMA50, SMA200, Resistance, Support
-    masterData.push([
-      Utilities.formatDate(d, ss.getSpreadsheetTimeZone(), "MMM dd"),
+    master.push([
+      d,
       close,
       (close >= prevClose) ? vol : null,
       (close < prevClose) ? vol : null,
@@ -1608,58 +1541,39 @@ function updateDynamicChart() {
       supportVal || null
     ]);
 
-    viewVols.push(vol);
+    vols.push(vol);
     prices.push(close);
     if (s20) prices.push(s20);
     if (s50) prices.push(s50);
     if (s200) prices.push(s200);
   }
 
-  // Live price fallback
-  let candleLabel = "🔴 LIVE";
-  if ((!livePrice || !isFinite(livePrice)) && prices.length > 0) {
-    livePrice = prices[prices.length - 1];
-    candleLabel = "⏳ SYNCING";
-  }
-
-  // Add live candle + live SMAs
-  if (livePrice && isFinite(livePrice) && livePrice > 0) {
-    const allCloses = rawData.slice(4).map(r => Number(r[4])).filter(n => isFinite(n) && n > 0);
-
-    const sma20Arr = allCloses.slice(-19).concat([livePrice]);
-    const sma50Arr = allCloses.slice(-49).concat([livePrice]);
-    const sma200Arr = allCloses.slice(-199).concat([livePrice]);
-
-    const liveS20 = sma20Arr.length >= 20 ? sma20Arr.reduce((a, b) => a + b, 0) / 20 : null;
-    const liveS50 = sma50Arr.length >= 50 ? sma50Arr.reduce((a, b) => a + b, 0) / 50 : null;
-    const liveS200 = sma200Arr.length >= 200 ? sma200Arr.reduce((a, b) => a + b, 0) / 200 : null;
-
-    masterData.push([candleLabel, livePrice, null, null, liveS20, liveS50, liveS200, resistanceVal || null, supportVal || null]);
-    prices.push(livePrice);
-  }
-
-  // Output area (Z..AH, col 26..34)
+  // Write region Z..AH (col 26..34)
   sheet.getRange(3, 26, 2000, 9).clearContent();
-  if (masterData.length === 0) return;
+  if (master.length === 0) return;
 
   if (supportVal > 0) prices.push(supportVal);
   if (resistanceVal > 0) prices.push(resistanceVal);
 
   const cleanPrices = prices.filter(p => typeof p === "number" && isFinite(p) && p > 0);
-  if (cleanPrices.length === 0) return;
+  if (!cleanPrices.length) return;
 
   const minP = Math.min(...cleanPrices) * 0.98;
   const maxP = Math.max(...cleanPrices) * 1.02;
 
-  const cleanVols = viewVols.filter(v => typeof v === "number" && isFinite(v) && v >= 0);
+  const cleanVols = vols.filter(v => typeof v === "number" && isFinite(v) && v >= 0);
   const maxVol = Math.max(...cleanVols, 1);
 
+  // Headers
   sheet.getRange(2, 26, 1, 9)
     .setValues([["Date", "Price", "Bull Vol", "Bear Vol", "SMA 20", "SMA 50", "SMA 200", "Resistance", "Support"]])
     .setFontWeight("bold")
     .setFontColor("white");
 
-  sheet.getRange(3, 26, masterData.length, 9).setValues(masterData);
+  // Data + Date format
+  sheet.getRange(3, 26, master.length, 9).setValues(master);
+  sheet.getRange(3, 26, master.length, 1).setNumberFormat("dd/MM/yy");
+
   SpreadsheetApp.flush();
 
   // Rebuild chart
@@ -1667,24 +1581,25 @@ function updateDynamicChart() {
 
   const chart = sheet.newChart()
     .setChartType(Charts.ChartType.COMBO)
-    .addRange(sheet.getRange(2, 26, masterData.length + 1, 9))
+    .addRange(sheet.getRange(2, 26, master.length + 1, 9))
     .setOption("useFirstRowAsHeaders", true)
     .setOption("series", {
-      0: { type: "line", lineWidth: 3, labelInLegend: "Price" },
-      1: { type: "bars", targetAxisIndex: 1, labelInLegend: "Bull Vol" },
-      2: { type: "bars", targetAxisIndex: 1, labelInLegend: "Bear Vol" },
-      3: { type: "line", lineWidth: 1.5, labelInLegend: "SMA 20" },
-      4: { type: "line", lineWidth: 1.5, labelInLegend: "SMA 50" },
-      5: { type: "line", lineWidth: 2, labelInLegend: "SMA 200" },
-      6: { type: "line", lineDashStyle: [4, 4], labelInLegend: "Resistance" },
-      7: { type: "line", lineDashStyle: [4, 4], labelInLegend: "Support" }
+      0: { type: "line", color: "#1A73E8", lineWidth: 3, labelInLegend: "Price" },
+      1: { type: "bars", color: "#2E7D32", targetAxisIndex: 1, labelInLegend: "Bull Vol" },
+      2: { type: "bars", color: "#C62828", targetAxisIndex: 1, labelInLegend: "Bear Vol" },
+      3: { type: "line", color: "#FBBC04", lineWidth: 1.5, labelInLegend: "SMA 20" },
+      4: { type: "line", color: "#9C27B0", lineWidth: 1.5, labelInLegend: "SMA 50" },
+      5: { type: "line", color: "#FF9800", lineWidth: 2, labelInLegend: "SMA 200" },
+      6: { type: "line", color: "#B71C1C", lineDashStyle: [4, 4], labelInLegend: "Resistance" },
+      7: { type: "line", color: "#0D47A1", lineDashStyle: [4, 4], labelInLegend: "Support" }
     })
     .setOption("vAxes", {
       0: { viewWindow: { min: minP, max: maxP } },
       1: { viewWindow: { min: 0, max: maxVol * 4 }, format: "short" }
     })
     .setOption("legend", { position: "top", textStyle: { fontSize: 10 } })
-    .setPosition(5, 3, 0, 0)
+    // ✅ Chart at C7
+    .setPosition(7, 3, 0, 0)
     .setOption("width", 1150)
     .setOption("height", 650)
     .build();
@@ -1692,23 +1607,25 @@ function updateDynamicChart() {
   sheet.insertChart(chart);
 }
 
+
+
 /**
-* Reads CHART sidebar values by labels from A5:B120.
-*/
+ * Helper: reads sidebar values by labels (case-insensitive)
+ * Scans A8:B200 (your sidebar region)
+ */
 function getSidebarValuesByLabels_(chartSheet, labels) {
-  const keys = chartSheet.getRange("A5:A120").getValues().flat()
-    .map(v => String(v || "").trim().toUpperCase());
-  const vals = chartSheet.getRange("B5:B120").getValues().flat();
+  const want = new Set(labels.map(l => String(l).trim().toUpperCase()));
+  const keys = chartSheet.getRange("A8:A200").getValues().flat().map(v => String(v || "").trim().toUpperCase());
+  const vals = chartSheet.getRange("B8:B200").getValues().flat();
 
   const out = {};
-  labels.forEach(lbl => out[lbl] = 0);
-
   for (let i = 0; i < keys.length; i++) {
-    labels.forEach(lbl => {
-      const want = String(lbl).trim().toUpperCase();
-      if (keys[i] === want) out[lbl] = vals[i];
-    });
+    if (want.has(keys[i])) {
+      const original = labels.find(l => String(l).trim().toUpperCase() === keys[i]);
+      out[original] = vals[i];
+    }
   }
+  labels.forEach(l => { if (out[l] === undefined) out[l] = 0; });
   return out;
 }
 
