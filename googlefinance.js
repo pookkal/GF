@@ -1,9 +1,8 @@
 /**
 * ==============================================================================
-* BASELINE LABEL: STABLE_MASTER_ALL_CLEAN_v4.0
+* BASELINE LABEL: STABLE_MASTER_ALL_CLEAN_v4.0 SUPPORT_RESISTENCE_CHANGES
 * ==============================================================================
 */
-
 
 /**
 * ------------------------------------------------------------------
@@ -19,6 +18,8 @@ function onOpen() {
     .addItem('2. Build Calculations', 'generateCalculationsSheet')
     .addItem('3. Refresh Dashboard Only', 'generateDashboardSheet')
     .addItem('4. Setup Chart Only', 'setupChartSheet')
+    .addSeparator()
+    .addItem('🤖 Generate AI Narratives', 'runInstitutionalAnalysis')
     .addSeparator()
     .addItem('📖 Open Reference Guide', 'generateReferenceSheet')
     .addSeparator()
@@ -650,6 +651,7 @@ function generateCalculationsSheet() {
     // Rolling window anchors (row 5+ only)
     const lastRowCount = `COUNTA(DATA!$${closeCol}$5:$${closeCol})`; // number of data rows
     const lastAbsRow   = `(4+${lastRowCount})`;                      // absolute row index
+    const lastRowFormula = "COUNTA(DATA!$A:$A)";                      //used for support /resistence , to stay live
 
     // SIGNAL (B) — locale-safe + row5-anchored windows
     const fSignal =
@@ -793,9 +795,12 @@ function generateCalculationsSheet() {
     const fADX    = `=IFERROR(LIVEADX(DATA!$${highCol}$5:$${highCol}${SEP}DATA!$${lowCol}$5:$${lowCol}${SEP}DATA!$${closeCol}$5:$${closeCol}${SEP}$E${row})${SEP}0)`;
     const fStoch  = `=LIVESTOCHK(DATA!$${highCol}$5:$${highCol}${SEP}DATA!$${lowCol}$5:$${lowCol}${SEP}DATA!$${closeCol}$5:$${closeCol}${SEP}$E${row})`;
 
-    const fSup    = `=ROUND(IFERROR(MIN(OFFSET(DATA!$${lowCol}$5${SEP}${lastRowCount}-20${SEP}0${SEP}20))${SEP}$E${row}*0.9)${SEP}2)`;
-    const fRes    = `=ROUND(IFERROR(MAX(OFFSET(DATA!$${highCol}$5${SEP}${lastRowCount}-50${SEP}0${SEP}50))${SEP}$E${row}*1.1)${SEP}2)`;
-    const fTgt    = `=ROUND($E${row} + (($E${row}-$U${row}) * 3)${SEP}2)`;
+    const fRes = `=LET(window${SEP}IFS($S${row}<20${SEP}10${SEP}$S${row}<35${SEP}22${SEP}TRUE${SEP}40)${SEP}ROUND(IFERROR(AVERAGE(LARGE(OFFSET(DATA!$${closeCol}$5${SEP}${lastRowFormula}-(window+1)${SEP}0${SEP}window)${SEP}{1${SEP}2${SEP}3}))${SEP}$E${row}*1.05)${SEP}2))`;
+
+    const fSup = `=LET(window${SEP}IFS($S${row}<20${SEP}10${SEP}$S${row}<35${SEP}22${SEP}TRUE${SEP}40)${SEP}ROUND(IFERROR(AVERAGE(SMALL(OFFSET(DATA!$${lowCol}$5${SEP}${lastRowFormula}-(window+1)${SEP}0${SEP}window)${SEP}{1${SEP}2${SEP}3}))${SEP}$E${row}*0.95)${SEP}2))`;
+    
+    // Target: Hybrid Logic (High of Resistance vs. 3:1 Projection)
+    const fTgt = `=ROUND(MAX($V${row}${SEP}$E${row}+(($E${row}-$U${row})*3))${SEP}2)`;
 
     const fATR =
       `=ROUND(IFERROR(AVERAGE(ARRAYFORMULA(` +
