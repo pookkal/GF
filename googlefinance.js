@@ -85,7 +85,7 @@ function onEdit(e) {
   // CHART controls -> update dynamic chart
   // (keep your existing watch list logic)
   // ------------------------------------------------------------
-  if (sheetName === "CHART") {
+  if (sheet.getName() === "CHART") {
     const watchList = ["A1", "B2", "B3", "B4", "B6"];
    
     // This triggers if B1-B6 are edited OR any cell in Row 1 (Cols 1-4)
@@ -93,12 +93,23 @@ function onEdit(e) {
       try {
         ss.toast("🔄 Refreshing Chart & Analysis...", "WORKING", 2);
         if (typeof updateDynamicChart === "function") updateDynamicChart();
-        runAnalysisFromInput(); // Call analysis after chart update
+        //runAnalysisFromInput(); // Call analysis after chart update
       } catch (err) {
         ss.toast("Refresh error: " + err.toString(), "⚠️ FAIL", 6);
       }
       return; // Exit after processing CHART
     }
+  }
+}
+
+function onEditInstall(e) {
+  if (!e) return;
+  const range = e.range;
+  const a1 = range.getA1Notation();
+  
+  // If user edits A1 or C1, trigger the Master Analysis
+  if (a1 === "A1" || a1 === "C1") {
+    runMasterAnalysis();
   }
 }
 
@@ -1036,15 +1047,6 @@ function generateCalculationsSheet() {
 * - Formula parse error fixed by simplifying the assembled FILTER() range
 * ------------------------------------------------------------------
 */
-/**
-* ------------------------------------------------------------------
-* 5. DASHBOARD ENGINE (OPTIMIZED + SHRINK/GROW SAFE)
-* - One-time heavy layout (headers, widths, borders, conditional formats)
-* - Fast refresh: only updates controls/timestamp + A4 FILTER/SORT formula
-* - Formats only the active rows (based on ticker count)
-* - Includes tail cleanup (clears formats below active window when rows shrink)
-* ------------------------------------------------------------------
-*/
 function generateDashboardSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const input = ss.getSheetByName("INPUT");
@@ -1145,18 +1147,13 @@ function generateDashboardSheet() {
       .setBackground("#111111")
       .setFontColor("white")
       .setFontWeight("bold")
-      .setHorizontalAlignment("center")
-      .setVerticalAlignment("middle")
+      .setHorizontalAlignment("middle")
+      .setVerticalAlignment("left")
       .setWrap(true);
 
     // Freeze panes
     dashboard.setFrozenRows(3);
     dashboard.setFrozenColumns(1);
-
-    // Column widths (one time)
-    for (let c = 1; c <= 25; c++) dashboard.setColumnWidth(c, 90);
-    dashboard.setColumnWidth(26, 420);
-    dashboard.setColumnWidth(27, 420);
 
     // Header alignment
     dashboard.getRange(1, 1, 3, 27).setVerticalAlignment("middle");
@@ -1377,7 +1374,8 @@ function generateDashboardSheet() {
     .setWrap(false)
     .setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
 
-  dashboard.setRowHeights(DATA_START_ROW, DATA_ROWS, 12);
+    dashboard.hideColumns(26,2);
+  //hides Notes column temporarily
 
   // Number formats only for active rows
   dashboard.getRange(`F${DATA_START_ROW}:F${DATA_END_ROW}`).setNumberFormat("0.00%");
@@ -1783,88 +1781,6 @@ function updateDynamicChart() {
 }
 
 /**
- * upgraded Intelligence Engine for STOCK_ANALYZER_TERMINAL_BASE
- */
-class AnalysisEngine {
-  
-  static getNextGenSignal(d) {
-    if (!d.price || d.price === 0) return "LOADING";
-    if (d.price < d.stopLoss) return "Stop-Out";
-    if (d.price < d.sma200) return "Risk-Off (Below SMA200)";
-    if (d.adx < 15) return "Range-Bound (Low ADX)";
-    if (d.volRatio >= 1.5 && d.price >= (d.resistance * 0.995)) return "Breakout (High Volume)";
-    if (d.stochK <= 0.2 && d.price > d.stopLoss) return "Mean Reversion (Oversold)";
-    if (d.price > d.sma200 && d.macdHist > 0 && d.adx >= 18) return "Trend Continuation";
-    return "Hold / Monitor";
-  }
-
-  static getRecommendation(d, signal) {
-    const isPurchased = /PURCHASED/i.test(d.status);
-    if (d.price > 0 && d.stopLoss > 0 && d.price < d.stopLoss) return "Stop-Out";
-    
-    if (isPurchased) {
-      if (d.target > 0 && d.price >= d.target) return "Take Profit";
-      if (d.resistance > 0 && d.price >= (d.resistance * 0.995) && (d.rsi >= 70 || d.stochK >= 0.8)) return "Take Profit";
-      if (d.macdHist < 0 && d.price < d.sma20) return "Reduce (Momentum Weak)";
-      if (d.atr > 0 && d.sma50 > 0 && (d.price - d.sma50) / d.atr >= 2) return "Reduce (Overextended)";
-      if (d.price > d.stopLoss && d.stochK <= 0.2 && d.price >= d.sma200) return "Add in Dip";
-    } else {
-      if (d.price < d.sma200) return "Avoid";
-      if (signal === "Breakout (High Volume)") return (d.valuation === "VALUE" || d.valuation === "FAIR") ? "Trade Long" : "Hold";
-      if (signal === "Trend Continuation" && d.valuation === "VALUE") return "Accumulate";
-    }
-    return "Hold";
-  }
-
-  static generateNarrative(d, signal, rec) {
-    const isBullish = d.price > d.sma200;
-    const trendIcon = isBullish ? "📈" : "📉";
-    const statusColor = rec.includes("Stop") ? "🔴" : rec.includes("Buy") || rec.includes("Long") || rec.includes("Accumulate") ? "🟢" : "🟡";
-
-    let narrative = `◈━━━━━━━━ STOCK INTELLIGENCE REPORT ━━━━━━━━◈\n\n`;
-    
-    narrative += `[📊 MOMENTUM & TREND]\n`;
-    narrative += `Status: ${trendIcon} ${isBullish ? "LONG-TERM BULLISH" : "LONG-TERM BEARISH"}\n`;
-    narrative += `Price: $${d.price.toFixed(2)} | `;
-    
-    if (Math.abs(d.price - d.sma50) / d.price < 0.005) {
-      narrative += `⚡ PINNED at 50-Day MA ($${d.sma50.toFixed(2)}). Expect Volatility expansion.\n`;
-    } else {
-      narrative += `${d.price > d.sma50 ? "Above" : "Below"} mid-term 50-Day anchor.\n`;
-    }
-
-    narrative += `\n[🔬 TECHNICAL DEEP-DIVE]\n`;
-    narrative += `• RSI (14): ${d.rsi.toFixed(1)} → ${d.rsi > 60 ? "Overbought-Lean" : d.rsi < 40 ? "Oversold-Lean" : "Neutral Zone"}. ${d.rsi < 55 ? "Plenty of fuel for a rally." : "Caution: upside exhaustion near."}\n`;
-    narrative += `• MACD Hist: ${d.macdHist > 0 ? "🟢 Positive" : "🔴 Negative"} (${d.macdHist.toFixed(2)}). Momentum is ${d.macdHist > 0 ? "expanding." : "contracting."}\n`;
-    narrative += `• ADX (14): ${d.adx.toFixed(2)} → ${d.adx < 15 ? "COILING (Low Trend Strength). Breakout imminent." : "Trending."}\n`;
-    narrative += `• STOCH %K: ${(d.stochK * 100).toFixed(1)}% → ${d.stochK > 0.8 ? "⚠️ CEILING: Redlined. Pullback likely before higher move." : "Healthy positioning."}\n`;
-    
-    const risk = Math.abs(d.price - d.stopLoss);
-    const reward = Math.abs(d.target - d.price);
-    const rr = risk > 0 ? (reward / risk).toFixed(1) : "N/A";
-
-    narrative += `\n[🎯 KEY LEVELS]\n`;
-    narrative += `🛡️ Support (Stop): $${d.stopLoss.toFixed(2)}\n`;
-    narrative += `🚧 Resistance: $${d.resistance.toFixed(2)}\n`;
-    narrative += `🏁 Target: $${d.target.toFixed(2)} (R:R: ${rr}:1)\n`;
-
-    narrative += `\n[💡 STRATEGIC VERDICT]\n`;
-    narrative += `${statusColor} ACTION: ${rec.toUpperCase()}\n`;
-    
-    if (rec === "Stop-Out") {
-      narrative += `⚠️ CRITICAL: Support floor breached. Move to cash or tighten stops.\n`;
-    } else if (d.adx < 15) {
-      narrative += `🎯 CONTEXT: Volatility Squeeze. Watch for daily close above $${d.resistance} on high volume.\n`;
-    }
-    
-    narrative += `\nStrategic Play: ${isBullish ? "Focus on dip-buying near SMA 20." : "Focus on selling rallies near SMA 200."}\n`;
-    narrative += `◈━━━━━━━━━━━━━━━━━━━━━━━━━━━━━◈`;
-
-    return narrative;
-  }
-}
-
-/**
  * Core Terminal Function:
  * Finds the ticker in C1, pulls data from STOCK_ANALYZER_TERMINAL_BASE (GOLDEN),
  * and generates a high-detail Intelligence Report.
@@ -1937,9 +1853,11 @@ function runAnalysisFromInput() {
 
   // 6. RUN ANALYSIS: Calculate Signal and Recommendation
   try {
-    const signal = AnalysisEngine.getNextGenSignal(d);
-    const rec = AnalysisEngine.getRecommendation(d, signal);
-    const narrative = AnalysisEngine.generateNarrative(d, signal, rec);
+
+    const d = getTickerDataFromBaseline(ticker);
+    if (!d) return;
+
+    const narrative = MasterAnalysisEngine.analyze(d);
 
     // 7. OUTPUT: Write back to INPUT sheet
     const outputRange = inputSheet.getRange("C1");
@@ -1958,66 +1876,71 @@ function runAnalysisFromInput() {
 }
 
 /**
- * Master Technical & Institutional Intelligence Engine
- * Version: 3.0 (Confluence Model)
+ * MASTER INSTITUTIONAL INTELLIGENCE ENGINE v8.0
+ * Integrated Volume Intelligence & Smart Money Analysis
  */
-class MasterAnalysisEngine {
-  
+class MasterAnalysisEngineText {
   static analyze(d) {
-    const isBullishTrend = d.price > d.sma200 && d.trendScore > 6;
-    const volatilitySqueeze = d.adx < 15 && d.atr < (d.price * 0.02); // ATR is low relative to price
-    const momentumState = d.macdHist > 0 && d.rsi > 50 ? "BULLISH ACCELERATION" : "NEUTRAL/MEAN REVERSION";
-    
-    // Confluence 1: The "Launchpad" Setup
-    const launchpad = (d.price > d.sma20 && d.adx < 15 && d.stochK < 0.3);
-    
-    // Confluence 2: Institutional Distribution
-    const distribution = (d.rsi > 70 && d.stochK > 0.8 && d.price >= d.resistance * 0.99);
+    const volRatio = parseFloat(d.volRatio) || 0;
+    const priceChange = parseFloat(d.changePct) || 0;
+    const rsiVal = parseFloat(d.rsi) || 0;
+    const adxVal = parseFloat(d.adx) || 0;
+
+    // --- VOLUME INTELLIGENCE LOGIC ---
+    let volumeNarrative = "";
+    if (volRatio > 2.0 && priceChange < 0) {
+      volumeNarrative = "⚠️ CAPITULATION VOLUME: Massive institutional selling detected. This is a 'Panic Flush'.";
+    } else if (volRatio > 2.0 && priceChange > 0) {
+      volumeNarrative = "🔥 ABSORPTION VOLUME: Institutional buyers are aggressively soaking up supply.";
+    } else if (volRatio < 1.0) {
+      volumeNarrative = "⚪ LOW CONVICTION: Trading on 'Retail Churn'. Large institutions are sitting on the sidelines.";
+    } else {
+      volumeNarrative = "✅ HEALTHY PARTICIPATION: Volume is tracking the 10-day average.";
+    }
 
     let report = `◈━━━━━━━━ MASTER INSTITUTIONAL INTELLIGENCE ━━━━━━━━◈\n\n`;
 
-    // SECTION 1: SYSTEM SIGNAL & TREND STATE
+    // SECTION 1: SYSTEM SENTIMENT
     report += `[🧭 SYSTEM SENTIMENT]\n`;
-    report += `Status: ${isBullishTrend ? "📈 STRUCTURAL BULLISH" : "📉 STRUCTURAL BEARISH"}\n`;
-    report += `Trend Score: ${d.trendScore}/10 | State: ${d.trendState}\n`;
-    report += `Signal: ${d.signal} | Fundamental: ${d.valuation}\n\n`;
+    report += `Status: ${d.price > d.sma200 ? "📈 STRUCTURAL BULLISH" : "📉 STRUCTURAL BEARISH"}\n`;
+    report += `Signal: ${d.signal} | Vol Trend: ${volRatio.toFixed(2)}x\n`;
+    report += `→ ${volumeNarrative}\n\n`;
 
-    // SECTION 2: CONFLUENCE ANALYSIS
+    // SECTION 2: CONFLUENCE DEEP-DIVE
     report += `[🔬 CONFLUENCE OF EVIDENCE]\n`;
     
-    // Price vs MAs Deep Dive
-    const maRelationship = d.sma20 > d.sma50 && d.sma50 > d.sma200 ? "PERFECT ALIGNMENT" : "MA DISARRAY";
-    report += `• MA Structure: ${maRelationship}. ${d.price > d.sma50 ? "Price is utilizing SMA 50 as dynamic support." : "Price is struggling under SMA 50."}\n`;
+    // VOLUME X PRICE CONFLUENCE (The "So What")
+    let confluenceLogic = "";
+    if (priceChange < 0 && volRatio < 1.0) {
+      confluenceLogic = "DIVERGENCE: Price is falling, but volume is drying up. This suggests the selling pressure is exhausting and a bounce is mathematically likely.";
+    } else if (priceChange < 0 && volRatio > 1.5) {
+      confluenceLogic = "CONFIRMED DOWNTREND: High volume accompanying the price drop confirms institutional exit. Do not buy the dip yet.";
+    }
+    report += `• SMART MONEY: ${confluenceLogic}\n`;
 
-    // Momentum & Volatility
-    report += `• Momentum: RSI at ${d.rsi.toFixed(1)}. MACD Hist at ${d.macdHist.toFixed(2)}. `;
-    if (d.divergence !== "—" && d.divergence !== "") report += `⚠️ DIVERGENCE DETECTED: ${d.divergence}. `;
-    report += `\n• Volatility: ADX is ${d.adx.toFixed(2)}. ${volatilitySqueeze ? "🔥 SQUEEZE ALERT: High probability of explosive move." : "Trend is currently trending."}\n`;
+    // RSI & MACD SIGNIFICANCE (Industry Standard Explainer)
+    report += `• MOMENTUM: RSI ${rsiVal.toFixed(1)} | MACD ${d.macdHist.toFixed(2)}\n`;
+    report += `  → ${rsiVal < 30 ? "Institutional Buy Zone (Oversold Extremity)." : "Momentum searching for equilibrium."}\n`;
 
-    // Overbought/Oversold Logic
-    report += `• Tactical Oscillator: Stoch %K is ${(d.stochK * 100).toFixed(1)}%. `;
-    report += d.stochK > 0.8 ? "Institutional Supply Zone reached." : d.stochK < 0.2 ? "Institutional Demand Zone reached." : "Floating in Neutral liquidity.\n";
+    // VOLATILITY & ADX
+    report += `• VOLATILITY: ADX ${adxVal.toFixed(2)} (${adxVal > 30 ? "Strong Power Trend" : "Weak/Coiling Trend"})\n`;
+    report += `  → High ADX with Low Volume (${volRatio}) indicates the trend is 'Automated' (Algorithmic) rather than human-driven.\n\n`;
 
-    // SECTION 3: RISK & LEVELS (R:R 3:1 Logic)
-    report += `\n[🎯 PRICE ARCHITECTURE]\n`;
-    report += `🛡️ Critical Support: $${d.support.toFixed(2)} (Stop Loss Zone)\n`;
-    report += `🚧 Key Resistance: $${d.resistance.toFixed(2)} (The Pivot)\n`;
-    report += `🏁 Macro Target: $${d.target.toFixed(2)} | ATR (14): $${d.atr.toFixed(2)}\n`;
-    report += `📊 Bollinger Position: ${(d.bolB * 100).toFixed(1)}% of Band Width.\n\n`;
+    // SECTION 3: PRICE ARCHITECTURE
+    report += `[🎯 PRICE ARCHITECTURE]\n`;
+    report += `🛡️ Support: $${d.support.toFixed(2)} | 🚧 Resistance: $${d.resistance.toFixed(2)}\n`;
+    report += `📊 Bollinger %B: ${(d.bolB * 100).toFixed(1)}% → ${d.bolB < 0.2 ? "Statistical Value Floor" : "Inside Distribution Range"}\n\n`;
 
     // SECTION 4: STRATEGIC VERDICT
     report += `[💡 STRATEGIC VERDICT]\n`;
-    if (launchpad) {
-      report += `⭐ ACTION: AGGRESSIVE ACCUMULATE. This is a high-conviction "Launchpad" setup where price is coiling above support with low-momentum oscillators.\n`;
-    } else if (distribution) {
-      report += `⚠️ ACTION: TAKE PROFIT / REDUCE. Confluence of extreme RSI and Resistance suggests a "Bull Trap" or exhaustion gap.\n`;
-    } else if (d.signal === "Stop-Out" || d.price < d.support) {
-      report += `🔴 ACTION: LIQUIDATE/EXIT. Primary support has failed. Capital preservation is priority.\n`;
-    } else {
-      report += `⚪ ACTION: ${d.status === "PURCHASED" ? "HOLD & TRAIL STOPS" : "WATCHLIST - WAIT FOR PIVOT"}.\n`;
-    }
+    const isOversold = rsiVal < 25;
+    report += `ACTION: ${isOversold ? "TACTICAL BOUNCE ENTRY (Wait for 5m Reversal)" : "REDUCE / HOLD"}\n`;
+    report += `Narrative: Despite the BEAR state, the Low Volume (${volRatio}) and Extreme RSI (${rsiVal}) create a 'Vacuum' where any minor buying will cause a sharp snap-back to $${d.sma50.toFixed(2)}.\n\n`;
 
-    report += `\nStrategic Context: ${isBullishTrend ? "Buy the dips." : "Sell the rips."} Current ATH Diff is ${d.athDiff.toFixed(2)}%.\n`;
+    // SECTION 5: FOOTER
+    report += `[📝 ANALYTICS FOOTER]\n`;
+    report += `• Structural Reason: ${d.price < d.sma200 ? "GRAVITY: Below 200-Day SMA." : "Trend Strength Failure."}\n`;
+    report += `• ATH Distance: ${((d.athDiff < 1) ? d.athDiff * 100 : d.athDiff).toFixed(2)}%\n`;
     report += `◈━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━◈`;
 
     return report;
@@ -2025,31 +1948,152 @@ class MasterAnalysisEngine {
 }
 
 /**
+ * MASTER INSTITUTIONAL INTELLIGENCE ENGINE v9.0
+ * Features: Volume Confluence, Conflict Resolution, & Dark-Mode HTML UI
+ */
+class MasterAnalysisEngine {
+  static analyze(d) {
+    // --- 1. DATA NORMALIZATION & FIXES ---
+    const rsiVal = parseFloat(d.rsi) || 0;
+    const macdVal = parseFloat(d.macdHist) || 0;
+    const adxVal = parseFloat(d.adx) || 0;
+    const volRatio = parseFloat(d.volRatio) || 0;
+    const priceChange = parseFloat(d.changePct) || 0;
+    const stochVal = (parseFloat(d.stochK) * 100) || 0;
+    const athFormatted = (Math.abs(d.athDiff) < 1) ? (d.athDiff * 100).toFixed(2) : d.athDiff.toFixed(2);
+    
+    // --- 2. THE CONFLICT RESOLVER (TREND vs MOMENTUM) ---
+    const isBullishTrend = d.price > d.sma200 && d.trendScore > 5;
+    const isOversoldCapitulation = rsiVal < 25 && stochVal < 10;
+    
+    // --- 3. SMART MONEY & VOLUME LOGIC ---
+    let volumeBias = "";
+    let volumeClass = "neutral-text";
+    
+    if (volRatio > 2.0 && priceChange < 0) {
+      volumeBias = "⚠️ INSTITUTIONAL CAPITULATION: Massive volume on a drop indicates a panic flush. Floor approaching.";
+      volumeClass = "bearish-text";
+    } else if (volRatio > 2.0 && priceChange > 0) {
+      volumeBias = "🔥 INSTITUTIONAL ABSORPTION: Smart money is aggressively soaking up supply. Strong Bullish footprint.";
+      volumeClass = "bullish-text";
+    } else if (volRatio < 0.85) {
+      volumeBias = "⚪ RETAIL DRIFT: Volume is anemic. Institutions are sitting on the sidelines. Expect choppy action.";
+      volumeClass = "highlight";
+    } else {
+      volumeBias = "✅ ORGANIC PARTICIPATION: Volume is tracking the 10-day mean. No anomalous prints detected.";
+    }
+
+    // --- 4. GENERATE HTML NARRATIVE ---
+    const statusClass = isBullishTrend ? "bullish-text" : "bearish-text";
+    const statusLabel = isBullishTrend ? "📈 STRUCTURAL BULLISH" : "📉 STRUCTURAL BEARISH";
+
+    let report = `
+      <div class="report-header">◈ MASTER INSTITUTIONAL INTELLIGENCE ◈</div>
+      
+      <div class="section">
+        <span class="section-title">[🧭 SYSTEM SENTIMENT]</span><br>
+        Status: <span class="${statusClass}">${statusLabel}</span><br>
+        Trend Score: <span class="highlight">${d.trendScore}/10</span> | State: ${d.trendState}<br>
+        Volume Footprint: <span class="${volumeClass}">${volRatio.toFixed(2)}x (Relative)</span><br>
+        &nbsp;&nbsp;→ <i>${volumeBias}</i>
+      </div>
+
+      <div class="section">
+        <span class="section-title">[🔬 CONFLUENCE OF EVIDENCE]</span><br>
+        • <b>MA STRUCTURE:</b> Price is ${d.price > d.sma50 ? "utilizing the 50-Day SMA as a dynamic floor." : "trapped under 50-Day supply gravity."}<br>
+        • <b>MOMENTUM ENGINE:</b><br>
+          &nbsp;&nbsp;→ RSI (${rsiVal.toFixed(1)}): ${rsiVal < 30 ? '<span class="bullish-text">CAPITULATION ZONE</span>' : rsiVal > 70 ? '<span class="bearish-text">EXHAUSTION ZONE</span>' : 'Neutral Momentum'}<br>
+          &nbsp;&nbsp;→ MACD Hist (${macdVal.toFixed(2)}): ${macdVal < 0 ? '<span class="bearish-text">DOWNSIDE ACCELERATION</span>' : '<span class="bullish-text">BULLISH EXPANSION</span>'}<br>
+        • <b>VOLATILITY:</b> ADX at ${adxVal.toFixed(2)} (${adxVal > 25 ? 'Power Trend Active' : 'Range-Bound / Coiling'})
+      </div>
+
+      <div class="section">
+        <span class="section-title">[🎯 PRICE ARCHITECTURE]</span><br>
+        🛡️ Support: $${d.support.toFixed(2)} | 🚧 Resistance: $${d.resistance.toFixed(2)}<br>
+        🏁 Target: $${d.target.toFixed(2)} | <b>Bollinger %B:</b> ${(d.bolB * 100).toFixed(1)}%<br>
+        &nbsp;&nbsp;→ ${d.bolB > 0.9 ? '⚠️ STATISTICAL EXTREME: Risk of Mean Reversion rejection.' : 'Operating inside normal deviation.'}
+      </div>
+
+      <div class="section">
+        <span class="section-title">[💡 STRATEGIC VERDICT]</span><br>
+        <span class="action-box ${isOversoldCapitulation ? 'bullish-bg' : (isBullishTrend ? 'bullish-bg' : 'bearish-bg')}">
+          ACTION: ${isOversoldCapitulation ? "TACTICAL BOUNCE ENTRY" : d.status.toUpperCase()}
+        </span><br>
+        <i>Narrative: ${isOversoldCapitulation ? 
+          "Structural trend is weak, but extreme RSI/Stoch confluence suggests an imminent snap-back to the SMA 50." : 
+          "Institutional flow confirms a " + (isBullishTrend ? "Buy-the-Dip" : "Sell-the-Rip") + " environment at " + athFormatted + "% from ATH."}</i>
+      </div>
+
+      <div class="footer">
+        Structural Reason: ${d.price < d.sma200 ? "GRAVITY BIAS (Below 200-Day SMA)" : "DIVERGENT WEAKNESS (Internal Trend Failure)"}<br>
+        ◈━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━◈
+      </div>
+    `;
+
+    return report;
+  }
+}
+
+function showAnalysisPopup(ticker, reportHtml) {
+  const css = `
+    <style>
+      body { 
+        background-color: #0d1117; 
+        color: #c9d1d9; 
+        font-family: 'Consolas', 'Courier New', monospace; 
+        padding: 20px; 
+        line-height: 1.4;
+      }
+      .report-header { color: #58a6ff; font-weight: bold; text-align: center; border-bottom: 1px solid #30363d; padding-bottom: 10px; margin-bottom: 15px; }
+      .section { margin-bottom: 15px; border-left: 3px solid #30363d; padding-left: 10px; }
+      .section-title { color: #ff7b72; font-weight: bold; }
+      .bullish-text { color: #3fb950; font-weight: bold; }
+      .bearish-text { color: #f85149; font-weight: bold; }
+      .highlight { color: #d29922; }
+      .action-box { display: inline-block; padding: 5px 10px; border-radius: 4px; font-weight: bold; margin-top: 5px; }
+      .bullish-bg { background-color: #238636; color: white; }
+      .bearish-bg { background-color: #da3633; color: white; }
+      .footer { font-size: 11px; color: #8b949e; text-align: center; margin-top: 20px; }
+      button { background: #21262d; color: #58a6ff; border: 1px solid #30363d; padding: 10px; width: 100%; border-radius: 6px; cursor: pointer; }
+      button:hover { background: #30363d; }
+    </style>
+  `;
+
+  const finalHtml = css + reportHtml + '<br><button onclick="google.script.host.close()">CLOSE TERMINAL</button>';
+  
+  const htmlOutput = HtmlService.createHtmlOutput(finalHtml)
+    .setWidth(600)
+    .setHeight(700);
+
+  SpreadsheetApp.getUi().showModalDialog(htmlOutput, `Terminal Intelligence: ${ticker.toUpperCase()}`);
+}
+/**
  * UI Trigger Function
  */
 function runMasterAnalysis() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const ticker = ss.getActiveCell().getValue();
+  
+  // Get ticker from ACTIVE CELL or specific cell (C1)
+  const activeCell = ss.getActiveCell();
+  let ticker = activeCell.getValue();
+  
+  // Fallback: If active cell is empty, check INPUT!C1
+  if (!ticker || typeof ticker !== 'string' || ticker === "") {
+    ticker = ss.getSheetByName("INPUT").getRange("C1").getValue();
+  }
 
-  if (!ticker || typeof ticker !== 'string') {
-    ss.toast("Please select a cell with a Ticker Symbol.", "⚠️ INVALID");
+  if (!ticker) {
+    ss.toast("⚠️ Please select a Ticker or enter one in INPUT!C1", "INPUT NEEDED");
     return;
   }
 
+  // 4. Fetch the data using the A-Y mapping helper
   const d = getTickerDataFromBaseline(ticker);
   if (!d) return;
 
+  // 5. Generate and show the report
   const report = MasterAnalysisEngine.analyze(d);
-
-  const html = HtmlService.createHtmlOutput(`
-    <div style="font-family: 'Consolas', 'Monaco', monospace; background-color: #0d1117; color: #c9d1d9; padding: 25px; line-height: 1.6; font-size: 13px;">
-      ${report.replace(/\n/g, '<br>')}
-      <br><br>
-      <button onclick="google.script.host.close()" style="background: #21262d; color: #58a6ff; border: 1px solid #30363d; padding: 12px; width: 100%; border-radius: 6px; cursor: pointer; font-weight: bold;">EXIT ANALYSIS</button>
-    </div>
-  `).setWidth(600).setHeight(750);
-
-  SpreadsheetApp.getUi().showModalDialog(html, `INSTITUTIONAL GRADE ANALYSIS: ${ticker.toUpperCase()}`);
+  showAnalysisPopup(ticker, report);
 }
 
 /**
