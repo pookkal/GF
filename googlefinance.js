@@ -12,14 +12,14 @@
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('📈 Institutional Terminal')
-    .addItem('🚀 1-CLICK REBUILD ALL', 'FlushAllSheetsAndBuild')
-    .addItem('1. Fetch Data Only', 'generateDataSheet')
+    .addItem('🚀 1- FETCH DATA', 'FlushDataSheetAndBuild')
+    .addItem('🚀 2. REBUILD ALL SHEETS', 'FlushAllSheetsAndBuild')
     .addSeparator()
-    .addItem('2. Build Calculations', 'generateCalculationsSheet')
-    .addItem('3. Refresh Dashboard Only', 'generateDashboardSheet')
-    .addItem('4. Setup Chart Only', 'setupChartSheet')
+    .addItem('3. Build Calculations', 'generateCalculationsSheet')
+    .addItem('4. Refresh Dashboard ', 'generateDashboardSheet')
+    .addItem('5. Setup Chart', 'setupChartSheet')
     .addSeparator()
-    .addItem('🤖 Generate AI Narratives', 'runInstitutionalAnalysis')
+    .addItem('🤖 Generate  Narratives', 'runMasterAnalysis')
     .addSeparator()
     .addItem('📖 Open Reference Guide', 'generateReferenceSheet')
     .addSeparator()
@@ -85,22 +85,77 @@ function onEdit(e) {
   // CHART controls -> update dynamic chart
   // (keep your existing watch list logic)
   // ------------------------------------------------------------
-  if (sheet.getName() === "CHART") {
-    const watchList = ["B1", "B2", "B3", "B4", "B6"];
-    if (watchList.includes(a1) || (range.getRow() === 1 && range.getColumn() <= 4)) {
+  if (sheetName === "CHART") {
+    const watchList = ["A1", "B2", "B3", "B4", "B6"];
+   
+    // This triggers if B1-B6 are edited OR any cell in Row 1 (Cols 1-4)
+    if (watchList.indexOf(a1) !== -1 || (range.getRow() === 1 && range.getColumn() <= 4)) {
       try {
-        updateDynamicChart();
+        ss.toast("🔄 Refreshing Chart & Analysis...", "WORKING", 2);
+        if (typeof updateDynamicChart === "function") updateDynamicChart();
+        runAnalysisFromInput(); // Call analysis after chart update
       } catch (err) {
-        ss.toast("Chart refresh error: " + err.toString(), "⚠️ FAIL", 6);
+        ss.toast("Refresh error: " + err.toString(), "⚠️ FAIL", 6);
       }
+      return; // Exit after processing CHART
     }
-    return;
   }
 }
 
 /**
 * ------------------------------------------------------------------
-* 1. CUSTOM MATH FUNCTIONS (RSI, MACD, ADX, STOCH)
+* 1. CORE AUTOMATION
+* ------------------------------------------------------------------
+*/
+function FlushAllSheetsAndBuild() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetsToDelete = ["CALCULATIONS","DASHBOARD",  "CHART"];
+  const ui = SpreadsheetApp.getUi();
+
+  if (ui.alert('🚨 Full Rebuild', 'Rebuild the sheets?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+
+  sheetsToDelete.forEach(name => {
+    let sh = ss.getSheetByName(name);
+    if (sh) ss.deleteSheet(sh);
+  });
+
+  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>2/4:</b> Integrating Indicators..."), "Status");
+  generateCalculationsSheet();
+  SpreadsheetApp.flush();
+
+  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>3/4:</b> Building Dashboard..."), "Status");
+  generateDashboardSheet();
+  SpreadsheetApp.flush();
+
+  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>4/4:</b> Constructing Chart..."), "Status");
+  setupChartSheet();
+
+  ui.alert('✅ Rebuild Complete', 'Terminal Online. Data links restored.', ui.ButtonSet.OK);
+}
+
+function FlushDataSheetAndBuild() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetsToDelete = ["DATA"];
+  const ui = SpreadsheetApp.getUi();
+
+  if (ui.alert('🚨 Full Rebuild', 'Rebuild Data?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+
+  sheetsToDelete.forEach(name => {
+    let sh = ss.getSheetByName(name);
+    if (sh) ss.deleteSheet(sh);
+  });
+
+  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>1/4:</b> Syncing Global Data..."), "Status");
+  generateDataSheet();
+  SpreadsheetApp.flush();
+
+  ui.alert('✅ Rebuild Complete', 'Data  rerestored.', ui.ButtonSet.OK);
+}
+
+
+/**
+* ------------------------------------------------------------------
+* 2. CUSTOM MATH FUNCTIONS (RSI, MACD, ADX, STOCH)
 * ------------------------------------------------------------------
 */
 function LIVERSI(history, currentPrice) {
@@ -291,44 +346,6 @@ function LIVESTOCHK(highHist, lowHist, closeHist, currentPrice) {
     return 0.5;
   }
 }
-
-
-/**
-* ------------------------------------------------------------------
-* 2. CORE AUTOMATION
-* ------------------------------------------------------------------
-*/
-function FlushAllSheetsAndBuild() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetsToDelete = ["DATA", "CALCULATIONS", "CHART", "DASHBOARD"];
-  const ui = SpreadsheetApp.getUi();
-
-  if (ui.alert('🚨 Full Rebuild', 'Rebuild the sheets?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
-
-  sheetsToDelete.forEach(name => {
-    let sh = ss.getSheetByName(name);
-    if (sh) ss.deleteSheet(sh);
-  });
-
-  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>1/4:</b> Syncing Global Data..."), "Status");
-  generateDataSheet();
-  SpreadsheetApp.flush();
-  Utilities.sleep(1500);
-
-  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>2/4:</b> Integrating Indicators..."), "Status");
-  generateCalculationsSheet();
-  SpreadsheetApp.flush();
-
-  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>3/4:</b> Building Dashboard..."), "Status");
-  generateDashboardSheet();
-  SpreadsheetApp.flush();
-
-  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>4/4:</b> Constructing Chart..."), "Status");
-  setupChartSheet();
-
-  ui.alert('✅ Rebuild Complete', 'Terminal Online. Data links restored.', ui.ButtonSet.OK);
-}
-
 
 /**
 * ------------------------------------------------------------------
@@ -1765,6 +1782,333 @@ function updateDynamicChart() {
   sheet.insertChart(chart);
 }
 
+/**
+ * upgraded Intelligence Engine for STOCK_ANALYZER_TERMINAL_BASE
+ */
+class AnalysisEngine {
+  
+  static getNextGenSignal(d) {
+    if (!d.price || d.price === 0) return "LOADING";
+    if (d.price < d.stopLoss) return "Stop-Out";
+    if (d.price < d.sma200) return "Risk-Off (Below SMA200)";
+    if (d.adx < 15) return "Range-Bound (Low ADX)";
+    if (d.volRatio >= 1.5 && d.price >= (d.resistance * 0.995)) return "Breakout (High Volume)";
+    if (d.stochK <= 0.2 && d.price > d.stopLoss) return "Mean Reversion (Oversold)";
+    if (d.price > d.sma200 && d.macdHist > 0 && d.adx >= 18) return "Trend Continuation";
+    return "Hold / Monitor";
+  }
+
+  static getRecommendation(d, signal) {
+    const isPurchased = /PURCHASED/i.test(d.status);
+    if (d.price > 0 && d.stopLoss > 0 && d.price < d.stopLoss) return "Stop-Out";
+    
+    if (isPurchased) {
+      if (d.target > 0 && d.price >= d.target) return "Take Profit";
+      if (d.resistance > 0 && d.price >= (d.resistance * 0.995) && (d.rsi >= 70 || d.stochK >= 0.8)) return "Take Profit";
+      if (d.macdHist < 0 && d.price < d.sma20) return "Reduce (Momentum Weak)";
+      if (d.atr > 0 && d.sma50 > 0 && (d.price - d.sma50) / d.atr >= 2) return "Reduce (Overextended)";
+      if (d.price > d.stopLoss && d.stochK <= 0.2 && d.price >= d.sma200) return "Add in Dip";
+    } else {
+      if (d.price < d.sma200) return "Avoid";
+      if (signal === "Breakout (High Volume)") return (d.valuation === "VALUE" || d.valuation === "FAIR") ? "Trade Long" : "Hold";
+      if (signal === "Trend Continuation" && d.valuation === "VALUE") return "Accumulate";
+    }
+    return "Hold";
+  }
+
+  static generateNarrative(d, signal, rec) {
+    const isBullish = d.price > d.sma200;
+    const trendIcon = isBullish ? "📈" : "📉";
+    const statusColor = rec.includes("Stop") ? "🔴" : rec.includes("Buy") || rec.includes("Long") || rec.includes("Accumulate") ? "🟢" : "🟡";
+
+    let narrative = `◈━━━━━━━━ STOCK INTELLIGENCE REPORT ━━━━━━━━◈\n\n`;
+    
+    narrative += `[📊 MOMENTUM & TREND]\n`;
+    narrative += `Status: ${trendIcon} ${isBullish ? "LONG-TERM BULLISH" : "LONG-TERM BEARISH"}\n`;
+    narrative += `Price: $${d.price.toFixed(2)} | `;
+    
+    if (Math.abs(d.price - d.sma50) / d.price < 0.005) {
+      narrative += `⚡ PINNED at 50-Day MA ($${d.sma50.toFixed(2)}). Expect Volatility expansion.\n`;
+    } else {
+      narrative += `${d.price > d.sma50 ? "Above" : "Below"} mid-term 50-Day anchor.\n`;
+    }
+
+    narrative += `\n[🔬 TECHNICAL DEEP-DIVE]\n`;
+    narrative += `• RSI (14): ${d.rsi.toFixed(1)} → ${d.rsi > 60 ? "Overbought-Lean" : d.rsi < 40 ? "Oversold-Lean" : "Neutral Zone"}. ${d.rsi < 55 ? "Plenty of fuel for a rally." : "Caution: upside exhaustion near."}\n`;
+    narrative += `• MACD Hist: ${d.macdHist > 0 ? "🟢 Positive" : "🔴 Negative"} (${d.macdHist.toFixed(2)}). Momentum is ${d.macdHist > 0 ? "expanding." : "contracting."}\n`;
+    narrative += `• ADX (14): ${d.adx.toFixed(2)} → ${d.adx < 15 ? "COILING (Low Trend Strength). Breakout imminent." : "Trending."}\n`;
+    narrative += `• STOCH %K: ${(d.stochK * 100).toFixed(1)}% → ${d.stochK > 0.8 ? "⚠️ CEILING: Redlined. Pullback likely before higher move." : "Healthy positioning."}\n`;
+    
+    const risk = Math.abs(d.price - d.stopLoss);
+    const reward = Math.abs(d.target - d.price);
+    const rr = risk > 0 ? (reward / risk).toFixed(1) : "N/A";
+
+    narrative += `\n[🎯 KEY LEVELS]\n`;
+    narrative += `🛡️ Support (Stop): $${d.stopLoss.toFixed(2)}\n`;
+    narrative += `🚧 Resistance: $${d.resistance.toFixed(2)}\n`;
+    narrative += `🏁 Target: $${d.target.toFixed(2)} (R:R: ${rr}:1)\n`;
+
+    narrative += `\n[💡 STRATEGIC VERDICT]\n`;
+    narrative += `${statusColor} ACTION: ${rec.toUpperCase()}\n`;
+    
+    if (rec === "Stop-Out") {
+      narrative += `⚠️ CRITICAL: Support floor breached. Move to cash or tighten stops.\n`;
+    } else if (d.adx < 15) {
+      narrative += `🎯 CONTEXT: Volatility Squeeze. Watch for daily close above $${d.resistance} on high volume.\n`;
+    }
+    
+    narrative += `\nStrategic Play: ${isBullish ? "Focus on dip-buying near SMA 20." : "Focus on selling rallies near SMA 200."}\n`;
+    narrative += `◈━━━━━━━━━━━━━━━━━━━━━━━━━━━━━◈`;
+
+    return narrative;
+  }
+}
+
+/**
+ * Core Terminal Function:
+ * Finds the ticker in C1, pulls data from STOCK_ANALYZER_TERMINAL_BASE (GOLDEN),
+ * and generates a high-detail Intelligence Report.
+ */
+function runAnalysisFromInput() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const inputSheet = ss.getSheetByName("CHART");
+  
+  // 1. CRITICAL: Update this name to match your GOLDEN baseline tab exactly
+  const DATA_TAB_NAME = "CALCULATIONS"; 
+  const dataSheet = ss.getSheetByName("CALCULATIONS");
+  
+  // 2. SAFETY CHECKS: Ensure sheets exist
+  if (!inputSheet) {
+    ss.toast("❌ Error: Sheet 'CHART' not found.", "TERMINAL FAIL", 5);
+    return;
+  }
+  if (!dataSheet) {
+    ss.toast(`❌ Error: Sheet '${DATA_TAB_NAME}' not found. Check tab name.`, "TERMINAL FAIL", 5);
+    return;
+  }
+
+  // 3. GET TICKER: Pull from A1
+  const ticker = inputSheet.getRange("A1").getValue();
+  if (!ticker || ticker === "") {
+    inputSheet.getRange("C1").setValue("⚠️ STANDBY: Enter a Ticker in A1 to begin analysis.");
+    return;
+  }
+
+  // 4. FIND DATA: Search column A for the Ticker
+  const data = dataSheet.getDataRange().getValues();
+  let tickerRow = -1;
+  
+  for (let i = 0; i < data.length; i++) {
+    // data[i][0] corresponds to Column A
+    if (data[i][0].toString().toUpperCase() === ticker.toString().toUpperCase()) {
+      tickerRow = i; 
+      break;
+    }
+  }
+
+  if (tickerRow === -1) {
+    inputSheet.getRange("C1").setValue(`❌ ERROR: Ticker '${ticker}' not found in ${DATA_TAB_NAME}.`);
+    return;
+  }
+
+  // 5. EXTRACT INDICATORS: Map rowData to variables (0-based indexing)
+  // Mapping based on: A=0, B=1, C=2, D=3, E=4, F=5, G=6...
+  const rowData = data[tickerRow];
+  const d = {
+    ticker:     rowData[0],  // Col A
+    price:      rowData[4],  // Col E
+    volRatio:   rowData[6],  // Col G
+    sma50:      rowData[12], // Col M
+    sma20:      rowData[13], // Col N
+    sma200:     rowData[14], // Col O
+    rsi:        rowData[15], // Col P
+    macdHist:   rowData[16], // Col Q
+    adx:        rowData[18], // Col S
+    stochK:     rowData[19], // Col T
+    support:    rowData[21], // Col V
+    resistance: rowData[22], // Col W
+    target:     rowData[23], // Col X
+    atr:        rowData[24], // Col Y
+    bolB:       rowData[27], // Col AB
+    status:     rowData[2],  // Col C (e.g. "PURCHASED")
+    valuation:  rowData[3],  // Col D (e.g. "VALUE")
+    stopLoss:   rowData[21]  // Mapping Support to StopLoss logic
+  };
+
+  // 6. RUN ANALYSIS: Calculate Signal and Recommendation
+  try {
+    const signal = AnalysisEngine.getNextGenSignal(d);
+    const rec = AnalysisEngine.getRecommendation(d, signal);
+    const narrative = AnalysisEngine.generateNarrative(d, signal, rec);
+
+    // 7. OUTPUT: Write back to INPUT sheet
+    const outputRange = inputSheet.getRange("C1");
+    outputRange.setValue(narrative);
+    
+    // Formatting for terminal look
+    outputRange.setWrap(true);
+    outputRange.setVerticalAlignment("top");
+    
+    ss.toast(`Intelligence Report for ${ticker} Complete.`, "✅ SYNCED", 3);
+    
+  } catch (err) {
+    inputSheet.getRange("C1").setValue(`⚙️ SCRIPT ERROR: ${err.message}`);
+    console.error(err.stack);
+  }
+}
+
+/**
+ * Master Technical & Institutional Intelligence Engine
+ * Version: 3.0 (Confluence Model)
+ */
+class MasterAnalysisEngine {
+  
+  static analyze(d) {
+    const isBullishTrend = d.price > d.sma200 && d.trendScore > 6;
+    const volatilitySqueeze = d.adx < 15 && d.atr < (d.price * 0.02); // ATR is low relative to price
+    const momentumState = d.macdHist > 0 && d.rsi > 50 ? "BULLISH ACCELERATION" : "NEUTRAL/MEAN REVERSION";
+    
+    // Confluence 1: The "Launchpad" Setup
+    const launchpad = (d.price > d.sma20 && d.adx < 15 && d.stochK < 0.3);
+    
+    // Confluence 2: Institutional Distribution
+    const distribution = (d.rsi > 70 && d.stochK > 0.8 && d.price >= d.resistance * 0.99);
+
+    let report = `◈━━━━━━━━ MASTER INSTITUTIONAL INTELLIGENCE ━━━━━━━━◈\n\n`;
+
+    // SECTION 1: SYSTEM SIGNAL & TREND STATE
+    report += `[🧭 SYSTEM SENTIMENT]\n`;
+    report += `Status: ${isBullishTrend ? "📈 STRUCTURAL BULLISH" : "📉 STRUCTURAL BEARISH"}\n`;
+    report += `Trend Score: ${d.trendScore}/10 | State: ${d.trendState}\n`;
+    report += `Signal: ${d.signal} | Fundamental: ${d.valuation}\n\n`;
+
+    // SECTION 2: CONFLUENCE ANALYSIS
+    report += `[🔬 CONFLUENCE OF EVIDENCE]\n`;
+    
+    // Price vs MAs Deep Dive
+    const maRelationship = d.sma20 > d.sma50 && d.sma50 > d.sma200 ? "PERFECT ALIGNMENT" : "MA DISARRAY";
+    report += `• MA Structure: ${maRelationship}. ${d.price > d.sma50 ? "Price is utilizing SMA 50 as dynamic support." : "Price is struggling under SMA 50."}\n`;
+
+    // Momentum & Volatility
+    report += `• Momentum: RSI at ${d.rsi.toFixed(1)}. MACD Hist at ${d.macdHist.toFixed(2)}. `;
+    if (d.divergence !== "—" && d.divergence !== "") report += `⚠️ DIVERGENCE DETECTED: ${d.divergence}. `;
+    report += `\n• Volatility: ADX is ${d.adx.toFixed(2)}. ${volatilitySqueeze ? "🔥 SQUEEZE ALERT: High probability of explosive move." : "Trend is currently trending."}\n`;
+
+    // Overbought/Oversold Logic
+    report += `• Tactical Oscillator: Stoch %K is ${(d.stochK * 100).toFixed(1)}%. `;
+    report += d.stochK > 0.8 ? "Institutional Supply Zone reached." : d.stochK < 0.2 ? "Institutional Demand Zone reached." : "Floating in Neutral liquidity.\n";
+
+    // SECTION 3: RISK & LEVELS (R:R 3:1 Logic)
+    report += `\n[🎯 PRICE ARCHITECTURE]\n`;
+    report += `🛡️ Critical Support: $${d.support.toFixed(2)} (Stop Loss Zone)\n`;
+    report += `🚧 Key Resistance: $${d.resistance.toFixed(2)} (The Pivot)\n`;
+    report += `🏁 Macro Target: $${d.target.toFixed(2)} | ATR (14): $${d.atr.toFixed(2)}\n`;
+    report += `📊 Bollinger Position: ${(d.bolB * 100).toFixed(1)}% of Band Width.\n\n`;
+
+    // SECTION 4: STRATEGIC VERDICT
+    report += `[💡 STRATEGIC VERDICT]\n`;
+    if (launchpad) {
+      report += `⭐ ACTION: AGGRESSIVE ACCUMULATE. This is a high-conviction "Launchpad" setup where price is coiling above support with low-momentum oscillators.\n`;
+    } else if (distribution) {
+      report += `⚠️ ACTION: TAKE PROFIT / REDUCE. Confluence of extreme RSI and Resistance suggests a "Bull Trap" or exhaustion gap.\n`;
+    } else if (d.signal === "Stop-Out" || d.price < d.support) {
+      report += `🔴 ACTION: LIQUIDATE/EXIT. Primary support has failed. Capital preservation is priority.\n`;
+    } else {
+      report += `⚪ ACTION: ${d.status === "PURCHASED" ? "HOLD & TRAIL STOPS" : "WATCHLIST - WAIT FOR PIVOT"}.\n`;
+    }
+
+    report += `\nStrategic Context: ${isBullishTrend ? "Buy the dips." : "Sell the rips."} Current ATH Diff is ${d.athDiff.toFixed(2)}%.\n`;
+    report += `◈━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━◈`;
+
+    return report;
+  }
+}
+
+/**
+ * UI Trigger Function
+ */
+function runMasterAnalysis() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ticker = ss.getActiveCell().getValue();
+
+  if (!ticker || typeof ticker !== 'string') {
+    ss.toast("Please select a cell with a Ticker Symbol.", "⚠️ INVALID");
+    return;
+  }
+
+  const d = getTickerDataFromBaseline(ticker);
+  if (!d) return;
+
+  const report = MasterAnalysisEngine.analyze(d);
+
+  const html = HtmlService.createHtmlOutput(`
+    <div style="font-family: 'Consolas', 'Monaco', monospace; background-color: #0d1117; color: #c9d1d9; padding: 25px; line-height: 1.6; font-size: 13px;">
+      ${report.replace(/\n/g, '<br>')}
+      <br><br>
+      <button onclick="google.script.host.close()" style="background: #21262d; color: #58a6ff; border: 1px solid #30363d; padding: 12px; width: 100%; border-radius: 6px; cursor: pointer; font-weight: bold;">EXIT ANALYSIS</button>
+    </div>
+  `).setWidth(600).setHeight(750);
+
+  SpreadsheetApp.getUi().showModalDialog(html, `INSTITUTIONAL GRADE ANALYSIS: ${ticker.toUpperCase()}`);
+}
+
+/**
+ * Helper: Searches the Golden Baseline for a specific ticker and returns the data object.
+ * Mapping strictly follows the provided A-Y column sequence.
+ * @param {string} ticker - The stock symbol to search for.
+ */
+function getTickerDataFromBaseline(ticker) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const DATA_TAB_NAME = "CALCULATIONS"; 
+  const dataSheet = ss.getSheetByName(DATA_TAB_NAME);
+
+  if (!dataSheet) {
+    ss.toast(`❌ Tab '${DATA_TAB_NAME}' not found!`, "ERROR", 5);
+    return null;
+  }
+
+  const data = dataSheet.getDataRange().getValues();
+  
+  for (let i = 0; i < data.length; i++) {
+    // Column A is Index 0
+    if (data[i][0].toString().toUpperCase() === ticker.toString().toUpperCase()) {
+      const rowData = data[i];
+      
+      // MAPPING TABLE: A=0, B=1, C=2, D=3, E=4... Y=24
+      return {
+        ticker:      rowData[0],  // Col A: Ticker
+        signal:      rowData[1],  // Col B: SIGNAL
+        valuation:   rowData[2],  // Col C: FUNDAMENTAL
+        status:      rowData[3],  // Col D: DECISION (e.g., PURCHASED)
+        price:       rowData[4],  // Col E: Price
+        changePct:   rowData[5],  // Col F: Change %
+        volRatio:    rowData[6],  // Col G: Vol Trend
+        isATH:       rowData[7],  // Col H: ATH (TRUE)
+        athDiff:     rowData[8],  // Col I: ATH Diff %
+        rrQuality:   rowData[9],  // Col J: R:R Quality
+        trendScore:  rowData[10], // Col K: Trend Score
+        trendState:  rowData[11], // Col L: Trend State
+        sma20:       rowData[12], // Col M: SMA 20
+        sma50:       rowData[13], // Col N: SMA 50
+        sma200:      rowData[14], // Col O: SMA 200
+        rsi:         rowData[15], // Col P: RSI
+        macdHist:    rowData[16], // Col Q: MACD Hist
+        divergence:  rowData[17], // Col R: Divergence
+        adx:         rowData[18], // Col S: ADX (14)
+        stochK:      rowData[19], // Col T: Stoch %K (14)
+        support:     rowData[20], // Col U: Support
+        resistance:  rowData[21], // Col V: Resistance
+        target:      rowData[22], // Col W: Target (3:1)
+        atr:         rowData[23], // Col X: ATR (14)
+        bolB:        rowData[24], // Col Y: Bollinger %B
+        stopLoss:    rowData[20]  // Mapping Support as StopLoss
+      };
+    }
+  }
+  
+  ss.toast(`Ticker '${ticker}' not found in baseline.`, "⚠️ SEARCH FAILED", 3);
+  return null;
+}
 /**
  * Helper: reads sidebar values by labels (case-insensitive)
  * Scans A8:B200 (your sidebar region)
