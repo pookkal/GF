@@ -824,9 +824,12 @@ function generateCalculationsSheet() {
     const fADX    = `=IFERROR(LIVEADX(DATA!$${highCol}$5:$${highCol}${SEP}DATA!$${lowCol}$5:$${lowCol}${SEP}DATA!$${closeCol}$5:$${closeCol}${SEP}$E${row})${SEP}0)`;
     const fStoch  = `=LIVESTOCHK(DATA!$${highCol}$5:$${highCol}${SEP}DATA!$${lowCol}$5:$${lowCol}${SEP}DATA!$${closeCol}$5:$${closeCol}${SEP}$E${row})`;
 
-    const fRes = `=LET(window${SEP}IFS($S${row}<20${SEP}10${SEP}$S${row}<35${SEP}22${SEP}TRUE${SEP}40)${SEP}ROUND(IFERROR(AVERAGE(LARGE(OFFSET(DATA!$${closeCol}$5${SEP}${lastRowFormula}-(window+1)${SEP}0${SEP}window)${SEP}{1${SEP}2${SEP}3}))${SEP}$E${row}*1.05)${SEP}2))`;
+   /**
+    * Why this is the correct "Industry" fix:FeatureAverage of Extremes (Trial & Error)Percentile (Industry Standard)Outlier HandlingStill weighted by the outlier (e.g., 362.70).Ignores the outlier entirely.Zone AccuracyRepresents a single point.Represents the Value Area where most trading occurred.StabilityJumps around when a new high/low enters the window.Remains stable as long as the distribution of price is consistent.
+    */
+    const fRes = `=ROUND(IFERROR(PERCENTILE.INC(OFFSET(DATA!$${highCol}$5${SEP}${lastRowCount}-(IFS($S${row}<20${SEP}10${SEP}$S${row}<35${SEP}22${SEP}TRUE${SEP}40))${SEP}0${SEP}IFS($S${row}<20${SEP}10${SEP}$S${row}<35${SEP}22${SEP}TRUE${SEP}40))${SEP}0.9)${SEP}$E${row}*1.05)${SEP}2)`;
 
-    const fSup = `=LET(window${SEP}IFS($S${row}<20${SEP}10${SEP}$S${row}<35${SEP}22${SEP}TRUE${SEP}40)${SEP}ROUND(IFERROR(AVERAGE(SMALL(OFFSET(DATA!$${lowCol}$5${SEP}${lastRowFormula}-(window+1)${SEP}0${SEP}window)${SEP}{1${SEP}2${SEP}3}))${SEP}$E${row}*0.95)${SEP}2))`;
+    const fSup = `=ROUND(IFERROR(PERCENTILE.INC(OFFSET(DATA!$${lowCol}$5${SEP}${lastRowCount}-(IFS($S${row}<20${SEP}10${SEP}$S${row}<35${SEP}22${SEP}TRUE${SEP}40))${SEP}0${SEP}IFS($S${row}<20${SEP}10${SEP}$S${row}<35${SEP}22${SEP}TRUE${SEP}40))${SEP}0.1)${SEP}$E${row}*0.95)${SEP}2)`;
     
     // Target: Hybrid Logic (High of Resistance vs. 3:1 Projection)
     const fTgt = `=ROUND(MAX($V${row}${SEP}$E${row}+(($E${row}-$U${row})*3))${SEP}2)`;
