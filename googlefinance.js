@@ -1,6 +1,6 @@
 /**
 * ==============================================================================
-* BASELINE LABEL: STABLE_MASTER_ALL_CLEAN_v4.0 SUPPORT_RESISTENCE_CHANGES
+* BASELINE LABEL: STABLE_MASTER_ALL_CLEAN_v4.3_CLEANFORMAT
 * ==============================================================================
 */
 
@@ -103,12 +103,13 @@ function onEdit(e) {
 }
 
 function onEditInstall(e) {
-  if (!e) return;
+  if (!e || !e.range) return;
+
   const range = e.range;
-  const a1 = range.getA1Notation();
-  
-  // If user edits A1 or C1, trigger the Master Analysis
-  if (a1 === "A1" || a1 === "C1") {
+  const sheet = range.getSheet();
+
+  // Trigger ONLY when CHART!A1 is edited
+  if (sheet.getName() === "CHART" && range.getA1Notation() === "A1") {
     runMasterAnalysis();
   }
 }
@@ -1040,13 +1041,6 @@ function generateCalculationsSheet() {
   SpreadsheetApp.flush();
 }
 
-/**
-* ------------------------------------------------------------------
-* 5. DASHBOARD ENGINE
-* - Signals right after Ticker
-* - Formula parse error fixed by simplifying the assembled FILTER() range
-* ------------------------------------------------------------------
-*/
 function generateDashboardSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const input = ss.getSheetByName("INPUT");
@@ -1054,75 +1048,53 @@ function generateDashboardSheet() {
 
   const dashboard = ss.getSheetByName("DASHBOARD") || ss.insertSheet("DASHBOARD");
 
-  // Determine expected data rows (tickers) so we don’t format 500 every time
   const tickers = getCleanTickers(input);
   const DATA_START_ROW = 4;
-  const DATA_ROWS = Math.max(50, Math.min(500, tickers.length + 40)); // cushion for filter spill
-  const DATA_END_ROW = DATA_START_ROW + DATA_ROWS - 1;
+  const DATA_ROWS = Math.max(50, Math.min(500, tickers.length + 40)); // spill cushion
+  const SENTINEL = "DASHBOARD_LAYOUT_V1_BLOOMBERG";
 
-  // Layout init sentinel
-  const SENTINEL = "DASHBOARD_LAYOUT_V1";
   const isInitialized = (dashboard.getRange("A1").getNote() || "").indexOf(SENTINEL) !== -1;
 
-  // ============================================================
-  // ONE-TIME LAYOUT BUILD (expensive stuff)
-  // ============================================================
+  // ==========================
+  // ONE-TIME LAYOUT (NO ROW3+ formatting during refresh)
+  // ==========================
   if (!isInitialized) {
     dashboard.clear().clearFormats();
 
-    // ROW 1 — Controls (A1..G1) + checkboxes
+    // --- Row 1 controls ---
     dashboard.getRange("A1")
       .setValue("UPDATE CAL")
-      .setBackground("#212121")
-      .setFontColor("white")
-      .setFontWeight("bold")
-      .setHorizontalAlignment("center")
-      .setVerticalAlignment("middle");
+      .setBackground("#212121").setFontColor("white").setFontWeight("bold")
+      .setHorizontalAlignment("center").setVerticalAlignment("middle");
 
     dashboard.getRange("B1")
       .insertCheckboxes()
       .setBackground("#212121")
-      .setHorizontalAlignment("center")
-      .setVerticalAlignment("middle");
+      .setHorizontalAlignment("center").setVerticalAlignment("middle");
 
     dashboard.getRange("C1")
       .setValue("UPDATE")
-      .setBackground("#212121")
-      .setFontColor("white")
-      .setFontWeight("bold")
-      .setHorizontalAlignment("center")
-      .setVerticalAlignment("middle");
+      .setBackground("#212121").setFontColor("white").setFontWeight("bold")
+      .setHorizontalAlignment("center").setVerticalAlignment("middle");
 
     dashboard.getRange("D1")
       .insertCheckboxes()
       .setBackground("#212121")
-      .setHorizontalAlignment("center")
-      .setVerticalAlignment("middle");
+      .setHorizontalAlignment("center").setVerticalAlignment("middle");
 
-    dashboard.getRange("E1:G1")
-      .merge()
-      .setBackground("#000000")
-      .setFontColor("#00FF00")
-      .setFontWeight("bold")
-      .setFontSize(9)
-      .setHorizontalAlignment("center")
-      .setVerticalAlignment("middle");
+    dashboard.getRange("E1:G1").merge()
+      .setBackground("#000000").setFontColor("#00FF00").setFontWeight("bold").setFontSize(9)
+      .setHorizontalAlignment("center").setVerticalAlignment("middle");
 
-    // White border rows 1–3
-    dashboard.getRange("A1:AA3")
-      .setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID);
-
-    // ROW 2 — Group headers (merged blocks)
-    dashboard.getRange("A2:AA2").clearContent();
+    // --- Row 2 group headers ---
     const styleGroup = (a1, label, bg) => {
       dashboard.getRange(a1).merge()
         .setValue(label)
-        .setBackground(bg)
-        .setFontColor("white")
-        .setFontWeight("bold")
-        .setHorizontalAlignment("center")
-        .setVerticalAlignment("middle");
+        .setBackground(bg).setFontColor("white").setFontWeight("bold")
+        .setHorizontalAlignment("center").setVerticalAlignment("middle");
     };
+
+    dashboard.getRange("A2:AA2").clearContent();
     styleGroup("A2:A2",   "IDENTITY",        "#263238");
     styleGroup("B2:D2",   "SIGNALING",       "#0D47A1");
     styleGroup("E2:G2",   "PRICE / VOLUME",  "#1B5E20");
@@ -1133,7 +1105,7 @@ function generateDashboardSheet() {
     styleGroup("Z2:AA2",  "NOTES",           "#212121");
     dashboard.getRange("A2:AA2").setWrap(true);
 
-    // ROW 3 — Column headers (Dashboard order)
+    // --- Row 3 column headers ---
     const headers = [[
       "Ticker", "SIGNAL", "FUNDAMENTAL", "DECISION", "Price", "Change %", "Vol Trend",
       "ATH (TRUE)", "ATH Diff %", "R:R Quality", "Trend Score", "Trend State",
@@ -1142,159 +1114,34 @@ function generateDashboardSheet() {
       "Support", "Resistance", "Target (3:1)", "ATR (14)", "Bollinger %B",
       "TECH NOTES", "FUND NOTES"
     ]];
+
     dashboard.getRange(3, 1, 1, 27)
       .setValues(headers)
-      .setBackground("#111111")
-      .setFontColor("white")
-      .setFontWeight("bold")
-      .setHorizontalAlignment("middle")
-      .setVerticalAlignment("left")
+      .setBackground("#111111").setFontColor("white").setFontWeight("bold")
+      .setHorizontalAlignment("center").setVerticalAlignment("middle")
       .setWrap(true);
 
     // Freeze panes
     dashboard.setFrozenRows(3);
     dashboard.setFrozenColumns(1);
 
-    // Header alignment
-    dashboard.getRange(1, 1, 3, 27).setVerticalAlignment("middle");
-    dashboard.getRange("A1:D1").setHorizontalAlignment("center");
-    dashboard.getRange("E1:G1").setHorizontalAlignment("center");
-
-    // Borders (one time; bounded but covers likely working area)
-    dashboard.getRange(1, 1, 1004, 27)
-      .setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
-    dashboard.getRange("A1:AA2")
+    // White border for top header rows (1..3)
+    dashboard.getRange("A1:AA3")
       .setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID);
 
-    // Conditional formatting (one time, applied to a broad stable window)
-    const rules = [];
-    rules.push(
-      SpreadsheetApp.newConditionalFormatRule()
-        .whenNumberLessThan(0)
-        .setFontColor("#B71C1C")
-        .setBold(true)
-        .setRanges([
-          dashboard.getRange(`F${DATA_START_ROW}:F1000`),
-          dashboard.getRange(`I${DATA_START_ROW}:I1000`),
-          dashboard.getRange(`Q${DATA_START_ROW}:Q1000`)
-        ])
-        .build()
-    );
-
-    // RSI (P)
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied("=$P4>=70")
-      .setFontColor("#B71C1C").setBold(true)
-      .setRanges([dashboard.getRange(`P${DATA_START_ROW}:P1000`)]).build());
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied("=$P4<=30")
-      .setFontColor("#1B5E20").setBold(true)
-      .setRanges([dashboard.getRange(`P${DATA_START_ROW}:P1000`)]).build());
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied("=AND($P4>=50,$P4<70)")
-      .setFontColor("#1B5E20")
-      .setRanges([dashboard.getRange(`P${DATA_START_ROW}:P1000`)]).build());
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied("=AND($P4>30,$P4<50)")
-      .setFontColor("#E65100")
-      .setRanges([dashboard.getRange(`P${DATA_START_ROW}:P1000`)]).build());
-
-    // ADX (S)
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied("=$S4>=25")
-      .setFontColor("#1B5E20").setBold(true)
-      .setRanges([dashboard.getRange(`S${DATA_START_ROW}:S1000`)]).build());
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied("=$S4<15")
-      .setFontColor("#616161")
-      .setRanges([dashboard.getRange(`S${DATA_START_ROW}:S1000`)]).build());
-
-    // Stoch (T)
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied("=$T4>=0.8")
-      .setFontColor("#B71C1C").setBold(true)
-      .setRanges([dashboard.getRange(`T${DATA_START_ROW}:T1000`)]).build());
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied("=$T4<=0.2")
-      .setFontColor("#1B5E20").setBold(true)
-      .setRanges([dashboard.getRange(`T${DATA_START_ROW}:T1000`)]).build());
-
-    // %B (Y)
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied("=$Y4>=0.8")
-      .setFontColor("#B71C1C")
-      .setRanges([dashboard.getRange(`Y${DATA_START_ROW}:Y1000`)]).build());
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied("=$Y4<=0.2")
-      .setFontColor("#1B5E20")
-      .setRanges([dashboard.getRange(`Y${DATA_START_ROW}:Y1000`)]).build());
-
-    // SIGNAL (B)
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied('=REGEXMATCH($B4,"Breakout|Trend Continuation|RVOL")')
-      .setBackground("#E8F5E9").setFontColor("#1B5E20").setBold(true)
-      .setRanges([dashboard.getRange(`B${DATA_START_ROW}:B1000`)]).build());
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied('=REGEXMATCH($B4,"Mean Reversion|Bounce|Oversold|Overbought")')
-      .setBackground("#FFF8E1").setFontColor("#E65100").setBold(true)
-      .setRanges([dashboard.getRange(`B${DATA_START_ROW}:B1000`)]).build());
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied('=REGEXMATCH($B4,"Range|Chop|Hold")')
-      .setBackground("#F5F5F5").setFontColor("#616161")
-      .setRanges([dashboard.getRange(`B${DATA_START_ROW}:B1000`)]).build());
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied('=REGEXMATCH($B4,"Risk-Off|Stop")')
-      .setBackground("#FFEBEE").setFontColor("#B71C1C").setBold(true)
-      .setRanges([dashboard.getRange(`B${DATA_START_ROW}:B1000`)]).build());
-
-    // DECISION (D)
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied('=REGEXMATCH($D4,"Trade|Accumulate|Buy")')
-      .setBackground("#E8F5E9").setFontColor("#1B5E20").setBold(true)
-      .setRanges([dashboard.getRange(`D${DATA_START_ROW}:D1000`)]).build());
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied('=REGEXMATCH($D4,"Reduce|Trim|Take Profit")')
-      .setBackground("#FFF8E1").setFontColor("#E65100").setBold(true)
-      .setRanges([dashboard.getRange(`D${DATA_START_ROW}:D1000`)]).build());
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied('=REGEXMATCH($D4,"Hold|Monitor|Wait")')
-      .setBackground("#F5F5F5").setFontColor("#616161")
-      .setRanges([dashboard.getRange(`D${DATA_START_ROW}:D1000`)]).build());
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied('=REGEXMATCH($D4,"Avoid|Stop")')
-      .setBackground("#FFEBEE").setFontColor("#B71C1C").setBold(true)
-      .setRanges([dashboard.getRange(`D${DATA_START_ROW}:D1000`)]).build());
-
-    // FUNDAMENTAL (C)
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied('=REGEXMATCH($C4,"VALUE|GEM|FAIR")')
-      .setBackground("#E8F5E9").setFontColor("#1B5E20").setBold(true)
-      .setRanges([dashboard.getRange(`C${DATA_START_ROW}:C1000`)]).build());
-    rules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied('=REGEXMATCH($C4,"ZOMBIE|BUBBLE")')
-      .setBackground("#FFEBEE").setFontColor("#B71C1C").setBold(true)
-      .setRanges([dashboard.getRange(`C${DATA_START_ROW}:C1000`)]).build());
-
-    dashboard.setConditionalFormatRules(rules);
-
-    // Sentinel
+    // Sentinel note
     dashboard.getRange("A1").setNote(SENTINEL);
   }
-
-  // ============================================================
-  // FAST REFRESH PATH (runs every time)
-  // ============================================================
-
-  // Clear only content region that changes (keeps layout/CF)
+  // ==========================
+  // FAST REFRESH (DATA ONLY)
+  // ==========================
   dashboard.getRange(DATA_START_ROW, 1, 1000, 27).clearContent();
 
-  // Timestamp refresh (E1:G1 already merged in layout)
+  // Timestamp refresh
   dashboard.getRange("E1:G1")
     .setValue(Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), "MMM dd, yyyy | HH:mm:ss"));
 
-  // ============================================================
-  // ROW 4 — Filter formula (always refreshed)
-  // ============================================================
+  // Filter formula (always re-written)
   const filterFormula =
     '=IFERROR(' +
       'SORT(' +
@@ -1366,31 +1213,436 @@ function generateDashboardSheet() {
 
   dashboard.getRange("A4").setFormula(filterFormula);
 
-  // ============================================================
-  // FAST formatting for active area only
-  // ============================================================
-  dashboard.getRange(DATA_START_ROW, 1, DATA_ROWS, 25).setWrap(true);
-  dashboard.getRange(DATA_START_ROW, 26, DATA_ROWS, 2)
-    .setWrap(false)
-    .setWrapStrategy(SpreadsheetApp.WrapStrategy.CLIP);
-
-    dashboard.hideColumns(26,2);
-  //hides Notes column temporarily
-
-  // Number formats only for active rows
-  dashboard.getRange(`F${DATA_START_ROW}:F${DATA_END_ROW}`).setNumberFormat("0.00%");
-  dashboard.getRange(`I${DATA_START_ROW}:I${DATA_END_ROW}`).setNumberFormat("0.00%");
-  dashboard.getRange(`T${DATA_START_ROW}:T${DATA_END_ROW}`).setNumberFormat("0.00%");
-  dashboard.getRange(`Y${DATA_START_ROW}:Y${DATA_END_ROW}`).setNumberFormat("0.00%");
-
-  // Tail cleanup: clears formats below active window when rows shrink
-  const TAIL_START = DATA_END_ROW + 1;
-  const TAIL_ROWS = 200; // bounded cleanup for performance
-  dashboard.getRange(TAIL_START, 1, TAIL_ROWS, 27).clearFormat();
-
   SpreadsheetApp.flush();
+
+  // Apply Bloomberg formatting + heatmap ONCE
+  applyDashboardBloombergFormatting_(dashboard, DATA_START_ROW);
+  applyDashboardGroupMapAndColors_(dashboard);
 }
 
+function applyDashboardBloombergFormatting_(sh, DATA_START_ROW) {
+  if (!sh) return;
+
+  // ---------------------------
+  // Theme (strict 3 colors)
+  // ---------------------------
+  const C_WHITE = "#FFFFFF";
+  const C_GREEN = "#C6EFCE";
+  const C_RED   = "#FFC7CE";
+  const C_GREY  = "#E7E6E6";
+
+  const HEADER_DARK = "#1F1F1F"; // header grey
+  const HEADER_MID  = "#E7E6E6"; // header grey (light)
+
+  // Data columns in DASHBOARD (A..AA = 27); notes are Z(26) and AA(27)
+  const TOTAL_COLS = 27;
+
+  // Column index map (Dashboard layout you use)
+  // A Ticker
+  // B SIGNAL
+  // C FUNDAMENTAL
+  // D DECISION
+  // E Price
+  // F Change %
+  // G Vol Trend
+  // H ATH
+  // I ATH Diff %
+  // J R:R
+  // K Trend Score
+  // L Trend State
+  // M SMA20
+  // N SMA50
+  // O SMA200
+  // P RSI
+  // Q MACD Hist
+  // R Divergence
+  // S ADX
+  // T StochK
+  // U Support
+  // V Resistance
+  // W Target
+  // X ATR
+  // Y %B
+  // Z TECH NOTES (hidden)
+  // AA FUND NOTES (hidden)
+
+  // ---------------------------
+  // Helpers
+  // ---------------------------
+  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+
+  function findLastDataRow_() {
+    // We determine the actual spill length by scanning column A from DATA_START_ROW down.
+    // This avoids "retained colors" below when list shrinks.
+    const maxScan = 2000; // bounded for performance
+    const lastRowPossible = Math.max(sh.getLastRow(), DATA_START_ROW);
+    const scanRows = clamp(lastRowPossible - DATA_START_ROW + 1, 1, maxScan);
+
+    const vals = sh.getRange(DATA_START_ROW, 1, scanRows, 1).getDisplayValues().flat();
+    let lastNonEmptyOffset = -1;
+    for (let i = 0; i < vals.length; i++) {
+      if (String(vals[i] || "").trim() !== "") lastNonEmptyOffset = i;
+    }
+    if (lastNonEmptyOffset === -1) return DATA_START_ROW; // no data
+    return DATA_START_ROW + lastNonEmptyOffset;
+  }
+
+  function safeHideNotes_() {
+    // Z = 26, AA = 27
+    try {
+      sh.hideColumns(26);
+      sh.hideColumns(27);
+    } catch (_) {
+      // ignore if already hidden / protected
+    }
+  }
+
+  function clearTailFormats_(lastDataRow) {
+    const maxRows = sh.getMaxRows();
+    const tailStart = lastDataRow + 1;
+    if (tailStart <= maxRows) {
+      const tailRows = maxRows - tailStart + 1;
+      if (tailRows > 0) {
+        sh.getRange(tailStart, 1, tailRows, TOTAL_COLS).clearFormat().clearContent();
+        // NOTE: We clearContent too, to avoid ghosts in formulas spill collisions.
+        // If you do NOT want tail content cleared, remove .clearContent()
+      }
+    }
+  }
+
+  // ---------------------------
+  // Compute active window
+  // ---------------------------
+  safeHideNotes_();
+
+  const lastDataRow = findLastDataRow_();
+  const numRows = Math.max(1, lastDataRow - DATA_START_ROW + 1);
+
+  const dataRange = sh.getRange(DATA_START_ROW, 1, numRows, 25); // A..Y only (visible)
+  const borderRange = sh.getRange(DATA_START_ROW, 1, numRows, 25);
+
+  // ---------------------------
+  // Header styling (rows 1–3)
+  // ---------------------------
+  // Row 1: control bar (A1:AA1)
+  sh.getRange(1, 1, 1, TOTAL_COLS)
+    .setBackground(HEADER_DARK)
+    .setFontColor("#FFFFFF")
+    .setFontWeight("bold")
+    .setVerticalAlignment("middle");
+
+  // Keep your existing checkbox cells readable (B1, D1) — do not override content/checkbox
+  sh.getRange("A1:D1").setHorizontalAlignment("center");
+  sh.getRange("E1:G1").setHorizontalAlignment("center");
+
+  // Row 2: group headers bar (A2:AA2)
+  sh.getRange(2, 1, 1, TOTAL_COLS)
+    .setBackground(HEADER_MID)
+    .setFontColor("#000000")
+    .setFontWeight("bold")
+    .setVerticalAlignment("middle")
+    .setHorizontalAlignment("center");
+
+  // Row 3: column headers (A3:AA3)
+  sh.getRange(3, 1, 1, TOTAL_COLS)
+    .setBackground(HEADER_DARK)
+    .setFontColor("#FFFFFF")
+    .setFontWeight("bold")
+    .setVerticalAlignment("middle")
+    .setHorizontalAlignment("center")
+    .setWrap(true);
+
+  // ---------------------------
+  // Global layout (Bloomberg dense)
+  // ---------------------------
+  // Column width ~ 10 chars ≈ 85 px
+  for (let c = 1; c <= 25; c++) sh.setColumnWidth(c, 85);
+  // Notes are hidden but keep sane widths if unhidden later
+  sh.setColumnWidth(26, 420);
+  sh.setColumnWidth(27, 420);
+
+  // Row heights:
+  // - headers: compact
+  sh.setRowHeight(1, 22);
+  sh.setRowHeight(2, 18);
+  sh.setRowHeight(3, 22);
+
+  // - data rows: ~ 3 lines (18 * 3 = 54)
+  sh.setRowHeights(DATA_START_ROW, numRows, 54);
+
+  // Alignment / wrap
+  dataRange
+    .setBackground(C_WHITE)
+    .setHorizontalAlignment("left")
+    .setVerticalAlignment("middle")
+    .setWrap(true);
+
+  // Clip long text in visible data area (A..Y) to keep terminal dense
+  dataRange.setWrapStrategy(SpreadsheetApp.WrapStrategy.WRAP);
+
+  // Borders: black for data rows
+  borderRange.setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
+
+  // Keep header borders clean/white (Bloomberg top bar look)
+  sh.getRange(1, 1, 3, TOTAL_COLS)
+    .setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID);
+
+  // ---------------------------
+  // Number formats (A..Y)
+  // ---------------------------
+  // Price
+  sh.getRange(DATA_START_ROW, 5, numRows, 1).setNumberFormat("#,##0.00");  // E
+  // Change%
+  sh.getRange(DATA_START_ROW, 6, numRows, 1).setNumberFormat("0.00%");     // F
+  // RVOL
+  sh.getRange(DATA_START_ROW, 7, numRows, 1).setNumberFormat("0.00");      // G
+  // ATH
+  sh.getRange(DATA_START_ROW, 8, numRows, 1).setNumberFormat("#,##0.00");  // H
+  // ATH Diff%
+  sh.getRange(DATA_START_ROW, 9, numRows, 1).setNumberFormat("0.00%");     // I
+  // R:R
+  sh.getRange(DATA_START_ROW,10, numRows, 1).setNumberFormat("0.00");      // J
+  // SMAs
+  sh.getRange(DATA_START_ROW,13, numRows, 3).setNumberFormat("#,##0.00");  // M:N:O
+  // RSI, ADX
+  sh.getRange(DATA_START_ROW,16, numRows, 1).setNumberFormat("0.0");       // P
+  sh.getRange(DATA_START_ROW,19, numRows, 1).setNumberFormat("0.0");       // S
+  // MACD
+  sh.getRange(DATA_START_ROW,17, numRows, 1).setNumberFormat("0.000");     // Q
+  // Stoch (0..1)
+  sh.getRange(DATA_START_ROW,20, numRows, 1).setNumberFormat("0.00%");     // T
+  // Support/Res/Target/ATR
+  sh.getRange(DATA_START_ROW,21, numRows, 4).setNumberFormat("#,##0.00");  // U..X
+  // %B
+  sh.getRange(DATA_START_ROW,25, numRows, 1).setNumberFormat("0.00");      // Y
+
+  // ---------------------------
+  // Clear any previous conditional formatting then apply new rules
+  // ---------------------------
+  const rules = [];
+  const r0 = DATA_START_ROW;
+
+  const rngCol = (col) => sh.getRange(r0, col, numRows, 1);
+
+  const add = (formula, color, col) => {
+    rules.push(
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenFormulaSatisfied(formula)
+        .setBackground(color)
+        .setRanges([rngCol(col)])
+        .build()
+    );
+  };
+
+  // ---- SIGNAL (B) — replicate your hierarchy using existing computed SIGNAL text ----
+  // Green = breakout / trend continuation / mean reversion
+  // Red   = stop-out / risk-off
+  // Grey  = squeeze / range / hold
+  add(`=REGEXMATCH($B${r0},"Breakout|Trend Continuation|Mean Reversion")`, C_GREEN, 2);
+  add(`=REGEXMATCH($B${r0},"Stop-Out|Risk-Off")`,                           C_RED,   2);
+  add(`=REGEXMATCH($B${r0},"Volatility Squeeze|Range-Bound|Hold")`,         C_GREY,  2);
+
+  // ---- FUNDAMENTAL (C) ----
+  // Green = VALUE
+  // Grey  = FAIR
+  // Red   = EXPENSIVE / PRICED FOR PERFECTION / ZOMBIE
+  add(`=$C${r0}="VALUE"`,                                                   C_GREEN, 3);
+  add(`=$C${r0}="FAIR"`,                                                    C_GREY,  3);
+  add(`=REGEXMATCH($C${r0},"EXPENSIVE|PRICED FOR PERFECTION|ZOMBIE")`,      C_RED,   3);
+
+  // ---- DECISION (D) ----
+  // Green = Trade Long / Accumulate / Add in Dip
+  // Red   = Stop-Out / Avoid / Reduce / Take Profit
+  // Grey  = Hold / Monitor / LOADING
+  add(`=REGEXMATCH($D${r0},"Trade Long|Accumulate|Add in Dip")`,            C_GREEN, 4);
+  add(`=REGEXMATCH($D${r0},"Stop-Out|Avoid|Reduce|Take Profit")`,          C_RED,   4);
+  add(`=REGEXMATCH($D${r0},"Hold|Monitor|LOADING")`,                       C_GREY,  4);
+
+  // ---- PRICE (E) and Change% (F) ----
+  add(`=$F${r0}>0`,                                                         C_GREEN, 5);
+  add(`=$F${r0}<0`,                                                         C_RED,   5);
+  add(`=OR($F${r0}=0,$F${r0}="")`,                                          C_GREY,  5);
+
+  add(`=$F${r0}>0`,                                                         C_GREEN, 6);
+  add(`=$F${r0}<0`,                                                         C_RED,   6);
+  add(`=OR($F${r0}=0,$F${r0}="")`,                                          C_GREY,  6);
+
+  // ---- Vol Trend RVOL (G) ----
+  add(`=$G${r0}>=1.5`,                                                      C_GREEN, 7);
+  add(`=$G${r0}<=0.85`,                                                     C_RED,   7);
+  add(`=AND($G${r0}>0.85,$G${r0}<1.5)`,                                     C_GREY,  7);
+
+  // ---- ATH (H) / ATH Diff % (I) ----
+  // Near ATH: green; deep below ATH: red; else grey
+  add(`=AND($H${r0}>0,$E${r0}>=$H${r0}*0.995)`,                             C_GREEN, 8);
+  add(`=AND($H${r0}>0,$E${r0}<=$H${r0}*0.80)`,                              C_RED,   8);
+  add(`=AND($H${r0}>0,$E${r0}>$H${r0}*0.80,$E${r0}<$H${r0}*0.995)`,         C_GREY,  8);
+
+  add(`=$I${r0}>=-0.05`,                                                    C_GREEN, 9);
+  add(`=$I${r0}<=-0.20`,                                                    C_RED,   9);
+  add(`=AND($I${r0}>-0.20,$I${r0}<-0.05)`,                                  C_GREY,  9);
+
+  // ---- R:R (J) ----
+  add(`=$J${r0}>=3`,                                                        C_GREEN,10);
+  add(`=$J${r0}<1.5`,                                                       C_RED,  10);
+  add(`=AND($J${r0}>=1.5,$J${r0}<3)`,                                       C_GREY, 10);
+
+  // ---- Trend Score (K) — star count ----
+  add(`=LEN($K${r0})>=3`,                                                   C_GREEN,11);
+  add(`=LEN($K${r0})<=1`,                                                   C_RED,  11);
+  add(`=LEN($K${r0})=2`,                                                    C_GREY, 11);
+
+  // ---- Trend State (L) ----
+  add(`=$L${r0}="BULL"`,                                                    C_GREEN,12);
+  add(`=$L${r0}="BEAR"`,                                                    C_RED,  12);
+  add(`=AND($L${r0}<>"BULL",$L${r0}<>"BEAR")`,                              C_GREY, 12);
+
+  // ---- SMA20/50/200 (M/N/O) vs Price ----
+  add(`=AND($M${r0}>0,$E${r0}>=$M${r0})`,                                   C_GREEN,13);
+  add(`=AND($M${r0}>0,$E${r0}<$M${r0})`,                                    C_RED,  13);
+
+  add(`=AND($N${r0}>0,$E${r0}>=$N${r0})`,                                   C_GREEN,14);
+  add(`=AND($N${r0}>0,$E${r0}<$N${r0})`,                                    C_RED,  14);
+
+  add(`=AND($O${r0}>0,$E${r0}>=$O${r0})`,                                   C_GREEN,15);
+  add(`=AND($O${r0}>0,$E${r0}<$O${r0})`,                                    C_RED,  15);
+
+  // ---- RSI (P) ----
+  add(`=$P${r0}<=30`,                                                       C_GREEN,16);
+  add(`=$P${r0}>=70`,                                                       C_RED,  16);
+  add(`=AND($P${r0}>30,$P${r0}<70)`,                                        C_GREY, 16);
+
+  // ---- MACD Hist (Q) ----
+  add(`=$Q${r0}>0`,                                                         C_GREEN,17);
+  add(`=$Q${r0}<0`,                                                         C_RED,  17);
+  add(`=OR($Q${r0}=0,$Q${r0}="")`,                                          C_GREY, 17);
+
+  // ---- Divergence (R) ----
+  add(`=REGEXMATCH($R${r0},"BULL")`,                                        C_GREEN,18);
+  add(`=REGEXMATCH($R${r0},"BEAR")`,                                        C_RED,  18);
+  add(`=OR($R${r0}="—",$R${r0}="",NOT(REGEXMATCH($R${r0},"BULL|BEAR")))`,   C_GREY, 18);
+
+  // ---- ADX (S) ----
+  // Strong trend (>=25) green; low trend (<15) grey; mid grey
+  add(`=$S${r0}>=25`,                                                       C_GREEN,19);
+  add(`=$S${r0}<15`,                                                        C_GREY, 19);
+  add(`=AND($S${r0}>=15,$S${r0}<25)`,                                       C_GREY, 19);
+
+  // ---- Stoch %K (T) ----
+  add(`=$T${r0}<=0.2`,                                                      C_GREEN,20);
+  add(`=$T${r0}>=0.8`,                                                      C_RED,  20);
+  add(`=AND($T${r0}>0.2,$T${r0}<0.8)`,                                      C_GREY, 20);
+
+  // ---- Support (U) ----
+  // Below support = red; within +1% above support = green; else grey
+  add(`=AND($U${r0}>0,$E${r0}<$U${r0})`,                                    C_RED,  21);
+  add(`=AND($U${r0}>0,$E${r0}>=$U${r0},$E${r0}<=$U${r0}*1.01)`,             C_GREEN,21);
+  add(`=AND($U${r0}>0,$E${r0}>$U${r0}*1.01)`,                               C_GREY, 21);
+
+  // ---- Resistance (V) ----
+  // Near/at resistance = red; far below resistance = green; else grey
+  add(`=AND($V${r0}>0,$E${r0}>=$V${r0}*0.995)`,                             C_RED,  22);
+  add(`=AND($V${r0}>0,$E${r0}<=$V${r0}*0.90)`,                              C_GREEN,22);
+  add(`=AND($V${r0}>0,$E${r0}>$V${r0}*0.90,$E${r0}<$V${r0}*0.995)`,         C_GREY, 22);
+
+  // ---- Target (W) ----
+  // Target meaningfully above price = green; too close = red; else grey
+  add(`=AND($W${r0}>0,$W${r0}>=$E${r0}*1.05)`,                              C_GREEN,23);
+  add(`=AND($W${r0}>0,$W${r0}<=$E${r0}*1.01)`,                              C_RED,  23);
+  add(`=AND($W${r0}>0,$W${r0}>$E${r0}*1.01,$W${r0}<$E${r0}*1.05)`,          C_GREY, 23);
+
+  // ---- ATR (X) as % of price ----
+  // Low volatility <=2% = green; high volatility >=5% = red; else grey
+  add(`=IFERROR($X${r0}/$E${r0},0)<=0.02`,                                  C_GREEN,24);
+  add(`=IFERROR($X${r0}/$E${r0},0)>=0.05`,                                  C_RED,  24);
+  add(`=AND(IFERROR($X${r0}/$E${r0},0)>0.02,IFERROR($X${r0}/$E${r0},0)<0.05)`,C_GREY,24);
+
+  // ---- Bollinger %B (Y) ----
+  add(`=$Y${r0}<=0.2`,                                                      C_GREEN,25);
+  add(`=$Y${r0}>=0.8`,                                                      C_RED,  25);
+  add(`=AND($Y${r0}>0.2,$Y${r0}<0.8)`,                                      C_GREY, 25);
+
+  // Apply rules
+  sh.setConditionalFormatRules(rules);
+
+  // ---------------------------
+  // Hard-hide notes columns (Z, AA)
+  // ---------------------------
+  safeHideNotes_();
+
+  // ---------------------------
+  // Cleanup below actual data end (prevents retained row colors when shrink)
+  // ---------------------------
+  clearTailFormats_(lastDataRow);
+}
+
+/**
+ * This colors Row 2 group bars and Row 3 headers using the same group color blocks.
+ */
+function applyDashboardGroupMapAndColors_(sh) {
+  if (!sh) return;
+
+  // ===== GROUP COLOR PALETTE (header-only) =====
+  const COLORS = {
+    SIGNAL:  "#1F4FD8", // blue
+    PRICE:   "#0F766E", // teal
+    PERF:    "#374151", // slate
+    TREND:   "#14532D", // green
+    MOM:     "#7C2D12", // brown
+    LEVELS:  "#4C1D95", // purple
+    NOTES:   "#111827"  // dark
+  };
+
+  const FG = "#FFFFFF"; // white text
+
+  // ===== GROUP → COLUMN MAP (1-indexed) =====
+  const GROUPS = [
+    { name: "SIGNALING",        c1: 2,  c2: 4,  color: COLORS.SIGNAL }, // B..D
+    { name: "PRICE / VOLUME",   c1: 5,  c2: 7,  color: COLORS.PRICE  }, // E..G
+    { name: "PERFORMANCE",      c1: 8,  c2: 10, color: COLORS.PERF   }, // H..J
+    { name: "TREND",            c1: 11, c2: 15, color: COLORS.TREND  }, // K..O
+    { name: "MOMENTUM",         c1: 16, c2: 20, color: COLORS.MOM    }, // P..T
+    { name: "LEVELS / RISK",    c1: 21, c2: 25, color: COLORS.LEVELS }, // U..Y
+    { name: "NOTES",            c1: 26, c2: 27, color: COLORS.NOTES  }  // Z..AA
+  ];
+
+  // ===== COMMON HEADER STYLE =====
+  const style = (row, c1, c2, bg) => {
+    sh.getRange(row, c1, 1, c2 - c1 + 1)
+      .setBackground(bg)
+      .setFontColor(FG)
+      .setFontWeight("bold")
+      .setHorizontalAlignment("center")
+      .setVerticalAlignment("middle")
+      .setWrap(true);
+  };
+
+  // ===== APPLY COLORS =====
+  GROUPS.forEach(g => {
+    // Row 2: group header bar
+    style(2, g.c1, g.c2, g.color);
+
+    // Merge + label row 2
+    const r2 = sh.getRange(2, g.c1, 1, g.c2 - g.c1 + 1);
+    try { r2.breakApart(); } catch (e) {}
+    if (g.c1 !== g.c2) r2.merge();
+    r2.setValue(g.name);
+
+    // Row 3: column headers (same group color)
+    style(3, g.c1, g.c2, g.color);
+  });
+}
+
+
+
+/**
+ * Call helper — keep generateDashboardSheet clean.
+ * Call this AFTER you set A4 formula and flush.
+ */
+function applyDashboardBloombergFormattingAfterRefresh_(dashboardSheet) {
+  SpreadsheetApp.flush(); // ensure FILTER() spill exists
+  applyDashboardBloombergFormatting_(dashboardSheet, 4); // data starts at row 4
+}
 
   // ------------------------------------------------------------
   // CHART SHEET setup engine
@@ -2153,6 +2405,7 @@ function getTickerDataFromBaseline(ticker) {
   ss.toast(`Ticker '${ticker}' not found in baseline.`, "⚠️ SEARCH FAILED", 3);
   return null;
 }
+
 /**
  * Helper: reads sidebar values by labels (case-insensitive)
  * Scans A8:B200 (your sidebar region)
