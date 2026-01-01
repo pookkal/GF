@@ -2286,39 +2286,367 @@ class MasterAnalysisEngine {
   }
 }
 
-function showAnalysisPopup(ticker, reportHtml) {
-  const css = `
-    <style>
-      body { 
-        background-color: #0d1117; 
-        color: #c9d1d9; 
-        font-family: 'Consolas', 'Courier New', monospace; 
-        padding: 20px; 
-        line-height: 1.4;
-      }
-      .report-header { color: #58a6ff; font-weight: bold; text-align: center; border-bottom: 1px solid #30363d; padding-bottom: 10px; margin-bottom: 15px; }
-      .section { margin-bottom: 15px; border-left: 3px solid #30363d; padding-left: 10px; }
-      .section-title { color: #ff7b72; font-weight: bold; }
-      .bullish-text { color: #3fb950; font-weight: bold; }
-      .bearish-text { color: #f85149; font-weight: bold; }
-      .highlight { color: #d29922; }
-      .action-box { display: inline-block; padding: 5px 10px; border-radius: 4px; font-weight: bold; margin-top: 5px; }
-      .bullish-bg { background-color: #238636; color: white; }
-      .bearish-bg { background-color: #da3633; color: white; }
-      .footer { font-size: 11px; color: #8b949e; text-align: center; margin-top: 20px; }
-      button { background: #21262d; color: #58a6ff; border: 1px solid #30363d; padding: 10px; width: 100%; border-radius: 6px; cursor: pointer; }
-      button:hover { background: #30363d; }
-    </style>
+function showAnalysisPopup(ticker, reportHtml, d) {
+  const leftPanel = buildIndicatorPanelHtml_(d);
+
+  const html = `
+  <div class="popupWrap">
+    <div class="leftPane">
+      <div class="lTitle">TERMINAL SNAPSHOT</div>
+      ${leftPanel}
+      <button class="closeBtn" onclick="google.script.host.close()">CLOSE</button>
+    </div>
+
+    <div class="rightPane">
+      <div class="rightInner reportScope">
+        ${reportHtml}
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .popupWrap{
+      display:flex; gap:12px; align-items:flex-start;
+      padding:12px; background:#0d1117;
+      font-family:Consolas,'Courier New',monospace; color:#c9d1d9;
+    }
+
+    .leftPane{
+      width:28%;              /* narrower */
+      min-width:260px;        /* allow shrink */
+      background:#0b1220;
+      border:1px solid #30363d;
+      border-radius:10px;
+      padding:8px;            /* tighter padding */
+    }
+
+    .lTitle{
+      color:#58a6ff;
+      font-weight:900;
+      font-size:12px;
+      padding:2px 0 6px 0;
+      border-bottom:1px solid #30363d;
+      margin-bottom:6px;
+    }
+
+    .closeBtn{
+      margin-top:10px; width:100%; padding:10px; border-radius:10px;
+      cursor:pointer; font-weight:900;
+      background:#21262d; color:#58a6ff; border:1px solid #30363d;
+    }
+    .closeBtn:hover{ background:#30363d; }
+
+    .rightPane{
+      width:66%; border:1px solid #30363d; border-radius:12px; background:#0d1117;
+    }
+    .rightInner{
+      padding:12px; max-height:600px; overflow:auto;
+      line-height:1.35;
+    }
+
+    /* IMPORTANT: restore the report's class colors, but SCOPE them only to the right pane */
+    .reportScope .report-header{ color:#58a6ff; font-weight:900; text-align:center; border-bottom:1px solid #30363d; padding-bottom:10px; margin-bottom:15px; }
+    .reportScope .section{ margin-bottom:12px; border-left:3px solid #30363d; padding-left:10px; }
+    .reportScope .section-title{ color:#ff7b72; font-weight:900; }
+    .reportScope .bullish-text{ color:#3fb950; font-weight:900; }
+    .reportScope .bearish-text{ color:#f85149; font-weight:900; }
+    .reportScope .highlight{ color:#d29922; font-weight:900; }
+    .reportScope .action-box{ display:inline-block; padding:6px 10px; border-radius:8px; font-weight:900; margin-top:6px; }
+    .reportScope .bullish-bg{ background:#238636; color:#ffffff; }
+    .reportScope .bearish-bg{ background:#da3633; color:#ffffff; }
+    .reportScope .footer{ font-size:15px; color:#8b949e; text-align:center; margin-top:14px; }
+  </style>
   `;
 
-  const finalHtml = css + reportHtml + '<br><button onclick="google.script.host.close()">CLOSE TERMINAL</button>';
-  
-  const htmlOutput = HtmlService.createHtmlOutput(finalHtml)
-    .setWidth(600)
-    .setHeight(700);
+  const out = HtmlService.createHtmlOutput(html)
+    .setWidth(1080)
+    .setHeight(680);
 
-  SpreadsheetApp.getUi().showModalDialog(htmlOutput, `Terminal Intelligence: ${ticker.toUpperCase()}`);
+  SpreadsheetApp.getUi().showModalDialog(out, `Terminal Intelligence: ${String(ticker).toUpperCase()}`);
 }
+
+/**
+ * Builds the LEFT-side indicator panel HTML (tight layout).
+ * - Top: SIGNAL / FUNDAMENTAL / DECISION (bright yellow)
+ * - Then: E..Y indicators (Price..Bollinger %B) in compact rows
+ * - Uses only green/red/grey backgrounds (industry-style)
+ */
+function buildIndicatorPanelHtml_(d) {
+  const num = (v) => {
+    const n = (typeof v === "number") ? v : parseFloat(String(v || "").replace(/[%,$,]/g, ""));
+    return isFinite(n) ? n : null;
+  };
+
+  const fmt = {
+    price: (v) => (num(v) == null ? "—" : `$${num(v).toFixed(2)}`),
+    pct: (v) => (num(v) == null ? "—" : `${(num(v) * 100).toFixed(2)}%`),
+    pctAlready: (v) => (num(v) == null ? "—" : `${num(v).toFixed(2)}%`),
+    ratio: (v) => (num(v) == null ? "—" : `${num(v).toFixed(2)}x`),
+    n2: (v) => (num(v) == null ? "—" : num(v).toFixed(2)),
+    n3: (v) => (num(v) == null ? "—" : num(v).toFixed(3)),
+    text: (v) => (v == null || String(v).trim() === "" ? "—" : String(v)),
+    stochPct: (v) => {
+      const n = num(v);
+      if (n == null) return "—";
+      // StochK is 0..1 in your sheet
+      return `${(n * 100).toFixed(1)}%`;
+    },
+    bollPct: (v) => {
+      const n = num(v);
+      if (n == null) return "—";
+      // %B is 0..1 in your sheet
+      return `${(n * 100).toFixed(1)}%`;
+    }
+  };
+
+  // Only 3 background colors
+  const BG_GREEN = "#0f3d2e";
+  const BG_RED   = "#4a1414";
+  const BG_GREY  = "#1f2937";
+  const FG_LIGHT = "#e5e7eb";
+
+  const rowStyle = (bg, isTop) => [
+    `background:${bg}`,
+    `color:${FG_LIGHT}`,
+    `border:1px solid #30363d`,
+    `border-radius:${isTop ? 10 : 8}px`,
+    `padding:${isTop ? "6px 8px" : "4px 8px"}`,
+    `margin:${isTop ? "4px 0" : "3px 0"}`,
+    `display:flex`,
+    `align-items:center`,
+    `justify-content:space-between`,
+    `gap:10px`
+  ].join(";");
+
+  const labelStyle = (isTop) => [
+    `font-weight:${isTop ? 900 : 800}`,
+    `letter-spacing:0.2px`,
+    `font-size:${isTop ? "13px" : "12px"}`,
+    `white-space:nowrap`,
+    `overflow:hidden`,
+    `text-overflow:ellipsis`,
+    `max-width:60%`
+  ].join(";");
+
+  const valStyle = (isTop) => [
+    `font-weight:${isTop ? 900 : 700}`,
+    `font-size:${isTop ? "13px" : "12px"}`,
+    `text-align:right`,
+    `white-space:nowrap`
+  ].join(";");
+
+  const sectionStyle = [
+    `margin:6px 0 4px 0`,
+    `padding:4px 8px`,
+    `border-radius:8px`,
+    `background:#111827`,
+    `border:1px solid #30363d`,
+    `color:#93c5fd`,
+    `font-weight:900`,
+    `font-size:10.5px`,
+    `letter-spacing:0.6px`,
+    `text-transform:uppercase`
+  ].join(";");
+
+  // --- Color rules (green/red/grey only) ---
+  const colorSignal = (s) => {
+    const v = String(s || "").toUpperCase();
+    if (/STOP|RISK-OFF/.test(v)) return BG_RED;
+    if (/BREAKOUT|TREND CONTINUATION|MEAN REVERSION/.test(v)) return BG_GREEN;
+    return BG_GREY;
+  };
+
+  const colorFund = (f) => {
+    const v = String(f || "").toUpperCase();
+    if (/ZOMBIE/.test(v)) return BG_RED;
+    if (/PRICED FOR PERFECTION|EXPENSIVE/.test(v)) return BG_RED;
+    if (/VALUE/.test(v)) return BG_GREEN;
+    return BG_GREY; // FAIR or unknown
+  };
+
+  const colorDecision = (c) => {
+    const v = String(c || "").toUpperCase();
+    if (/STOP|AVOID/.test(v)) return BG_RED;
+    if (/TAKE PROFIT|REDUCE/.test(v)) return BG_RED;
+    if (/TRADE LONG|ACCUMULATE|ADD IN DIP/.test(v)) return BG_GREEN;
+    return BG_GREY;
+  };
+
+  const colorPriceVsSMA200 = () => {
+    const p = num(d.price), sma200 = num(d.sma200);
+    if (p == null || sma200 == null) return BG_GREY;
+    return p >= sma200 ? BG_GREEN : BG_RED;
+  };
+
+  const colorChangePct = () => {
+    const c = num(d.changePct);
+    if (c == null) return BG_GREY;
+    if (c > 0) return BG_GREEN;
+    if (c < 0) return BG_RED;
+    return BG_GREY;
+  };
+
+  const colorVol = () => {
+    const v = num(d.volRatio);
+    if (v == null) return BG_GREY;
+    if (v >= 1.5) return BG_GREEN;
+    if (v < 0.85) return BG_GREY;
+    return BG_GREY;
+  };
+
+  const colorAthDiff = () => {
+    const x = num(d.athDiff);
+    if (x == null) return BG_GREY;
+    // athDiff is (Price-ATH)/ATH, negative means below ATH (normal)
+    return x >= 0 ? BG_GREEN : BG_GREY;
+  };
+
+  const colorRR = () => {
+    const rr = num(d.rrQuality);
+    if (rr == null) return BG_GREY;
+    if (rr >= 3) return BG_GREEN;
+    if (rr < 1.5) return BG_RED;
+    return BG_GREY;
+  };
+
+  const colorTrendScore = () => {
+    const ts = num(d.trendScore);
+    if (ts == null) return BG_GREY;
+    if (ts >= 3) return BG_GREEN;
+    if (ts <= 1) return BG_RED;
+    return BG_GREY;
+  };
+
+  const colorTrendState = () => {
+    const v = String(d.trendState || "").toUpperCase();
+    if (v === "BULL") return BG_GREEN;
+    if (v === "BEAR") return BG_RED;
+    return BG_GREY;
+  };
+
+  const colorRSI = () => {
+    const r = num(d.rsi);
+    if (r == null) return BG_GREY;
+    if (r <= 30) return BG_GREEN; // oversold (tactical value)
+    if (r >= 70) return BG_RED;   // overbought (risk)
+    return BG_GREY;
+  };
+
+  const colorMACD = () => {
+    const m = num(d.macdHist);
+    if (m == null) return BG_GREY;
+    return m >= 0 ? BG_GREEN : BG_RED;
+  };
+
+  const colorDiv = () => {
+    const v = String(d.divergence || "").toUpperCase();
+    if (v.includes("BULL")) return BG_GREEN;
+    if (v.includes("BEAR")) return BG_RED;
+    return BG_GREY;
+  };
+
+  const colorADX = () => {
+    const a = num(d.adx);
+    if (a == null) return BG_GREY;
+    if (a >= 25) return BG_GREEN; // trend strength
+    if (a < 15) return BG_GREY;    // range/chop
+    return BG_GREY;
+  };
+
+  const colorStoch = () => {
+    const k = num(d.stochK);
+    if (k == null) return BG_GREY;
+    if (k <= 0.2) return BG_GREEN; // oversold timing
+    if (k >= 0.8) return BG_RED;   // overbought timing risk
+    return BG_GREY;
+  };
+
+  const colorLevels = (key) => {
+    const p = num(d.price);
+    const v = num(d[key]);
+    if (p == null || v == null || v <= 0) return BG_GREY;
+    // near support => green; near resistance => red
+    if (key === "support") return (p <= v * 1.01) ? BG_GREEN : BG_GREY;
+    if (key === "resistance") return (p >= v * 0.99) ? BG_RED : BG_GREY;
+    return BG_GREY;
+  };
+
+  const colorATR = () => {
+    // ATR itself not directional; grey
+    return BG_GREY;
+  };
+
+  const colorBoll = () => {
+    const b = num(d.bolB);
+    if (b == null) return BG_GREY;
+    if (b <= 0.2) return BG_GREEN; // statistical low
+    if (b >= 0.8) return BG_RED;   // statistical high
+    return BG_GREY;
+  };
+
+  // Row builder
+  const row = (label, value, bg, isTop = false, labelColor = null, valueColor = null) => {
+    const ls = labelStyle(isTop) + (labelColor ? `;color:${labelColor}` : "");
+    const vs = valStyle(isTop) + (valueColor ? `;color:${valueColor}` : "");
+    return `
+      <div style="${rowStyle(bg, isTop)}">
+        <div style="${ls}">${label}</div>
+        <div style="${vs}">${value}</div>
+      </div>
+    `;
+  };
+
+  // Top chips: bright yellow emphasis (text)
+  const TOP_YELLOW = "#ffe600";
+  const topBg = (bg) => bg; // keep bg 3-color; make text yellow for prominence
+
+  let html = "";
+
+  // --- TOP: SIGNAL / FUND / DECISION (tight + bigger) ---
+  html += row("SIGNAL", fmt.text(d.signal), topBg(colorSignal(d.signal)), true, TOP_YELLOW, TOP_YELLOW);
+  html += row("FUNDAMENTAL", fmt.text(d.status), topBg(colorDecision(d.status)), true, TOP_YELLOW, TOP_YELLOW);
+    html += row("DECISION", fmt.text(d.valuation), topBg(colorFund(d.valuation)), true, TOP_YELLOW, TOP_YELLOW);
+
+  // --- SECTION: PRICE / VOLUME ---
+  html += `<div style="${sectionStyle}">PRICE / VOLUME</div>`;
+  html += row("PRICE", fmt.price(d.price), colorPriceVsSMA200());
+  html += row("CHG%", fmt.pct(d.changePct), colorChangePct());
+  html += row("VOL", fmt.ratio(d.volRatio), colorVol());
+
+  // --- SECTION: PERFORMANCE ---
+  html += `<div style="${sectionStyle}">PERFORMANCE</div>`;
+  html += row("ATH", fmt.price(d.isATH), BG_GREY);
+  html += row("ATH %", fmt.pct(d.athDiff), colorAthDiff());
+  html += row("R:R", fmt.n2(d.rrQuality), colorRR());
+
+  // --- SECTION: TREND ---
+  html += `<div style="${sectionStyle}">TREND</div>`;
+  html += row("TREND ★", fmt.text(d.trendScore), colorTrendScore());
+  html += row("STATE", fmt.text(d.trendState), colorTrendState());
+  html += row("SMA20", fmt.price(d.sma20), BG_GREY);
+  html += row("SMA50", fmt.price(d.sma50), BG_GREY);
+  html += row("SMA200", fmt.price(d.sma200), BG_GREY);
+
+  // --- SECTION: MOMENTUM ---
+  html += `<div style="${sectionStyle}">MOMENTUM</div>`;
+  html += row("RSI", fmt.n2(d.rsi), colorRSI());
+  html += row("MACD", fmt.n3(d.macdHist), colorMACD());
+  html += row("DIV", fmt.text(d.divergence), colorDiv());
+  html += row("ADX", fmt.n2(d.adx), colorADX());
+  html += row("STO", fmt.stochPct(d.stochK), colorStoch());
+
+  // --- SECTION: LEVELS / RISK ---
+  html += `<div style="${sectionStyle}">LEVELS / RISK</div>`;
+  html += row("SUPPORT", fmt.price(d.support), colorLevels("support"));
+  html += row("RESIST", fmt.price(d.resistance), colorLevels("resistance"));
+  html += row("TARGET", fmt.price(d.target), BG_GREY);
+  html += row("ATR", fmt.n2(d.atr), colorATR());
+  html += row("%B", fmt.bollPct(d.bolB), colorBoll());
+
+  return html;
+}
+
+
 /**
  * UI Trigger Function
  */
@@ -2345,7 +2673,7 @@ function runMasterAnalysis() {
 
   // 5. Generate and show the report
   const report = MasterAnalysisEngine.analyze(d);
-  showAnalysisPopup(ticker, report);
+  showAnalysisPopup(ticker, report,d);
 }
 
 /**
