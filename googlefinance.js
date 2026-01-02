@@ -1,6 +1,6 @@
 /**
 * ==============================================================================
-* BASELINE LABEL: STABLE_MASTER_ALL_CLEAN_v4.5_GOLDEN_PANELS
+* BASELINE LABEL: STABLE_MASTER_ALL_CLEAN_v4.5.1_GOLDEN
 * ==============================================================================
 */
 
@@ -2250,8 +2250,8 @@ class MasterAnalysisEngine {
     // ---------------------------
     const ticker     = t(d.ticker).toUpperCase();
     const signal     = t(d.signal);
-    const fundamental= t(d.valuation);  // FUNDAMENTAL bucket (VALUE/FAIR/EXPENSIVE/...)
-    const decision   = t(d.status);     // DECISION label (Trade Long / Hold / Take Profit / Reduce / Stop-Out / Avoid / ...)
+    const fundamental= t(d.fundamental);  // FUNDAMENTAL bucket (VALUE/FAIR/EXPENSIVE/...)
+    const decision   = t(d.decision);     // DECISION label (Trade Long / Hold / Take Profit / Reduce / Stop-Out / Avoid / ...)
     const price      = n(d.price) ?? 0;
     const chg        = n(d.changePct);
     const rvol       = n(d.volRatio);
@@ -2860,6 +2860,7 @@ function buildIndicatorPanelHtml_(d) {
   const BG_RED   = "#4a1414";
   const BG_GREY  = "#1f2937";
   const FG_LIGHT = "#e5e7eb";
+  const BG_YELLOW ="#E1AD01";
 
   const rowStyle = (bg, isTop) => [
     `background:${bg}`,
@@ -2954,7 +2955,7 @@ function buildIndicatorPanelHtml_(d) {
     const x = num(d.athDiff);
     if (x == null) return BG_GREY;
     // athDiff is (Price-ATH)/ATH, negative means below ATH (normal)
-    return x >= 0 ? BG_GREEN : BG_GREY;
+    return x >= 0 ? BG_GREEN : BG_RED;
   };
 
   const colorRR = () => {
@@ -3059,9 +3060,9 @@ function buildIndicatorPanelHtml_(d) {
   let html = "";
 
   // --- TOP: SIGNAL / FUND / DECISION (tight + bigger) ---
-  html += row("SIGNAL", fmt.text(d.signal), topBg(colorSignal(d.signal)), true, TOP_YELLOW, TOP_YELLOW);
-  html += row("FUNDAMENTAL", fmt.text(d.valuation), topBg(colorFund(d.valuation)), true, TOP_YELLOW, TOP_YELLOW);
-  html += row("DECISION", fmt.text(d.status), topBg(colorDecision(d.status)), true, TOP_YELLOW, TOP_YELLOW);
+  // ---  html += row("SIGNAL", fmt.text(d.signal), topBg(colorSignal(d.signal)), true, TOP_YELLOW, TOP_YELLOW);
+  // --- html += row("FUNDAMENTAL", fmt.text(d.valuation), topBg(colorFund(d.valuation)), true, TOP_YELLOW, TOP_YELLOW);
+   // --- html += row("DECISION", fmt.text(d.status), topBg(colorDecision(d.status)), true, TOP_YELLOW, TOP_YELLOW);
 
   // --- SECTION: PRICE / VOLUME ---
   html += `<div style="${sectionStyle}">PRICE / VOLUME</div>`;
@@ -3073,7 +3074,7 @@ function buildIndicatorPanelHtml_(d) {
   html += `<div style="${sectionStyle}">PERFORMANCE</div>`;
   html += row("ATH", fmt.price(d.isATH), BG_GREY);
   html += row("ATH %", fmt.pct(d.athDiff), colorAthDiff());
-  html += row("R:R", fmt.n2(d.rrQuality), colorRR());
+  html += row("R:R", fmt.n2(d.rrQuality),BG_GREY); //---colorRR();
 
   // --- SECTION: TREND ---
   html += `<div style="${sectionStyle}">TREND</div>`;
@@ -3158,8 +3159,8 @@ function getTickerDataFromBaseline(ticker) {
       return {
         ticker:      rowData[0],  // Col A: Ticker
         signal:      rowData[1],  // Col B: SIGNAL
-        valuation:   rowData[2],  // Col C: FUNDAMENTAL
-        status:      rowData[3],  // Col D: DECISION (e.g., PURCHASED)
+        decision:    rowData[2],  // Col C: DECISION (e.g BY/SELL)
+        fundamental: rowData[3],  // Col D: FUNDAMENTAL
         price:       rowData[4],  // Col E: Price
         changePct:   rowData[5],  // Col F: Change %
         volRatio:    rowData[6],  // Col G: Vol Trend
