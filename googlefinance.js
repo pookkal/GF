@@ -1,6 +1,6 @@
 /**
 * ==============================================================================
-* BASELINE LABEL: STABLE_MASTER_ALL_CLEAN_v4.3_CLEANFORMAT
+* BASELINE LABEL: STABLE_MASTER_ALL_CLEAN_v4.5_GOLDEN_PANELS
 * ==============================================================================
 */
 
@@ -113,7 +113,6 @@ function onEditInstall(e) {
     runMasterAnalysis();
   }
 }
-
 /**
 * ------------------------------------------------------------------
 * 1. CORE AUTOMATION
@@ -2202,171 +2201,625 @@ class MasterAnalysisEngineText {
   }
 }
 
+
 /**
- * MASTER INSTITUTIONAL INTELLIGENCE ENGINE v9.0
- * Features: Volume Confluence, Conflict Resolution, & Dark-Mode HTML UI
+ * MASTER INSTITUTIONAL INTELLIGENCE ENGINE v10.0 (GOLDEN-aligned)
+ * - Uses ONLY the fields returned by getTickerDataFromBaseline()
+ * - Produces a professional, indicator-complete narrative with explicit "Why" and "Why Not"
+ * - Output is HTML (for showAnalysisPopup right pane)
  */
 class MasterAnalysisEngine {
   static analyze(d) {
-    // --- 1. DATA NORMALIZATION & FIXES ---
-    const rsiVal = parseFloat(d.rsi) || 0;
-    const macdVal = parseFloat(d.macdHist) || 0;
-    const adxVal = parseFloat(d.adx) || 0;
-    const volRatio = parseFloat(d.volRatio) || 0;
-    const priceChange = parseFloat(d.changePct) || 0;
-    const stochVal = (parseFloat(d.stochK) * 100) || 0;
-    const athFormatted = (Math.abs(d.athDiff) < 1) ? (d.athDiff * 100).toFixed(2) : d.athDiff.toFixed(2);
-    
-    // --- 2. THE CONFLICT RESOLVER (TREND vs MOMENTUM) ---
-    const isBullishTrend = d.price > d.sma200 && d.trendScore > 5;
-    const isOversoldCapitulation = rsiVal < 25 && stochVal < 10;
-    
-    // --- 3. SMART MONEY & VOLUME LOGIC ---
-    let volumeBias = "";
-    let volumeClass = "neutral-text";
-    
-    if (volRatio > 2.0 && priceChange < 0) {
-      volumeBias = "⚠️ INSTITUTIONAL CAPITULATION: Massive volume on a drop indicates a panic flush. Floor approaching.";
-      volumeClass = "bearish-text";
-    } else if (volRatio > 2.0 && priceChange > 0) {
-      volumeBias = "🔥 INSTITUTIONAL ABSORPTION: Smart money is aggressively soaking up supply. Strong Bullish footprint.";
-      volumeClass = "bullish-text";
-    } else if (volRatio < 0.85) {
-      volumeBias = "⚪ RETAIL DRIFT: Volume is anemic. Institutions are sitting on the sidelines. Expect choppy action.";
-      volumeClass = "highlight";
+    // ---------------------------
+    // Helpers
+    // ---------------------------
+    const n = (v) => {
+      if (typeof v === "number") return isFinite(v) ? v : null;
+      if (v === null || v === undefined) return null;
+      const s = String(v).replace(/[$,%\s,]/g, "").trim();
+      if (s === "" || s === "—" || s === "-") return null;
+      const x = Number(s);
+      return isFinite(x) ? x : null;
+    };
+
+    const t = (v) => (v == null || String(v).trim() === "" ? "—" : String(v));
+    const pct = (v, digits = 2) => {
+      const x = n(v);
+      if (x == null) return "—";
+      // changePct/athDiff are already ratios (0.05 = 5%)
+      return (x * 100).toFixed(digits) + "%";
+    };
+    const p2 = (v) => {
+      const x = n(v);
+      if (x == null) return "—";
+      return "$" + x.toFixed(2);
+    };
+    const f2 = (v) => {
+      const x = n(v);
+      if (x == null) return "—";
+      return x.toFixed(2);
+    };
+    const f3 = (v) => {
+      const x = n(v);
+      if (x == null) return "—";
+      return x.toFixed(3);
+    };
+
+    // ---------------------------
+    // Normalize key fields
+    // ---------------------------
+    const ticker     = t(d.ticker).toUpperCase();
+    const signal     = t(d.signal);
+    const fundamental= t(d.valuation);  // FUNDAMENTAL bucket (VALUE/FAIR/EXPENSIVE/...)
+    const decision   = t(d.status);     // DECISION label (Trade Long / Hold / Take Profit / Reduce / Stop-Out / Avoid / ...)
+    const price      = n(d.price) ?? 0;
+    const chg        = n(d.changePct);
+    const rvol       = n(d.volRatio);
+    const ath        = n(d.isATH);
+    const athDiff    = n(d.athDiff);
+    const rr         = n(d.rrQuality);
+    const trendScore = n(d.trendScore);
+    const trendState = t(d.trendState);
+
+    const sma20      = n(d.sma20);
+    const sma50      = n(d.sma50);
+    const sma200     = n(d.sma200);
+
+    const rsi        = n(d.rsi);
+    const macd       = n(d.macdHist);
+    const divg       = t(d.divergence);
+    const adx        = n(d.adx);
+    const stochK     = n(d.stochK);
+
+    const sup        = n(d.support);
+    const res        = n(d.resistance);
+    const tgt        = n(d.target);
+    const atr        = n(d.atr);
+    const bb         = n(d.bolB);
+
+    // ---------------------------
+    // Derived diagnostics
+    // ---------------------------
+    const aboveSMA200 = (price > 0 && sma200 != null) ? price >= sma200 : null;
+    const aboveSMA50  = (price > 0 && sma50  != null) ? price >= sma50  : null;
+    const aboveSMA20  = (price > 0 && sma20  != null) ? price >= sma20  : null;
+
+    const atrPct = (price > 0 && atr != null) ? (atr / price) : null;
+    const stretchATR = (price > 0 && sma20 != null && atr != null && atr > 0)
+      ? ((price - sma20) / atr)
+      : null;
+
+    const stochPct = (stochK != null) ? (stochK * 100) : null;
+    const bbPct    = (bb != null) ? (bb * 100) : null;
+
+    // ---------------------------
+    // Classification (consistent with your sheet rules)
+    // ---------------------------
+    const regime =
+      aboveSMA200 === null ? "UNKNOWN"
+      : (aboveSMA200 ? "RISK-ON (Above SMA200)" : "RISK-OFF (Below SMA200)");
+
+    const rsiBand =
+      (rsi == null) ? "Unknown"
+      : (rsi <= 30 ? "Oversold (tactical value)" : (rsi >= 70 ? "Overbought (pullback risk)" : "Neutral"));
+
+    const macdBand =
+      (macd == null) ? "Unknown"
+      : (macd >= 0 ? "Positive impulse" : "Negative impulse");
+
+    const adxBand =
+      (adx == null) ? "Unknown"
+      : (adx < 15 ? "Range/Chop" : (adx < 25 ? "Weak/Developing trend" : "Strong trend"));
+
+    const stochBand =
+      (stochK == null) ? "Unknown"
+      : (stochK <= 0.2 ? "Oversold timing" : (stochK >= 0.8 ? "Overbought timing" : "Neutral timing"));
+
+    const rvolBand =
+      (rvol == null) ? "Unknown"
+      : (rvol >= 1.5 ? "High participation (sponsorship)" : (rvol < 1.0 ? "Low participation (drift)" : "Normal participation"));
+
+    const bbBand =
+      (bb == null) ? "Unknown"
+      : (bb <= 0.2 ? "Lower band zone (statistical low)" : (bb >= 0.8 ? "Upper band zone (statistical high)" : "Mid-band"));
+
+    // ---------------------------
+    // “Why” and “Why Not” (explicit, based on your SIGNAL hierarchy)
+    // ---------------------------
+    const why = [];
+    const whyNot = [];
+
+    // Primary invalidations / regime
+    if (sup != null && price > 0 && price < sup) {
+      why.push(`Price (${p2(price)}) is below Support (${p2(sup)}) → invalidation risk (Stop-Out condition).`);
     } else {
-      volumeBias = "✅ ORGANIC PARTICIPATION: Volume is tracking the 10-day mean. No anomalous prints detected.";
+      whyNot.push(`Stop-Out not triggered: price is not below Support.`);
     }
 
-    // --- 4. GENERATE HTML NARRATIVE ---
-    const statusClass = isBullishTrend ? "bullish-text" : "bearish-text";
-    const statusLabel = isBullishTrend ? "📈 STRUCTURAL BULLISH" : "📉 STRUCTURAL BEARISH";
+    if (sma200 != null && price > 0 && price < sma200) {
+      why.push(`Price (${p2(price)}) is below SMA200 (${p2(sma200)}) → Risk-Off regime, trend trades are structurally blocked.`);
+    } else if (sma200 != null && price > 0) {
+      why.push(`Price (${p2(price)}) is above SMA200 (${p2(sma200)}) → Risk-On regime, trend setups are structurally permitted.`);
+    }
 
-    let report = `
-      <div class="report-header">◈ MASTER INSTITUTIONAL INTELLIGENCE ◈</div>
-      
-      <div class="section">
-        <span class="section-title">[🧭 SYSTEM SENTIMENT]</span><br>
-        Status: <span class="${statusClass}">${statusLabel}</span><br>
-        Trend Score: <span class="highlight">${d.trendScore}/10</span> | State: ${d.trendState}<br>
-        Volume Footprint: <span class="${volumeClass}">${volRatio.toFixed(2)}x (Relative)</span><br>
-        &nbsp;&nbsp;→ <i>${volumeBias}</i>
-      </div>
+    // Volume / breakout sponsorship
+    if (rvol != null) {
+      if (rvol >= 1.5) {
+        why.push(`RVOL ${f2(rvol)}x indicates strong participation (good for breakouts / continuation).`);
+      } else if (rvol < 1.0) {
+        why.push(`RVOL ${f2(rvol)}x indicates low participation (moves are less reliable; expect drift/chop).`);
+        whyNot.push(`Breakout confirmation is weaker because RVOL < 1.5x.`);
+      } else {
+        why.push(`RVOL ${f2(rvol)}x is normal (no strong sponsorship signal).`);
+      }
+    }
 
-      <div class="section">
-        <span class="section-title">[🔬 CONFLUENCE OF EVIDENCE]</span><br>
-        • <b>MA STRUCTURE:</b> Price is ${d.price > d.sma50 ? "utilizing the 50-Day SMA as a dynamic floor." : "trapped under 50-Day supply gravity."}<br>
-        • <b>MOMENTUM ENGINE:</b><br>
-          &nbsp;&nbsp;→ RSI (${rsiVal.toFixed(1)}): ${rsiVal < 30 ? '<span class="bullish-text">CAPITULATION ZONE</span>' : rsiVal > 70 ? '<span class="bearish-text">EXHAUSTION ZONE</span>' : 'Neutral Momentum'}<br>
-          &nbsp;&nbsp;→ MACD Hist (${macdVal.toFixed(2)}): ${macdVal < 0 ? '<span class="bearish-text">DOWNSIDE ACCELERATION</span>' : '<span class="bullish-text">BULLISH EXPANSION</span>'}<br>
-        • <b>VOLATILITY:</b> ADX at ${adxVal.toFixed(2)} (${adxVal > 25 ? 'Power Trend Active' : 'Range-Bound / Coiling'})
-      </div>
+    // Momentum
+    if (rsi != null) {
+      why.push(`RSI ${f2(rsi)} → ${rsiBand}.`);
+      if (rsi <= 30) why.push(`RSI in oversold band supports tactical mean-reversion (only if structure holds above Support).`);
+      if (rsi >= 70) why.push(`RSI in overbought band supports profit-taking/trim near Resistance/Target.`);
+    }
 
-      <div class="section">
-        <span class="section-title">[🎯 PRICE ARCHITECTURE]</span><br>
-        🛡️ Support: $${d.support.toFixed(2)} | 🚧 Resistance: $${d.resistance.toFixed(2)}<br>
-        🏁 Target: $${d.target.toFixed(2)} | <b>Bollinger %B:</b> ${(d.bolB * 100).toFixed(1)}%<br>
-        &nbsp;&nbsp;→ ${d.bolB > 0.9 ? '⚠️ STATISTICAL EXTREME: Risk of Mean Reversion rejection.' : 'Operating inside normal deviation.'}
-      </div>
+    if (macd != null) {
+      why.push(`MACD histogram ${f3(macd)} → ${macdBand}.`);
+      if (macd < 0 && aboveSMA50 === false) {
+        why.push(`MACD < 0 and price below SMA50 → momentum weakening (aligns with Reduce logic if PURCHASED).`);
+      }
+    }
 
-      <div class="section">
-        <span class="section-title">[💡 STRATEGIC VERDICT]</span><br>
-        <span class="action-box ${isOversoldCapitulation ? 'bullish-bg' : (isBullishTrend ? 'bullish-bg' : 'bearish-bg')}">
-          ACTION: ${isOversoldCapitulation ? "TACTICAL BOUNCE ENTRY" : d.status.toUpperCase()}
-        </span><br>
-        <i>Narrative: ${isOversoldCapitulation ? 
-          "Structural trend is weak, but extreme RSI/Stoch confluence suggests an imminent snap-back to the SMA 50." : 
-          "Institutional flow confirms a " + (isBullishTrend ? "Buy-the-Dip" : "Sell-the-Rip") + " environment at " + athFormatted + "% from ATH."}</i>
-      </div>
+    // Trend strength
+    if (adx != null) {
+      why.push(`ADX ${f2(adx)} → ${adxBand}.`);
+      if (adx < 15) {
+        whyNot.push(`Trend continuation signals are suppressed because ADX < 15 (range regime).`);
+      }
+    }
 
-      <div class="footer">
-        Structural Reason: ${d.price < d.sma200 ? "GRAVITY BIAS (Below 200-Day SMA)" : "DIVERGENT WEAKNESS (Internal Trend Failure)"}<br>
-        ◈━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━◈
+    // Timing oscillators
+    if (stochK != null) {
+      why.push(`Stoch %K ${(stochPct != null ? stochPct.toFixed(1) : "—")} % → ${stochBand}.`);
+    }
+    if (bb != null) {
+      why.push(`Bollinger %B ${(bbPct != null ? bbPct.toFixed(1) : "—")} % → ${bbBand}.`);
+    }
+
+    // Levels / asymmetry
+    if (res != null && price > 0) {
+      const distToRes = (res > 0) ? ((res - price) / price) : null;
+      if (distToRes != null) {
+        if (distToRes <= 0.01) {
+          why.push(`Price is within ~1% of Resistance (${p2(res)}) → supply zone; profit-taking risk increases.`);
+          whyNot.push(`New long entries are less attractive when price is near Resistance unless RVOL is strong and breakout confirms.`);
+        } else if (distToRes >= 0.05) {
+          why.push(`Resistance (${p2(res)}) is meaningfully above price → room for upside if structure is supportive.`);
+        }
+      }
+    }
+
+    if (rr != null) {
+      if (rr >= 3) why.push(`R:R ${f2(rr)}x is favorable (>=3).`);
+      else if (rr >= 1.5) why.push(`R:R ${f2(rr)}x is acceptable but not elite (1.5–3).`);
+      else {
+        why.push(`R:R ${f2(rr)}x is weak (<1.5) → poor asymmetry for new exposure.`);
+        whyNot.push(`Trade entries are de-prioritized because R:R is below threshold.`);
+      }
+    }
+
+    // Overextension (Reduce Overextended)
+    if (stretchATR != null) {
+      if (stretchATR >= 2) {
+        why.push(`Stretch vs SMA20 is ${stretchATR.toFixed(1)}x ATR (>=2x) → overextended; pullback risk elevated.`);
+      }
+    }
+
+    // Fundamental risk flag
+    const fundRisk =
+      /ZOMBIE|PRICED FOR PERFECTION|EXPENSIVE/i.test(fundamental);
+
+    // ---------------------------
+    // Final verdict narrative (ties SIGNAL + FUNDAMENTAL + DECISION)
+    // ---------------------------
+    const actionTone = (() => {
+      const up = String(decision).toUpperCase();
+      if (/STOP|AVOID/.test(up)) return "bear";
+      if (/TAKE PROFIT|REDUCE/.test(up)) return "trim";
+      if (/TRADE LONG|ACCUMULATE|ADD IN DIP/.test(up)) return "bull";
+      return "neutral";
+    })();
+
+    const verdictTitle =
+      actionTone === "bull" ? "EXECUTION BIAS: LONG"
+      : actionTone === "trim" ? "EXECUTION BIAS: TRIM / RISK-REDUCE"
+      : actionTone === "bear" ? "EXECUTION BIAS: DEFENSIVE"
+      : "EXECUTION BIAS: WAIT / MONITOR";
+
+    const riskFlags = [];
+    if (fundRisk && (/BREAKOUT|TREND CONTINUATION/i.test(signal))) {
+      riskFlags.push("Momentum is constructive, but fundamentals are in a fragile bucket (valuation/earnings risk). Size down and take profits faster.");
+    }
+    if (aboveSMA200 === false && (/TREND CONTINUATION|BREAKOUT/i.test(signal))) {
+      riskFlags.push("Risk-Off regime conflicts with directional trend trades. Prefer tactical setups only with strict invalidation.");
+    }
+    if (rvol != null && rvol < 1.0 && (/BREAKOUT/i.test(signal))) {
+      riskFlags.push("Breakout narrative is under-sponsored (RVOL < 1.0). Treat as tentative until volume expands.");
+    }
+
+    // ---------------------------
+    // Build Professional HTML
+    // ---------------------------
+    const chipClass = (tone) => {
+      if (tone === "bull") return "chip chip-bull";
+      if (tone === "trim") return "chip chip-trim";
+      if (tone === "bear") return "chip chip-bear";
+      return "chip chip-neutral";
+    };
+
+    const decisionChip = chipClass(actionTone);
+
+    const html = `
+      <div class="mi-wrap">
+        <div class="mi-head">
+          <div class="mi-head">
+            <div class="mi-sub">
+              <span class="mi-chip mi-chip-yellow">SIGNAL: ${t(signal)}</span>
+              <span class="mi-chip mi-chip-yellow">FUNDAMENTAL: ${t(fundamental)}</span>
+              <span class="mi-chip mi-chip-yellow">DECISION: ${t(decision)}</span>
+            </div>
+          </div>
+          <div class="mi-sub">
+            <span class="mi-ticker">${ticker}</span>
+            <span class="mi-chip ${decisionChip}">${t(decision)}</span>
+            <span class="mi-regime">${regime}</span>
+          </div>
+        </div>
+
+        <div class="mi-grid">
+          <div class="mi-card">
+            <div class="mi-card-title">Snapshot</div>
+            <div class="mi-kv">
+              <div class="k">SIGNAL</div><div class="v">${t(signal)}</div>
+              <div class="k">FUNDAMENTAL</div><div class="v">${t(fundamental)}</div>
+              <div class="k">PRICE</div><div class="v">${p2(price)}</div>
+              <div class="k">CHG%</div><div class="v">${chg == null ? "—" : pct(chg)}</div>
+              <div class="k">RVOL</div><div class="v">${rvol == null ? "—" : (f2(rvol) + "x")} (${rvolBand})</div>
+              <div class="k">TREND</div><div class="v">${t(trendState)} | Score: ${trendScore == null ? "—" : trendScore}</div>
+              <div class="k">R:R</div><div class="v">${rr == null ? "—" : (f2(rr) + "x")}</div>
+            </div>
+          </div>
+
+          <div class="mi-card">
+            <div class="mi-card-title">Trend & Structure</div>
+            <div class="mi-kv">
+              <div class="k">SMA20</div><div class="v">${sma20 == null ? "—" : p2(sma20)} ${aboveSMA20 === null ? "" : (aboveSMA20 ? " (price above)" : " (price below)")}</div>
+              <div class="k">SMA50</div><div class="v">${sma50 == null ? "—" : p2(sma50)} ${aboveSMA50 === null ? "" : (aboveSMA50 ? " (price above)" : " (price below)")}</div>
+              <div class="k">SMA200</div><div class="v">${sma200 == null ? "—" : p2(sma200)} ${aboveSMA200 === null ? "" : (aboveSMA200 ? " (risk-on)" : " (risk-off)")}</div>
+              <div class="k">ADX</div><div class="v">${adx == null ? "—" : f2(adx)} (${adxBand})</div>
+              <div class="k">Stretch</div><div class="v">${stretchATR == null ? "—" : (stretchATR.toFixed(1) + "x ATR vs SMA20")}</div>
+              <div class="k">ATR</div><div class="v">${atr == null ? "—" : f2(atr)}${atrPct == null ? "" : (" (" + (atrPct*100).toFixed(2) + "% of price)")}</div>
+            </div>
+          </div>
+
+          <div class="mi-card">
+            <div class="mi-card-title">Momentum & Timing</div>
+            <div class="mi-kv">
+              <div class="k">RSI</div><div class="v">${rsi == null ? "—" : f2(rsi)} (${rsiBand})</div>
+              <div class="k">MACD Hist</div><div class="v">${macd == null ? "—" : f3(macd)} (${macdBand})</div>
+              <div class="k">Divergence</div><div class="v">${t(divg)}</div>
+              <div class="k">Stoch %K</div><div class="v">${stochPct == null ? "—" : stochPct.toFixed(1) + "%"} (${stochBand})</div>
+              <div class="k">Bollinger %B</div><div class="v">${bbPct == null ? "—" : bbPct.toFixed(1) + "%"} (${bbBand})</div>
+            </div>
+          </div>
+
+          <div class="mi-card">
+            <div class="mi-card-title">Levels & Planning</div>
+            <div class="mi-kv">
+              <div class="k">Support</div><div class="v">${sup == null ? "—" : p2(sup)}</div>
+              <div class="k">Resistance</div><div class="v">${res == null ? "—" : p2(res)}</div>
+              <div class="k">Target</div><div class="v">${tgt == null ? "—" : p2(tgt)}</div>
+              <div class="k">ATH</div><div class="v">${ath == null ? "—" : p2(ath)}</div>
+              <div class="k">ATH Diff</div><div class="v">${athDiff == null ? "—" : pct(athDiff)}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mi-section">
+          <div class="mi-section-title">Why this decision</div>
+          <ul class="mi-list">
+            ${(why.length ? why : ["No supporting conditions could be computed (data missing)."]).map(x => `<li>${x}</li>`).join("")}
+          </ul>
+        </div>
+
+        <div class="mi-section">
+          <div class="mi-section-title">Why not the alternatives</div>
+          <ul class="mi-list mi-list-muted">
+            ${(whyNot.length ? whyNot : ["No explicit blockers detected beyond the current decision gates."]).map(x => `<li>${x}</li>`).join("")}
+          </ul>
+        </div>
+
+        <div class="mi-section mi-verdict">
+          <div class="mi-verdict-title">${verdictTitle}</div>
+          <div class="mi-verdict-body">
+            <div><b>Decision:</b> ${t(decision)}</div>
+            <div><b>Signal:</b> ${t(signal)} | <b>Fundamental:</b> ${t(fundamental)}</div>
+            <div><b>Execution framing:</b> ${(
+              actionTone === "bull"
+                ? "Prefer disciplined entries at/near support with RVOL confirmation for breakouts; respect invalidation below Support."
+                : actionTone === "trim"
+                  ? "Reduce risk into strength/overextension; avoid chasing new entries at resistance."
+                  : actionTone === "bear"
+                    ? "Stand aside or exit; wait for structure repair (reclaim SMA200 / rebuild base)."
+                    : "Monitor; wait for higher-quality setup (RVOL + structure + asymmetry)."
+            )}</div>
+          </div>
+          ${
+            riskFlags.length
+              ? `<div class="mi-risk">
+                   <div class="mi-risk-title">Risk flags</div>
+                   <ul class="mi-list">${riskFlags.map(x => `<li>${x}</li>`).join("")}</ul>
+                 </div>`
+              : ""
+          }
+        </div>
       </div>
     `;
 
-    return report;
+    return html;
   }
 }
 
+/**
+ * Shows professional 2-pane dialog:
+ * - Left: your compact indicator panel (buildIndicatorPanelHtml_)
+ * - Right: MasterAnalysisEngine HTML narrative
+ */
 function showAnalysisPopup(ticker, reportHtml, d) {
   const leftPanel = buildIndicatorPanelHtml_(d);
 
   const html = `
-  <div class="popupWrap">
-    <div class="leftPane">
-      <div class="lTitle">TERMINAL SNAPSHOT</div>
-      ${leftPanel}
-      <button class="closeBtn" onclick="google.script.host.close()">CLOSE</button>
-    </div>
+    <div class="wrap">
+      <div class="left">
+        <div class="leftTitle">${String(ticker || "").toUpperCase()}</div>
+        <div class="leftBody">
+          ${leftPanel}
+        </div>
+        <button class="btnClose" onclick="google.script.host.close()">CLOSE</button>
+      </div>
 
-    <div class="rightPane">
-      <div class="rightInner reportScope">
-        ${reportHtml}
+      <div class="right">
+        <div class="rightTitle">INTELLIGENCE REPORT</div>
+        <div class="rightBody">
+          ${reportHtml}
+        </div>
       </div>
     </div>
-  </div>
 
-  <style>
-    .popupWrap{
-      display:flex; gap:12px; align-items:flex-start;
-      padding:12px; background:#0d1117;
-      font-family:Consolas,'Courier New',monospace; color:#c9d1d9;
-    }
+    <style>
+      .wrap{
+        display:flex; gap:12px; align-items:stretch;
+        padding:12px; background:#0b0f14;
+        font-family:Consolas,'Courier New',monospace;
+        color:#e5e7eb;
+      }
 
-    .leftPane{
-      width:28%;              /* narrower */
-      min-width:260px;        /* allow shrink */
-      background:#0b1220;
-      border:1px solid #30363d;
-      border-radius:10px;
-      padding:8px;            /* tighter padding */
-    }
+      /* LEFT PANE */
+      .left{
+        width:28%;
+        min-width:270px;
+        background:#0b1220;
+        border:1px solid #30363d;
+        border-radius:12px;
+        padding:10px;
+      }
+      .leftTitle{
+        font-weight:900;
+        color:#93c5fd;
+        letter-spacing:0.6px;
+        font-size:12px;
+        padding:4px 0 8px 0;
+        border-bottom:1px solid #30363d;
+        margin-bottom:8px;
+      }
+      .leftBody{ }
+      .btnClose{
+        margin-top:10px;
+        width:100%;
+        padding:10px;
+        border-radius:10px;
+        cursor:pointer;
+        font-weight:900;
+        background:#111827;
+        color:#93c5fd;
+        border:1px solid #30363d;
+      }
+      .btnClose:hover{ background:#1f2937; }
 
-    .lTitle{
-      color:#58a6ff;
-      font-weight:900;
-      font-size:12px;
-      padding:2px 0 6px 0;
-      border-bottom:1px solid #30363d;
-      margin-bottom:6px;
-    }
+      /* RIGHT PANE */
+      .right{
+        width:72%;
+        background:#0d1117;
+        border:1px solid #30363d;
+        border-radius:12px;
+        display:flex;
+        flex-direction:column;
+      }
+      .rightTitle{
+        font-weight:900;
+        color:#58a6ff;
+        letter-spacing:0.8px;
+        font-size:12px;
+        padding:10px 12px;
+        border-bottom:1px solid #30363d;
+        background:#0b1220;
+        border-top-left-radius:12px;
+        border-top-right-radius:12px;
+      }
+      .rightBody{
+        padding:12px;
+        overflow:auto;
+        max-height:640px;
+      }
+      /* RIGHT PANE – TOP SIGNAL / FUND / DECISION CHIPS */
+      .right .mi-chip{
+        display:inline-block;
+        padding:4px 10px;
+        border-radius:999px;
+        font-weight:900;
+        letter-spacing:.4px;
+        border:1px solid #eab308;
+        background:#0b1220;
+        margin-right:6px;
+      }
 
-    .closeBtn{
-      margin-top:10px; width:100%; padding:10px; border-radius:10px;
-      cursor:pointer; font-weight:900;
-      background:#21262d; color:#58a6ff; border:1px solid #30363d;
-    }
-    .closeBtn:hover{ background:#30363d; }
+      .right .mi-chip-yellow{
+        background:#facc15;   /* bright yellow */
+        color:#111827;        /* near-black text */
+        border-color:#eab308;
+      }
 
-    .rightPane{
-      width:66%; border:1px solid #30363d; border-radius:12px; background:#0d1117;
-    }
-    .rightInner{
-      padding:12px; max-height:600px; overflow:auto;
-      line-height:1.35;
-    }
 
-    /* IMPORTANT: restore the report's class colors, but SCOPE them only to the right pane */
-    .reportScope .report-header{ color:#58a6ff; font-weight:900; text-align:center; border-bottom:1px solid #30363d; padding-bottom:10px; margin-bottom:15px; }
-    .reportScope .section{ margin-bottom:12px; border-left:3px solid #30363d; padding-left:10px; }
-    .reportScope .section-title{ color:#ff7b72; font-weight:900; }
-    .reportScope .bullish-text{ color:#3fb950; font-weight:900; }
-    .reportScope .bearish-text{ color:#f85149; font-weight:900; }
-    .reportScope .highlight{ color:#d29922; font-weight:900; }
-    .reportScope .action-box{ display:inline-block; padding:6px 10px; border-radius:8px; font-weight:900; margin-top:6px; }
-    .reportScope .bullish-bg{ background:#238636; color:#ffffff; }
-    .reportScope .bearish-bg{ background:#da3633; color:#ffffff; }
-    .reportScope .footer{ font-size:15px; color:#8b949e; text-align:center; margin-top:14px; }
-  </style>
+      /* REPORT (scoped) */
+      .rightBody .mi-wrap{ }
+      .rightBody .mi-head{
+        border-bottom:1px solid #30363d;
+        padding-bottom:10px;
+        margin-bottom:12px;
+      }
+      .rightBody .mi-title{
+        font-weight:900;
+        font-size:16px;
+        color:#e5e7eb;
+        text-align:left;
+        margin-bottom:6px;
+      }
+      .rightBody .mi-sub{
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+        align-items:center;
+        font-size:12px;
+        color:#9ca3af;
+      }
+      .rightBody .mi-ticker{
+        font-weight:900;
+        color:#fbbf24;
+      }
+      .rightBody .mi-regime{
+        padding:2px 8px;
+        border:1px solid #30363d;
+        border-radius:999px;
+        background:#0b1220;
+        color:#cbd5e1;
+        font-weight:800;
+      }
+
+      .rightBody .chip{
+        padding:2px 8px;
+        border-radius:999px;
+        font-weight:900;
+        border:1px solid #30363d;
+      }
+      .rightBody .chip-bull{ background:#0f3d2e; color:#a7f3d0; }
+      .rightBody .chip-trim{ background:#3b2f11; color:#fde68a; }
+      .rightBody .chip-bear{ background:#4a1414; color:#fecaca; }
+      .rightBody .chip-neutral{ background:#1f2937; color:#e5e7eb; }
+
+      .rightBody .mi-grid{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:10px;
+        margin:12px 0;
+      }
+
+      .rightBody .mi-card{
+        border:1px solid #30363d;
+        border-radius:12px;
+        background:#0b1220;
+        padding:10px;
+      }
+      .rightBody .mi-card-title{
+        font-weight:900;
+        color:#93c5fd;
+        font-size:12px;
+        letter-spacing:0.6px;
+        margin-bottom:8px;
+      }
+
+      .rightBody .mi-kv{
+        display:grid;
+        grid-template-columns:140px 1fr;
+        gap:6px 10px;
+        font-size:12px;
+      }
+      .rightBody .mi-kv .k{
+        color:#9ca3af;
+        font-weight:800;
+      }
+      .rightBody .mi-kv .v{
+        color:#e5e7eb;
+        font-weight:700;
+      }
+
+      .rightBody .mi-section{
+        border:1px solid #30363d;
+        border-radius:12px;
+        background:#0b1220;
+        padding:10px;
+        margin:10px 0;
+      }
+      .rightBody .mi-section-title{
+        font-weight:900;
+        color:#ff7b72;
+        font-size:12px;
+        letter-spacing:0.6px;
+        margin-bottom:6px;
+      }
+      .rightBody .mi-list{
+        margin:0;
+        padding-left:18px;
+        font-size:12px;
+        line-height:1.45;
+        color:#e5e7eb;
+      }
+      .rightBody .mi-list-muted{
+        color:#cbd5e1;
+      }
+      .rightBody .mi-verdict{
+        background:#0d1117;
+      }
+      .rightBody .mi-verdict-title{
+        font-weight:900;
+        color:#fbbf24;
+        font-size:13px;
+        margin-bottom:8px;
+      }
+      .rightBody .mi-verdict-body{
+        font-size:12px;
+        line-height:1.5;
+      }
+      .rightBody .mi-risk{
+        margin-top:10px;
+        border-top:1px dashed #30363d;
+        padding-top:10px;
+      }
+      .rightBody .mi-risk-title{
+        font-weight:900;
+        color:#f87171;
+        font-size:12px;
+        margin-bottom:6px;
+      }
+    </style>
   `;
 
   const out = HtmlService.createHtmlOutput(html)
-    .setWidth(1080)
-    .setHeight(680);
+    .setWidth(1120)
+    .setHeight(720);
 
   SpreadsheetApp.getUi().showModalDialog(out, `Terminal Intelligence: ${String(ticker).toUpperCase()}`);
 }
+
+
+/* ---------- popup helpers ---------- */
 
 /**
  * Builds the LEFT-side indicator panel HTML (tight layout).
@@ -2607,8 +3060,8 @@ function buildIndicatorPanelHtml_(d) {
 
   // --- TOP: SIGNAL / FUND / DECISION (tight + bigger) ---
   html += row("SIGNAL", fmt.text(d.signal), topBg(colorSignal(d.signal)), true, TOP_YELLOW, TOP_YELLOW);
-  html += row("FUNDAMENTAL", fmt.text(d.status), topBg(colorDecision(d.status)), true, TOP_YELLOW, TOP_YELLOW);
-    html += row("DECISION", fmt.text(d.valuation), topBg(colorFund(d.valuation)), true, TOP_YELLOW, TOP_YELLOW);
+  html += row("FUNDAMENTAL", fmt.text(d.valuation), topBg(colorFund(d.valuation)), true, TOP_YELLOW, TOP_YELLOW);
+  html += row("DECISION", fmt.text(d.status), topBg(colorDecision(d.status)), true, TOP_YELLOW, TOP_YELLOW);
 
   // --- SECTION: PRICE / VOLUME ---
   html += `<div style="${sectionStyle}">PRICE / VOLUME</div>`;
