@@ -1,6 +1,6 @@
 /**
 * ==============================================================================
-* BASELINE LABEL: STABLE_MASTER_ALL_CLEAN_v4.5.1_GOLDEN
+* BASELINE LABEL: STABLE_MASTER_ALL_CLEAN_v4.5.3_GOLDEN changed fFund and fDecision
 * ==============================================================================
 */
 
@@ -702,87 +702,86 @@ function generateCalculationsSheet() {
     // DECISION (C) — unchanged gating pattern (kept stable)
     const fDecision =
       `=IF($A${row}=""${SEP}""${SEP}
-        IFS(
-          AND(IFERROR(VALUE($E${row})${SEP}0)>0${SEP}IFERROR(VALUE($U${row})${SEP}0)>0${SEP}IFERROR(VALUE($E${row})${SEP}0)<IFERROR(VALUE($U${row})${SEP}0))${SEP}"Stop-Out"${SEP}
+        LET(
+          tag${SEP}UPPER(IFERROR(INDEX(INPUT!$C$3:$C${SEP}MATCH($A${row}${SEP}INPUT!$A$3:$A${SEP}0))${SEP}"" ))${SEP}
+          purchased${SEP}REGEXMATCH(tag${SEP}"(^|,|\\s)PURCHASED(\\s|,|$)")${SEP}
 
-          AND(
-            REGEXMATCH(
-              UPPER(IFERROR(INDEX(INPUT!$C$3:$C${SEP} MATCH($A${row}${SEP} INPUT!$A$3:$A${SEP} 0))${SEP} ""))${SEP}
-              "(^|,|\\s)PURCHASED(\\s|,|$)"
-            )${SEP}
-            IFERROR(VALUE($E${row})${SEP}0)>0${SEP}
-            IFERROR(VALUE($W${row})${SEP}0)>0${SEP}
-            IFERROR(VALUE($E${row})${SEP}0)>=IFERROR(VALUE($W${row})${SEP}0)
-          )${SEP}"Take Profit"${SEP}
+          IFS(
+            AND(IFERROR(VALUE($E${row})${SEP}0)>0${SEP}IFERROR(VALUE($U${row})${SEP}0)>0${SEP}IFERROR(VALUE($E${row})${SEP}0)<IFERROR(VALUE($U${row})${SEP}0))${SEP}
+              "Stop-Out"${SEP}
 
-          AND(
-            REGEXMATCH(
-              UPPER(IFERROR(INDEX(INPUT!$C$3:$C${SEP} MATCH($A${row}${SEP} INPUT!$A$3:$A${SEP} 0))${SEP} ""))${SEP}
-              "(^|,|\\s)PURCHASED(\\s|,|$)"
-            )${SEP}
-            IFERROR(VALUE($V${row})${SEP}0)>0${SEP}
-            IFERROR(VALUE($E${row})${SEP}0)>=IFERROR(VALUE($V${row})${SEP}0)*0.995${SEP}
-            OR(IFERROR(VALUE($P${row})${SEP}50)>=70${SEP} IFERROR(VALUE($T${row})${SEP}0.5)>=0.8)
-          )${SEP}"Take Profit"${SEP}
+            AND(purchased${SEP}
+                IFERROR(VALUE($E${row})${SEP}0)>0${SEP}
+                IFERROR(VALUE($W${row})${SEP}0)>0${SEP}
+                IFERROR(VALUE($E${row})${SEP}0)>=IFERROR(VALUE($W${row})${SEP}0)
+            )${SEP}"Take Profit"${SEP}
 
-          AND(
-            REGEXMATCH(
-              UPPER(IFERROR(INDEX(INPUT!$C$3:$C${SEP} MATCH($A${row}${SEP} INPUT!$A$3:$A${SEP} 0))${SEP} ""))${SEP}
-              "(^|,|\\s)PURCHASED(\\s|,|$)"
-            )${SEP}
-            IFERROR(VALUE($Q${row})${SEP}0)<0${SEP}
-            IFERROR(VALUE($N${row})${SEP}0)>0${SEP}
-            IFERROR(VALUE($E${row})${SEP}0)<IFERROR(VALUE($N${row})${SEP}0)
-          )${SEP}"Reduce (Momentum Weak)"${SEP}
+            AND(purchased${SEP}
+                IFERROR(VALUE($V${row})${SEP}0)>0${SEP}
+                IFERROR(VALUE($E${row})${SEP}0)>=IFERROR(VALUE($V${row})${SEP}0)*0.995${SEP}
+                OR(IFERROR(VALUE($P${row})${SEP}50)>=70${SEP}IFERROR(VALUE($T${row})${SEP}0.5)>=0.8)
+            )${SEP}"Take Profit"${SEP}
 
-          AND(
-            REGEXMATCH(
-              UPPER(IFERROR(INDEX(INPUT!$C$3:$C${SEP} MATCH($A${row}${SEP} INPUT!$A$3:$A${SEP} 0))${SEP} ""))${SEP}
-              "(^|,|\\s)PURCHASED(\\s|,|$)"
-            )${SEP}
-            IFERROR(VALUE($X${row})${SEP}0)>0${SEP}
-            IFERROR(VALUE($M${row})${SEP}0)>0${SEP}
-            (IFERROR(VALUE($E${row})${SEP}0)-IFERROR(VALUE($M${row})${SEP}0))/IFERROR(VALUE($X${row})${SEP}1) >= 2
-          )${SEP}"Reduce (Overextended)"${SEP}
+            AND(purchased${SEP}
+                IFERROR(VALUE($Q${row})${SEP}0)<0${SEP}
+                IFERROR(VALUE($N${row})${SEP}0)>0${SEP}
+                IFERROR(VALUE($E${row})${SEP}0)<IFERROR(VALUE($N${row})${SEP}0)
+            )${SEP}"Reduce (Momentum Weak)"${SEP}
 
-          AND(
-            REGEXMATCH(
-              UPPER(IFERROR(INDEX(INPUT!$C$3:$C${SEP} MATCH($A${row}${SEP} INPUT!$A$3:$A${SEP} 0))${SEP} ""))${SEP}
-              "(^|,|\\s)PURCHASED(\\s|,|$)"
-            )${SEP}
-            IFERROR(VALUE($U${row})${SEP}0)>0${SEP}
-            IFERROR(VALUE($E${row})${SEP}0)>IFERROR(VALUE($U${row})${SEP}0)${SEP}
-            IFERROR(VALUE($T${row})${SEP}0.5)<=0.2${SEP}
-            NOT(IFERROR(VALUE($E${row})${SEP}0) < IFERROR(VALUE($O${row})${SEP}0))
-          )${SEP}"Add in Dip"${SEP}
+            AND(purchased${SEP}
+                IFERROR(VALUE($X${row})${SEP}0)>0${SEP}
+                IFERROR(VALUE($M${row})${SEP}0)>0${SEP}
+                (IFERROR(VALUE($E${row})${SEP}0)-IFERROR(VALUE($M${row})${SEP}0))/IFERROR(VALUE($X${row})${SEP}1) >= 2
+            )${SEP}"Reduce (Overextended)"${SEP}
 
-          IFERROR(VALUE($E${row})${SEP}0) < IFERROR(VALUE($O${row})${SEP}0)${SEP}"Avoid"${SEP}
+            AND(purchased${SEP}IFERROR(VALUE($E${row})${SEP}0) < IFERROR(VALUE($O${row})${SEP}0))${SEP}
+              "Risk-Off (Below SMA200)"${SEP}
 
-          AND($B${row}="Breakout (High Volume)"${SEP}OR($D${row}="VALUE"${SEP}$D${row}="FAIR"))${SEP}"Trade Long"${SEP}
-          AND($B${row}="Breakout (High Volume)"${SEP}OR($D${row}="EXPENSIVE"${SEP}$D${row}="PRICED FOR PERFECTION"))${SEP}"Hold"${SEP}
-          AND($B${row}="Trend Continuation"${SEP}$D${row}="VALUE")${SEP}"Accumulate"${SEP}
-          $B${row}="Trend Continuation"${SEP}"Hold"${SEP}
-          TRUE${SEP}"Hold"
+            AND(NOT(purchased)${SEP}IFERROR(VALUE($E${row})${SEP}0) < IFERROR(VALUE($O${row})${SEP}0))${SEP}
+              "Avoid"${SEP}
+
+            AND(purchased${SEP}
+                IFERROR(VALUE($U${row})${SEP}0)>0${SEP}
+                IFERROR(VALUE($E${row})${SEP}0)>IFERROR(VALUE($U${row})${SEP}0)${SEP}
+                IFERROR(VALUE($T${row})${SEP}0.5)<=0.2
+            )${SEP}"Add in Dip"${SEP}
+
+            AND($B${row}="Breakout (High Volume)"${SEP}OR($D${row}="VALUE"${SEP}$D${row}="FAIR"))${SEP}"Trade Long"${SEP}
+            AND($B${row}="Breakout (High Volume)"${SEP}OR($D${row}="EXPENSIVE"${SEP}$D${row}="PRICED FOR PERFECTION"))${SEP}"Hold"${SEP}
+            AND($B${row}="Trend Continuation"${SEP}$D${row}="VALUE")${SEP}"Accumulate"${SEP}
+            $B${row}="Trend Continuation"${SEP}"Hold"${SEP}
+            TRUE${SEP}"Hold"
+          )
         )
       )`;
 
     // FUNDAMENTAL (D) — reads cached PE/EPS from DATA row 3 (fast)
     const fFund =
-      `=IFERROR(` +
-        `LET(` +
-          `pe${SEP}IFERROR(VALUE(${peCell})${SEP}"" )${SEP}` +
-          `eps${SEP}IFERROR(VALUE(${epsCell})${SEP}"" )${SEP}` +
-          `IFS(` +
-            `OR(pe=""${SEP}eps="")${SEP}"FAIR"${SEP}` +
-            `eps<=0${SEP}"ZOMBIE"${SEP}` +
-            `pe>=60${SEP}"PRICED FOR PERFECTION"${SEP}` +
-            `pe>=35${SEP}"EXPENSIVE"${SEP}` +
-            `AND(pe>0${SEP}pe<=25${SEP}eps>=0.5)${SEP}"VALUE"${SEP}` +
-            `AND(pe>25${SEP}pe<35${SEP}eps>=0.5)${SEP}"FAIR"${SEP}` +
-            `TRUE${SEP}"FAIR"` +
-          `)` +
-        `)` +
-      `${SEP}"FAIR")`;
+  `=IFERROR(` +
+    `LET(` +
+      `peRaw${SEP}${peCell}${SEP}` +
+      `epsRaw${SEP}${epsCell}${SEP}` +
+      `athDiffRaw${SEP}$I${row}${SEP}` +  // ATH Diff % column I
+
+      `pe${SEP}IFERROR(VALUE(REGEXREPLACE(TO_TEXT(peRaw)${SEP}"[^0-9\\.\\-]"${SEP}"" ))${SEP}"" )${SEP}` +
+      `eps${SEP}IFERROR(VALUE(REGEXREPLACE(TO_TEXT(epsRaw)${SEP}"[^0-9\\.\\-]"${SEP}"" ))${SEP}"" )${SEP}` +
+
+      // Column I is % (e.g., -14.95%). Normalize to decimal (-0.1495).
+      `athDiff${SEP}IFERROR(VALUE(REGEXREPLACE(TO_TEXT(athDiffRaw)${SEP}"[^0-9\\.\\-]"${SEP}"" ))/100${SEP}"" )${SEP}` +
+
+      `IFS(` +
+        `OR(pe=""${SEP}eps="")${SEP}"FAIR"${SEP}` +
+        `eps<=0${SEP}"ZOMBIE"${SEP}` +
+
+        // Priced for perfection = very high PE AND near ATH (within ~8%)
+        `AND(pe>=60${SEP}athDiff<>""${SEP}athDiff>=-0.08)${SEP}"PRICED FOR PERFECTION"${SEP}` +
+
+        `pe>=35${SEP}"EXPENSIVE"${SEP}` +
+        `AND(pe>0${SEP}pe<=25${SEP}eps>=0.5)${SEP}"VALUE"${SEP}` +
+        `AND(pe>25${SEP}pe<35${SEP}eps>=0.5)${SEP}"FAIR"${SEP}` +
+        `TRUE${SEP}"FAIR"` +
+      `)` +`)` +`${SEP}"FAIR")`;
+
 
     // E..Y
     const fPrice  = `=ROUND(IFERROR(GOOGLEFINANCE("${t}"${SEP}"price")${SEP}0)${SEP}2)`;
