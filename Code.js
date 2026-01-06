@@ -17,7 +17,7 @@ function onOpen() {
     .addSeparator()
     .addItem('3. Build Calculations', 'generateCalculationsSheet')
     .addItem('4. Refresh Dashboard ', 'generateDashboardSheet')
-    .addItem('4. Refresh Mobile DAshbaord ', 'generateMbileReport')
+    .addItem('4. Refresh Mobile Dashbaord ', 'setupFormulaBasedReport')
     .addItem('5. Setup Chart', 'setupChartSheet')
     .addSeparator()
     .addItem('🤖 Generate  Narratives', 'runMasterAnalysis')
@@ -80,7 +80,7 @@ function onEdit(e) {
   if (sheet.getName() === "REPORT" && (a1 === "A1" )) {
      try {
       ss.toast("Refreshing Mbile Dashboard...", "⚙️ TERMINAL", 3);
-      generateMobileReport();
+      //generateMobileReport();
       SpreadsheetApp.flush();
     } catch (err) {
       ss.toast('REPORT SHEET A1 select onEdit error: ' + err);
@@ -141,7 +141,7 @@ function FlushAllSheetsAndBuild() {
   SpreadsheetApp.flush();
 
   ui.showModelessDialog(HtmlService.createHtmlOutput("<b>3/4:</b> Constructing Report..."), "Status");
-  generateMbileReport();
+  setupFormulaBasedReport();
 
    ui.showModelessDialog(HtmlService.createHtmlOutput("<b>4/4:</b> Constructing Chart..."), "Status");
   setupChartSheet();
@@ -878,85 +878,43 @@ function generateCalculationsSheet() {
           `IF(IFERROR(VALUE($J${row})${SEP}0)>=3${SEP}"favorable."${SEP}"limited")` +
       `)`;
 
-    // AA FUND NOTES — rewritten to include: FUNDAMENTAL, REASON, SIGNAL (with WHY), Why Not, Action, RISK FLAG
-    // AA FUND NOTES — WHY moved to its own line ("Why:")
+    // AA FUND NOTES — Plain English narrative explaining Signal, Fundamental, and Decision
     const fFundNotes =
       `=IF($A${row}=""${SEP}""${SEP}
-      "FUNDAMENTAL: "&IFS(
-        $D${row}="VALUE"${SEP}"Positive (tailwind)"
-        ${SEP}$D${row}="FAIR"${SEP}"Neutral (not a blocker)"
-        ${SEP}$D${row}="EXPENSIVE"${SEP}"Negative (headwind)"
-        ${SEP}$D${row}="PRICED FOR PERFECTION"${SEP}"High expectations (fragile)"
-        ${SEP}$D${row}="ZOMBIE"${SEP}"High risk (weak earnings)"
-        ${SEP}TRUE${SEP}"Neutral"
-      )&CHAR(10)&
-      "REASON: "&IFS(
-        $D${row}="ZOMBIE"${SEP}"EPS <= 0 (loss-making / weak earnings quality)."
-        ${SEP}$D${row}="PRICED FOR PERFECTION"${SEP}"PE >= 60 (priced for flawless execution)."
-        ${SEP}$D${row}="EXPENSIVE"${SEP}"PE in 35–59 range (valuation premium; lower margin for error)."
-        ${SEP}$D${row}="VALUE"${SEP}"EPS >= 0.5 and PE <= 25 (supportive valuation)."
-        ${SEP}$D${row}="FAIR"${SEP}"EPS positive but below quality threshold or PE 26–34 (neutral)."
-        ${SEP}TRUE${SEP}"Valuation classification unavailable."
+      "FUNDAMENTAL ANALYSIS: "&IFS(
+        $D${row}="VALUE"${SEP}"This stock is attractively priced with strong earnings and reasonable valuation (PE ≤ 25). The fundamentals provide a supportive tailwind for any position."
+        ${SEP}$D${row}="FAIR"${SEP}"This stock has decent fundamentals but nothing exceptional. The valuation is neither cheap nor expensive, so fundamentals are neutral to the trade."
+        ${SEP}$D${row}="EXPENSIVE"${SEP}"This stock is trading at a premium valuation (PE 35-59). While not prohibitive, there's less margin for error and fundamentals create a headwind."
+        ${SEP}$D${row}="PRICED FOR PERFECTION"${SEP}"This stock has extremely high expectations built into the price (PE ≥ 60). Any disappointment could cause significant downside. Fundamentals are fragile."
+        ${SEP}$D${row}="ZOMBIE"${SEP}"This company is losing money or has very weak earnings quality (EPS ≤ 0). High risk of permanent capital loss. Fundamentals are severely negative."
+        ${SEP}TRUE${SEP}"Fundamental analysis is inconclusive due to missing data."
       )&CHAR(10)&CHAR(10)&
 
-      "SIGNAL: "&$B${row}&CHAR(10)&
-
-      "Why: "&IFS(
-        IFERROR(VALUE($E${row})${SEP}0)<IFERROR(VALUE($U${row})${SEP}0)
-          ${SEP}"Price below support → Stop-Out."
-        ${SEP}IFERROR(VALUE($E${row})${SEP}0)<IFERROR(VALUE($O${row})${SEP}0)
-          ${SEP}"Price below SMA200 → Risk-Off regime."
-        ${SEP}IFERROR(VALUE($X${row})${SEP}0)<=
-            MIN(ARRAYFORMULA(
-              OFFSET(DATA!$${highCol}$5${SEP}COUNTA(DATA!$${closeCol}:$${closeCol})-21${SEP}0${SEP}20) -
-              OFFSET(DATA!$${lowCol}$5${SEP}COUNTA(DATA!$${closeCol}:$${closeCol})-21${SEP}0${SEP}20)
-            ))
-          ${SEP}"ATR compressed → Volatility squeeze / coiling."
-        ${SEP}IFERROR(VALUE($S${row})${SEP}0)<15
-          ${SEP}"ADX below 15 → Range-bound market."
-        ${SEP}AND(IFERROR(VALUE($G${row})${SEP}0)>=1.5${SEP}
-                IFERROR(VALUE($E${row})${SEP}0)>=IFERROR(VALUE($V${row})${SEP}0)*0.995)
-          ${SEP}"High volume near resistance → Breakout setup."
-        ${SEP}AND(IFERROR(VALUE($T${row})${SEP}0)<=0.20${SEP}
-                IFERROR(VALUE($E${row})${SEP}0)>IFERROR(VALUE($U${row})${SEP}0))
-          ${SEP}"Stoch oversold above support → Mean-reversion setup."
-        ${SEP}AND(IFERROR(VALUE($E${row})${SEP}0)>IFERROR(VALUE($O${row})${SEP}0)${SEP}
-                IFERROR(VALUE($Q${row})${SEP}0)>0${SEP}
-                IFERROR(VALUE($S${row})${SEP}0)>=18)
-          ${SEP}"Above SMA200 with momentum and trend → Trend continuation."
-        ${SEP}TRUE${SEP}"No dominant condition → Hold / Monitor."
-      )&CHAR(10)&
-
-      "Why Not: "&IFS(
-        $B${row}="Stop-Out"
-          ${SEP}"All alternatives blocked — price already below support (highest-priority invalidation)."
-        ${SEP}AND(IFERROR(VALUE($E${row})${SEP}0)<IFERROR(VALUE($O${row})${SEP}0)${SEP}$B${row}<>"Stop-Out")
-          ${SEP}"Risk-Off regime — price below SMA200 blocks trend, breakout, and accumulation setups."
-        ${SEP}AND(IFERROR(VALUE($S${row})${SEP}0)<15${SEP}$B${row}<>"Range-Bound (Low ADX)")
-          ${SEP}"ADX < 15 indicates chop — trend and breakout setups suppressed; expect range behavior."
-        ${SEP}AND(
-            IFERROR(VALUE($X${row})${SEP}0)<=
-              MIN(ARRAYFORMULA(
-                OFFSET(DATA!$${highCol}$5${SEP}COUNTA(DATA!$${closeCol}:$${closeCol})-21${SEP}0${SEP}20) -
-                OFFSET(DATA!$${lowCol}$5${SEP}COUNTA(DATA!$${closeCol}:$${closeCol})-21${SEP}0${SEP}20)
-              ))
-            ${SEP}$B${row}<>"Volatility Squeeze (Coiling)"
-          )
-          ${SEP}"ATR compression detected — volatility squeeze takes priority over directional trades until expansion."
-        ${SEP}AND(IFERROR(VALUE($G${row})${SEP}0)<1.5${SEP}$B${row}<>"Breakout (High Volume)")
-          ${SEP}"Relative volume < 1.5x — insufficient participation for breakout confirmation."
-        ${SEP}AND(IFERROR(VALUE($J${row})${SEP}0)<1.5${SEP}$C${row}<>"Trade Long")
-          ${SEP}"R:R below threshold — asymmetry insufficient for new exposure at current levels."
-        ${SEP}TRUE
-          ${SEP}"No explicit higher-priority blocker detected."
+      "TECHNICAL SIGNAL: "&$B${row}&CHAR(10)&
+      "Why this signal: "&IFS(
+        $B${row}="Stop-Out"${SEP}"Price has broken below the key support level, invalidating the bullish thesis. This is a defensive exit signal to preserve capital."
+        ${SEP}$B${row}="Breakout (High Volume)"${SEP}"Price is breaking above resistance with strong volume confirmation, suggesting institutional participation and potential for continued upside momentum."
+        ${SEP}$B${row}="Trend Continuation"${SEP}"Price is above the 200-day moving average with positive momentum indicators, suggesting the existing uptrend has room to continue higher."
+        ${SEP}$B${row}="Mean Reversion (Oversold)"${SEP}"Price is oversold on short-term indicators but holding above key support, creating a potential bounce opportunity back toward fair value."
+        ${SEP}$B${row}="Volatility Squeeze (Coiling)"${SEP}"Price volatility has compressed to extremely low levels, often preceding significant directional moves. Waiting for the breakout direction."
+        ${SEP}$B${row}="Range-Bound (Low ADX)"${SEP}"Trend strength is weak with price moving sideways. This environment favors range trading rather than directional bets."
+        ${SEP}TRUE${SEP}"Market conditions don't clearly favor any specific technical setup. Monitoring for clearer signals."
       )&CHAR(10)&CHAR(10)&
 
-      "Action: "&IFS(
-        $C${row}="Stop-Out"${SEP}"EXIT / INVALIDATED"
-        ${SEP}$C${row}="Avoid"${SEP}"NO TRADE"
-        ${SEP}$C${row}="Trade Long"${SEP}"ENTER LONG"
-        ${SEP}$C${row}="Accumulate"${SEP}"ADD / SCALE IN"
-        ${SEP}TRUE${SEP}$C${row}
+      "INVESTMENT DECISION: "&$C${row}&CHAR(10)&
+      "Why this decision: "&IFS(
+        $C${row}="Stop-Out"${SEP}"Price has broken below support level. Exiting to prevent further losses and preserve capital."
+        ${SEP}AND($C${row}="Take Profit",IFERROR(VALUE(INDEX(CALCULATIONS!E:E,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0))),0)>=IFERROR(VALUE(INDEX(CALCULATIONS!W:W,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0))),0),IFERROR(VALUE(INDEX(CALCULATIONS!W:W,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0))),0)>0)${SEP}"Price has reached target level. Taking profits while conditions are favorable."
+        ${SEP}$C${row}="Take Profit"${SEP}"Price is overbought near resistance. Taking profits to avoid pullback risk from elevated RSI and Stochastic levels."
+        ${SEP}$C${row}="Reduce (Momentum Weak)"${SEP}"MACD histogram has turned negative and price is below SMA50. Reducing position size to manage deteriorating momentum."
+        ${SEP}$C${row}="Reduce (Overextended)"${SEP}"Price has extended too far above SMA20 relative to average volatility. Taking partial profits to reduce pullback risk."
+        ${SEP}$C${row}="Risk-Off (Below SMA200)"${SEP}"Price is below the 200-day moving average indicating risk-off conditions. Maintaining defensive posture until trend improves."
+        ${SEP}$C${row}="Avoid"${SEP}"Price is below SMA200 indicating risk-off conditions. Avoiding new positions until trend improves above key moving average."
+        ${SEP}$C${row}="Add in Dip"${SEP}"Price is above support with Stochastic showing oversold conditions. Adding to position on this dip opportunity."
+        ${SEP}$C${row}="Trade Long"${SEP}"Breakout signal confirmed with strong fundamentals. Initiating long position with favorable risk/reward setup."
+        ${SEP}$C${row}="Accumulate"${SEP}"Trend continuation signal with VALUE fundamentals. Adding to existing position as uptrend remains intact above SMA200."
+        ${SEP}$C${row}="Hold"${SEP}"Current market conditions suggest maintaining existing position. Monitoring for clearer directional signals before making changes."
+        ${SEP}TRUE${SEP}"Decision framework suggests maintaining current stance until market conditions become clearer."
       )&
 
       IF(
@@ -964,13 +922,13 @@ function generateCalculationsSheet() {
           OR($B${row}="Breakout (High Volume)"${SEP}$B${row}="Trend Continuation")${SEP}
           OR($D${row}="ZOMBIE"${SEP}$D${row}="PRICED FOR PERFECTION"${SEP}$D${row}="EXPENSIVE")
         )
-        ${SEP}CHAR(10)&"RISK FLAG (HIGH): Momentum vs weak / fragile fundamentals."
+        ${SEP}CHAR(10)&CHAR(10)&"⚠️ RISK WARNING: Strong technical momentum is conflicting with weak or fragile fundamentals. This creates higher risk of sharp reversals if momentum fails."
         ${SEP}IF(
           AND(
             OR($B${row}="Mean Reversion (Oversold)"${SEP}$B${row}="Stop-Out")${SEP}
             $D${row}="VALUE"
           )
-          ${SEP}CHAR(10)&"RISK FLAG (MED): Value present, but structure not yet aligned."
+          ${SEP}CHAR(10)&CHAR(10)&"💡 OPPORTUNITY NOTE: Attractive valuation is present, but technical structure needs to improve before becoming more aggressive."
           ${SEP}""
         )
       )
