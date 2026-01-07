@@ -1,6 +1,6 @@
 /**
 * ==============================================================================
-* STABLE_MASTER_ALL_CLEAN_v2_MOBIELREPORT
+* STABLE_MASTER_ALL_CLEAN_v2_INVEST
 * ==============================================================================
 */
 
@@ -17,7 +17,7 @@ function onOpen() {
     .addSeparator()
     .addItem('3. Build Calculations', 'generateCalculationsSheet')
     .addItem('4. Refresh Dashboard ', 'generateDashboardSheet')
-    .addItem('4. Refresh Mobile Dashbaord ', 'setupFormulaBasedReport')
+    .addItem('4. Refresh Mobile Dashbaord ', 'setupFormulaBasedReport') //generateMobileReport
     .addItem('5. Setup Chart', 'setupChartSheet')
     .addSeparator()
     .addItem('🤖 Generate  Narratives', 'runMasterAnalysis')
@@ -39,6 +39,35 @@ function onEdit(e) {
   const sheet = range.getSheet();
   const a1 = range.getA1Notation();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // ------------------------------------------------------------
+  // INPUT filters -> refresh dashboard
+  // ------------------------------------------------------------
+  if (sheet.getName() === "INPUT") {
+    // Dashboard refresh triggers (B1 or C1)
+    if (a1 === "B1" || a1 === "C1") {
+      try {
+        ss.toast("Dashboard refreshing...", "⚙️ REFRESH", 6);
+        generateDashboardSheet();
+        SpreadsheetApp.flush();
+      } catch (err) {
+        ss.toast("Dashboard filter refresh error: " + err.toString(), "⚠️ FAIL", 6);
+      }
+      return;
+    }
+
+    // Calculations refresh trigger (E2)
+    if (a1 === "E2") {
+      try {
+        ss.toast("Calculations refreshing...", "⚙️ REFRESH", 6);
+        generateCalculationsSheet();
+        SpreadsheetApp.flush();
+      } catch (err) {
+        ss.toast("Calculations refresh error: " + err.toString(), "⚠️ FAIL", 6);
+      }
+      return;
+    }
+  }
 
   // ------------------------------------------------------------
   // DASHBOARD update controls:
@@ -64,21 +93,8 @@ function onEdit(e) {
     return;
   }
 
-  // ------------------------------------------------------------
-  // INPUT filters -> refresh dashboard
-  // ------------------------------------------------------------
-  if (sheet.getName() === "INPUT" && (a1 === "B1" || a1 === "C1")) {
+  if (sheet.getName() === "REPORT" && (a1 === "A1")) {
     try {
-      generateDashboardSheet();
-      SpreadsheetApp.flush();
-    } catch (err) {
-      ss.toast("Dashboard filter refresh error: " + err.toString(), "⚠️ FAIL", 6);
-    }
-    return;
-  }
- 
-  if (sheet.getName() === "REPORT" && (a1 === "A1" )) {
-     try {
       ss.toast("Refreshing Mbile Dashboard...", "⚙️ TERMINAL", 3);
       //generateMobileReport();
       SpreadsheetApp.flush();
@@ -89,12 +105,12 @@ function onEdit(e) {
 
   if (sheet.getName() === "CHART") {
     const watchList = ["A1", "B2", "B3", "B4", "B6"];
-   
+
     // This triggers if B1-B6 are edited OR any cell in Row 1 (Cols 1-4)
     if (watchList.indexOf(a1) !== -1 || (range.getRow() === 1 && range.getColumn() <= 4)) {
       try {
         ss.toast("🔄 Refreshing Chart & Analysis...", "WORKING", 2);
-        if (typeof updateDynamicChart === "function") 
+        if (typeof updateDynamicChart === "function")
           updateDynamicChart();
       } catch (err) {
         ss.toast("Refresh error: " + err.toString(), "⚠️ FAIL", 6);
@@ -112,7 +128,7 @@ function onEditInstall(e) {
 
   // Trigger ONLY when CHART!A1 is edited
   //if (sheet.getName() === "CHART" && range.getA1Notation() === "A1") {
-    //runMasterAnalysis();
+  //runMasterAnalysis();
   //}
 }
 /**
@@ -122,7 +138,7 @@ function onEditInstall(e) {
 */
 function FlushAllSheetsAndBuild() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetsToDelete = ["CALCULATIONS","DASHBOARD",  "CHART", "REPORT"];
+  const sheetsToDelete = ["CALCULATIONS", "DASHBOARD", "CHART", "REPORT"];
   const ui = SpreadsheetApp.getUi();
 
   if (ui.alert('🚨 Full Rebuild', 'Rebuild the sheets?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
@@ -141,9 +157,9 @@ function FlushAllSheetsAndBuild() {
   SpreadsheetApp.flush();
 
   ui.showModelessDialog(HtmlService.createHtmlOutput("<b>3/4:</b> Constructing Report..."), "Status");
-  setupFormulaBasedReport();
+  generateMobileReport();
 
-   ui.showModelessDialog(HtmlService.createHtmlOutput("<b>4/4:</b> Constructing Chart..."), "Status");
+  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>4/4:</b> Constructing Chart..."), "Status");
   setupChartSheet();
 
   ui.alert('✅ Rebuild Complete', 'Terminal Online. Data links restored.', ui.ButtonSet.OK);
@@ -613,14 +629,14 @@ function generateCalculationsSheet() {
       .setVerticalAlignment("middle");
   };
 
-  styleGroup("A1:A1",   "IDENTITY",        "#263238"); // A
-  styleGroup("B1:D1",   "SIGNALING",       "#0D47A1"); // B-D
-  styleGroup("E1:G1",   "PRICE / VOLUME",  "#1B5E20"); // E-G
-  styleGroup("H1:J1",   "PERFORMANCE",     "#004D40"); // H-J
-  styleGroup("K1:O1",   "TREND",           "#2E7D32"); // K-O
-  styleGroup("P1:T1",   "MOMENTUM",        "#33691E"); // P-T
-  styleGroup("U1:Y1",   "LEVELS / RISK",   "#B71C1C"); // U-Y
-  styleGroup("Z1:AA1",  "NOTES",           "#212121"); // Z-AA
+  styleGroup("A1:A1", "IDENTITY", "#263238"); // A
+  styleGroup("B1:D1", "SIGNALING", "#0D47A1"); // B-D
+  styleGroup("E1:G1", "PRICE / VOLUME", "#1B5E20"); // E-G
+  styleGroup("H1:J1", "PERFORMANCE", "#004D40"); // H-J
+  styleGroup("K1:O1", "TREND", "#2E7D32"); // K-O
+  styleGroup("P1:T1", "MOMENTUM", "#33691E"); // P-T
+  styleGroup("U1:Y1", "LEVELS / RISK", "#B71C1C"); // U-Y
+  styleGroup("Z1:AA1", "NOTES", "#212121"); // Z-AA
 
   calc.getRange("AB1")
     .setValue(syncTime)
@@ -635,9 +651,9 @@ function generateCalculationsSheet() {
   // ROW 2: COLUMN HEADERS
   // ------------------------------------------------------------------
   const headers = [[
-    "Ticker","SIGNAL","DECISION","FUNDAMENTAL","Price","Change %","Vol Trend","ATH (TRUE)","ATH Diff %","R:R Quality",
-    "Trend Score","Trend State","SMA 20","SMA 50","SMA 200","RSI","MACD Hist","Divergence","ADX (14)","Stoch %K (14)",
-    "Support","Resistance","Target (3:1)","ATR (14)","Bollinger %B","TECH NOTES","FUND NOTES","LAST_STATE"
+    "Ticker", "SIGNAL", "DECISION", "FUNDAMENTAL", "Price", "Change %", "Vol Trend", "ATH (TRUE)", "ATH Diff %", "R:R Quality",
+    "Trend Score", "Trend State", "SMA 20", "SMA 50", "SMA 200", "RSI", "MACD Hist", "Divergence", "ADX (14)", "Stoch %K (14)",
+    "Support", "Resistance", "Target (3:1)", "ATR (14)", "Bollinger %B", "TECH NOTES", "FUND NOTES", "LAST_STATE"
   ]];
 
   calc.getRange(2, 1, 1, 28)
@@ -669,43 +685,128 @@ function generateCalculationsSheet() {
 
     // DATA block start (each ticker is 7 cols in DATA)
     const tDS = (i * BLOCK) + 1; // colStart
-    const dateCol  = columnToLetter(tDS + 0); // Date (row 5+)
-    const openCol  = columnToLetter(tDS + 1); // Open
-    const highCol  = columnToLetter(tDS + 2); // High
-    const lowCol   = columnToLetter(tDS + 3); // Low
+    const dateCol = columnToLetter(tDS + 0); // Date (row 5+)
+    const openCol = columnToLetter(tDS + 1); // Open
+    const highCol = columnToLetter(tDS + 2); // High
+    const lowCol = columnToLetter(tDS + 3); // Low
     const closeCol = columnToLetter(tDS + 4); // Close
-    const volCol   = columnToLetter(tDS + 5); // Volume
+    const volCol = columnToLetter(tDS + 5); // Volume
 
     // Cached fundamentals in DATA row 3 (within same block)
     const athCell = `DATA!${columnToLetter(tDS + 1)}3`; // ATH value at colStart+1
-    const peCell  = `DATA!${columnToLetter(tDS + 3)}3`; // P/E value at colStart+3
+    const peCell = `DATA!${columnToLetter(tDS + 3)}3`; // P/E value at colStart+3
     const epsCell = `DATA!${columnToLetter(tDS + 5)}3`; // EPS value at colStart+5
 
     // Rolling window anchors (row 5+ only)
     const lastRowCount = `COUNTA(DATA!$${closeCol}$5:$${closeCol})`; // number of data rows
-    const lastAbsRow   = `(4+${lastRowCount})`;                      // absolute row index
+    const lastAbsRow = `(4+${lastRowCount})`;                      // absolute row index
     const lastRowFormula = "COUNTA(DATA!$A:$A)";                      //used for support /resistence , to stay live
 
     // SIGNAL (B) — locale-safe + row5-anchored windows
-    const fSignal =
+
+    const useLongTermSignal =
+      SpreadsheetApp.getActive().getSheetByName('INPUT').getRange('E2').getValue() === true;
+
+    const fSignalLong =
       `=IF(OR(ISBLANK($E${row})${SEP}$E${row}=0)${SEP}"LOADING"${SEP}` +
-        `IFS(` +
-          `$E${row}<$U${row}${SEP}"Stop-Out"${SEP}` +
-          `$E${row}<$O${row}${SEP}"Risk-Off (Below SMA200)"${SEP}` +
-          `$X${row}<=MIN(ARRAYFORMULA(` +
-            `OFFSET(DATA!$${highCol}$5${SEP}${lastRowCount}-20${SEP}0${SEP}20)` +
-            `-OFFSET(DATA!$${lowCol}$5${SEP}${lastRowCount}-20${SEP}0${SEP}20)` +
-          `))${SEP}"Volatility Squeeze (Coiling)"${SEP}` +
-          `$S${row}<15${SEP}"Range-Bound (Low ADX)"${SEP}` +
-          `AND($G${row}>=1.5${SEP}$E${row}>=$V${row}*0.995)${SEP}"Breakout (High Volume)"${SEP}` +
-          `AND($T${row}<=0.20${SEP}$E${row}>$U${row})${SEP}"Mean Reversion (Oversold)"${SEP}` +
-          `AND($E${row}>$O${row}${SEP}$Q${row}>0${SEP}$S${row}>=18)${SEP}"Trend Continuation"${SEP}` +
-          `TRUE${SEP}"Hold / Monitor"` +
-        `)` +
+      `IFS(` +
+      // Hard risk controls (long-term investor discipline)
+      `$E${row}<$U${row}${SEP}"REDUCE / EXIT"${SEP}` +          // Below support
+      `$E${row}<$O${row}${SEP}"REDUCE / EXIT"${SEP}` +          // Below SMA200 (structural break)
+
+      // Long-term accumulation (trend + momentum + trend-strength + pullback zone)
+      `AND(` +
+      `$E${row}>$O${row}${SEP}` +                             // Above SMA200
+      `$N${row}>$O${row}${SEP}` +                             // SMA50 > SMA200 (structure)
+      `$P${row}>=50${SEP}` +                                  // RSI regime positive
+      `$Q${row}>0${SEP}` +                                    // MACD histogram positive
+      `$S${row}>=20${SEP}` +                                  // ADX trend strength
+      `$E${row}>=$N${row}*0.97${SEP}` +                        // Not too deep below SMA50
+      `$E${row}<=$M${row}*1.05` +                              // Near SMA20 (good add zone)
+      `)${SEP}"ACCUMULATE"${SEP}` +
+
+      // Hold if extended but trend still strong
+      `AND(` +
+      `$E${row}>$O${row}${SEP}` +
+      `$P${row}>=50${SEP}` +
+      `$Q${row}>0${SEP}` +
+      `$E${row}>$M${row}*1.12` +
+      `)${SEP}"HOLD"${SEP}` +
+
+      // Otherwise: wait for a better pullback if trend is still intact
+      `AND($E${row}>$O${row}${SEP}$P${row}>=50${SEP}$Q${row}>0)${SEP}"WAIT (PULLBACK)"${SEP}` +
+
+      // Default
+      `TRUE${SEP}"NO TREND"` +
+      `)` +
       `)`;
 
+    const fSignalTrend =
+      `=IF(OR(ISBLANK($E${row})${SEP}$E${row}=0)${SEP}"LOADING"${SEP}` +
+      `IFS(` +
+      `$E${row}<$U${row}${SEP}"Stop-Out"${SEP}` +
+      `$E${row}<$O${row}${SEP}"Risk-Off (Below SMA200)"${SEP}` +
+      `$X${row}<=MIN(ARRAYFORMULA(` +
+      `OFFSET(DATA!$${highCol}$5${SEP}${lastRowCount}-20${SEP}0${SEP}20)` +
+      `-OFFSET(DATA!$${lowCol}$5${SEP}${lastRowCount}-20${SEP}0${SEP}20)` +
+      `))${SEP}"Volatility Squeeze (Coiling)"${SEP}` +
+      `$S${row}<15${SEP}"Range-Bound (Low ADX)"${SEP}` +
+      `AND($G${row}>=1.5${SEP}$E${row}>=$V${row}*0.995)${SEP}"Breakout (High Volume)"${SEP}` +
+      `AND($T${row}<=0.20${SEP}$E${row}>$U${row})${SEP}"Mean Reversion (Oversold)"${SEP}` +
+      `AND($E${row}>$O${row}${SEP}$Q${row}>0${SEP}$S${row}>=18)${SEP}"Trend Continuation"${SEP}` +
+      `TRUE${SEP}"Hold / Monitor"` +
+      `)` +
+      `)`;
+
+    const fSignal = useLongTermSignal ? fSignalLong : fSignalTrend;
+
     // DECISION (C) — unchanged gating pattern (kept stable)
-    const fDecision =
+    const tagExpr =
+      `UPPER(IFERROR(INDEX(INPUT!$C$3:$C${SEP}MATCH($A${row}${SEP}INPUT!$A$3:$A${SEP}0))${SEP}"" ))`;
+
+    const purchasedExpr = `ISNUMBER(SEARCH("PURCHASED"${SEP}${tagExpr}))`;
+
+    const fDecisionLong =
+      `=IF($A${row}=""${SEP}""${SEP}` +
+      `IF($B${row}="LOADING"${SEP}"LOADING"${SEP}` +
+
+      // PURCHASED => position management mode
+      `IF(${purchasedExpr}${SEP}` +
+      `IFS(` +
+      `$B${row}="REDUCE / EXIT"${SEP}"🔴 EXIT"${SEP}` +
+
+      `AND($B${row}="ACCUMULATE"${SEP}OR(ISNUMBER(SEARCH("CHEAP"${SEP}UPPER($D${row})))${SEP}ISNUMBER(SEARCH("UNDER"${SEP}UPPER($D${row})))))${SEP}` +
+      `"🟢 ADD / PYRAMID"${SEP}` +
+      `AND($B${row}="ACCUMULATE"${SEP}ISNUMBER(SEARCH("FAIR"${SEP}UPPER($D${row}))))${SEP}` +
+      `"🟢 ADD"${SEP}` +
+      `AND($B${row}="ACCUMULATE"${SEP}ISNUMBER(SEARCH("EXPENSIVE"${SEP}UPPER($D${row}))))${SEP}` +
+      `"🟡 HOLD / ADD SMALL"${SEP}` +
+      `AND($B${row}="ACCUMULATE"${SEP}ISNUMBER(SEARCH("PERFECTION"${SEP}UPPER($D${row}))))${SEP}` +
+      `"🟡 HOLD (NO ADD)"${SEP}` +
+
+      `AND($B${row}="HOLD"${SEP}OR(ISNUMBER(SEARCH("EXPENSIVE"${SEP}UPPER($D${row})))${SEP}ISNUMBER(SEARCH("PERFECTION"${SEP}UPPER($D${row})))))${SEP}` +
+      `"🟠 TRIM (INTO STRENGTH)"${SEP}` +
+      `$B${row}="HOLD"${SEP}"⚖️ HOLD"${SEP}` +
+
+      `$B${row}="WAIT (PULLBACK)"${SEP}"⚖️ HOLD / WAIT"${SEP}` +
+
+      `TRUE${SEP}"⚖️ HOLD"` +
+      `)` +
+
+      // NOT PURCHASED => entry mode
+      `${SEP}` +
+      `IFS(` +
+      `$B${row}="REDUCE / EXIT"${SEP}"🔴 AVOID"${SEP}` +
+      `$B${row}="ACCUMULATE"${SEP}"🟢 BUY"${SEP}` +
+      `$B${row}="HOLD"${SEP}"⚖️ HOLD / WATCH"${SEP}` +
+      `$B${row}="WAIT (PULLBACK)"${SEP}"⏳ WAIT"${SEP}` +
+      `TRUE${SEP}"⚪ NO ACTION"` +
+      `)` +
+      `)` +
+      `)` +
+      `)`;
+
+    const fDecisionTrade =
       `=IF($A${row}=""${SEP}""${SEP}
         LET(
           tag${SEP}UPPER(IFERROR(INDEX(INPUT!$C$3:$C${SEP}MATCH($A${row}${SEP}INPUT!$A$3:$A${SEP}0))${SEP}"" ))${SEP}
@@ -760,10 +861,12 @@ function generateCalculationsSheet() {
         )
       )`;
 
+    const fDecision = useLongTermSignal ? fDecisionLong : fDecisionTrade;
+
     // FUNDAMENTAL (D) — reads cached PE/EPS from DATA row 3 (fast)
     const fFund =
-  `=IFERROR(` +
-    `LET(` +
+      `=IFERROR(` +
+      `LET(` +
       `peRaw${SEP}${peCell}${SEP}` +
       `epsRaw${SEP}${epsCell}${SEP}` +
       `athDiffRaw${SEP}$I${row}${SEP}` +  // ATH Diff % column I
@@ -775,72 +878,72 @@ function generateCalculationsSheet() {
       `athDiff${SEP}IFERROR(VALUE(REGEXREPLACE(TO_TEXT(athDiffRaw)${SEP}"[^0-9\\.\\-]"${SEP}"" ))/100${SEP}"" )${SEP}` +
 
       `IFS(` +
-        `OR(pe=""${SEP}eps="")${SEP}"FAIR"${SEP}` +
-        `eps<=0${SEP}"ZOMBIE"${SEP}` +
+      `OR(pe=""${SEP}eps="")${SEP}"FAIR"${SEP}` +
+      `eps<=0${SEP}"ZOMBIE"${SEP}` +
 
-        // Priced for perfection = very high PE AND near ATH (within ~8%)
-        `AND(pe>=60${SEP}athDiff<>""${SEP}athDiff>=-0.08)${SEP}"PRICED FOR PERFECTION"${SEP}` +
+      // Priced for perfection = very high PE AND near ATH (within ~8%)
+      `AND(pe>=60${SEP}athDiff<>""${SEP}athDiff>=-0.08)${SEP}"PRICED FOR PERFECTION"${SEP}` +
 
-        `pe>=35${SEP}"EXPENSIVE"${SEP}` +
-        `AND(pe>0${SEP}pe<=25${SEP}eps>=0.5)${SEP}"VALUE"${SEP}` +
-        `AND(pe>25${SEP}pe<35${SEP}eps>=0.5)${SEP}"FAIR"${SEP}` +
-        `TRUE${SEP}"FAIR"` +
-      `)` +`)` +`${SEP}"FAIR")`;
+      `pe>=35${SEP}"EXPENSIVE"${SEP}` +
+      `AND(pe>0${SEP}pe<=25${SEP}eps>=0.5)${SEP}"VALUE"${SEP}` +
+      `AND(pe>25${SEP}pe<35${SEP}eps>=0.5)${SEP}"FAIR"${SEP}` +
+      `TRUE${SEP}"FAIR"` +
+      `)` + `)` + `${SEP}"FAIR")`;
 
 
     // E..Y
-    const fPrice  = `=ROUND(IFERROR(GOOGLEFINANCE("${t}"${SEP}"price")${SEP}0)${SEP}2)`;
-    const fChg    = `=IFERROR(GOOGLEFINANCE("${t}"${SEP}"changepct")/100${SEP}0)`;
+    const fPrice = `=ROUND(IFERROR(GOOGLEFINANCE("${t}"${SEP}"price")${SEP}0)${SEP}2)`;
+    const fChg = `=IFERROR(GOOGLEFINANCE("${t}"${SEP}"changepct")/100${SEP}0)`;
 
     const fRVOL =
       `=ROUND(` +
-        `IFERROR(` +
-          `OFFSET(DATA!$${volCol}$5${SEP}${lastRowCount}-1${SEP}0)` +
-          `/AVERAGE(OFFSET(DATA!$${volCol}$5${SEP}${lastRowCount}-20${SEP}0${SEP}20))` +
-        `${SEP}1)` +
+      `IFERROR(` +
+      `OFFSET(DATA!$${volCol}$5${SEP}${lastRowCount}-1${SEP}0)` +
+      `/AVERAGE(OFFSET(DATA!$${volCol}$5${SEP}${lastRowCount}-20${SEP}0${SEP}20))` +
+      `${SEP}1)` +
       `${SEP}2)`;
 
-    const fATH    = `=IFERROR(${athCell}${SEP}0)`;
+    const fATH = `=IFERROR(${athCell}${SEP}0)`;
     const fATHPct = `=IFERROR(($E${row}-$H${row})/MAX(0.01${SEP}$H${row})${SEP}0)`;
 
     const fRR =
       `=IF(OR($E${row}<=$U${row}${SEP}$E${row}=0)${SEP}0${SEP}` +
-        `ROUND(MAX(0${SEP}$V${row}-$E${row})/MAX($X${row}*0.5${SEP}$E${row}-$U${row})${SEP}2)` +
+      `ROUND(MAX(0${SEP}$V${row}-$E${row})/MAX($X${row}*0.5${SEP}$E${row}-$U${row})${SEP}2)` +
       `)`;
 
-    const fStars  = `=REPT("★"${SEP} ($E${row}>$M${row}) + ($E${row}>$N${row}) + ($E${row}>$O${row}))`;
-    const fTrend  = `=IF($E${row}>$O${row}${SEP}"BULL"${SEP}"BEAR")`;
+    const fStars = `=REPT("★"${SEP} ($E${row}>$M${row}) + ($E${row}>$N${row}) + ($E${row}>$O${row}))`;
+    const fTrend = `=IF($E${row}>$O${row}${SEP}"BULL"${SEP}"BEAR")`;
 
-    const fSMA20  = `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$5${SEP}${lastRowCount}-20${SEP}0${SEP}20))${SEP}0)${SEP}2)`;
-    const fSMA50  = `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$5${SEP}${lastRowCount}-50${SEP}0${SEP}50))${SEP}0)${SEP}2)`;
+    const fSMA20 = `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$5${SEP}${lastRowCount}-20${SEP}0${SEP}20))${SEP}0)${SEP}2)`;
+    const fSMA50 = `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$5${SEP}${lastRowCount}-50${SEP}0${SEP}50))${SEP}0)${SEP}2)`;
     const fSMA200 = `=ROUND(IFERROR(AVERAGE(OFFSET(DATA!$${closeCol}$5${SEP}${lastRowCount}-200${SEP}0${SEP}200))${SEP}0)${SEP}2)`;
 
-    const fRSI    = `=LIVERSI(DATA!$${closeCol}$5:$${closeCol}${SEP}$E${row})`;
-    const fMACD   = `=LIVEMACD(DATA!$${closeCol}$5:$${closeCol}${SEP}$E${row})`;
+    const fRSI = `=LIVERSI(DATA!$${closeCol}$5:$${closeCol}${SEP}$E${row})`;
+    const fMACD = `=LIVEMACD(DATA!$${closeCol}$5:$${closeCol}${SEP}$E${row})`;
 
     const fDiv =
       `=IFERROR(IFS(` +
-        `AND($E${row}<INDEX(DATA!$${closeCol}:$${closeCol}${SEP}${lastAbsRow}-14)${SEP}$P${row}>50)${SEP}"BULL DIV"${SEP}` +
-        `AND($E${row}>INDEX(DATA!$${closeCol}:$${closeCol}${SEP}${lastAbsRow}-14)${SEP}$P${row}<50)${SEP}"BEAR DIV"${SEP}` +
-        `TRUE${SEP}"—")${SEP}"—")`;
+      `AND($E${row}<INDEX(DATA!$${closeCol}:$${closeCol}${SEP}${lastAbsRow}-14)${SEP}$P${row}>50)${SEP}"BULL DIV"${SEP}` +
+      `AND($E${row}>INDEX(DATA!$${closeCol}:$${closeCol}${SEP}${lastAbsRow}-14)${SEP}$P${row}<50)${SEP}"BEAR DIV"${SEP}` +
+      `TRUE${SEP}"—")${SEP}"—")`;
 
-    const fADX    = `=IFERROR(LIVEADX(DATA!$${highCol}$5:$${highCol}${SEP}DATA!$${lowCol}$5:$${lowCol}${SEP}DATA!$${closeCol}$5:$${closeCol}${SEP}$E${row})${SEP}0)`;
-    const fStoch  = `=LIVESTOCHK(DATA!$${highCol}$5:$${highCol}${SEP}DATA!$${lowCol}$5:$${lowCol}${SEP}DATA!$${closeCol}$5:$${closeCol}${SEP}$E${row})`;
+    const fADX = `=IFERROR(LIVEADX(DATA!$${highCol}$5:$${highCol}${SEP}DATA!$${lowCol}$5:$${lowCol}${SEP}DATA!$${closeCol}$5:$${closeCol}${SEP}$E${row})${SEP}0)`;
+    const fStoch = `=LIVESTOCHK(DATA!$${highCol}$5:$${highCol}${SEP}DATA!$${lowCol}$5:$${lowCol}${SEP}DATA!$${closeCol}$5:$${closeCol}${SEP}$E${row})`;
 
-   /**
-    * Why this is the correct "Industry" fix:FeatureAverage of Extremes (Trial & Error)Percentile (Industry Standard)Outlier HandlingStill weighted by the outlier (e.g., 362.70).Ignores the outlier entirely.Zone AccuracyRepresents a single point.Represents the Value Area where most trading occurred.StabilityJumps around when a new high/low enters the window.Remains stable as long as the distribution of price is consistent.
-    */
+    /**
+     * Why this is the correct "Industry" fix:FeatureAverage of Extremes (Trial & Error)Percentile (Industry Standard)Outlier HandlingStill weighted by the outlier (e.g., 362.70).Ignores the outlier entirely.Zone AccuracyRepresents a single point.Represents the Value Area where most trading occurred.StabilityJumps around when a new high/low enters the window.Remains stable as long as the distribution of price is consistent.
+     */
     const fRes = `=ROUND(IFERROR(LET(win${SEP}IFS($S${row}<20${SEP}10${SEP}$S${row}<35${SEP}22${SEP}TRUE${SEP}40)${SEP}n${SEP}${lastRowCount}${SEP}start${SEP}MAX(0${SEP}n-win)${SEP}len${SEP}MIN(win${SEP}n)${SEP}rng${SEP}IF(len<=0${SEP}OFFSET(DATA!$${highCol}$5${SEP}0${SEP}0)${SEP}OFFSET(DATA!$${highCol}$5${SEP}start${SEP}0${SEP}len))${SEP}out${SEP}IF(COUNTA(rng)<3${SEP}IFERROR(MAX(rng)${SEP}0)${SEP}PERCENTILE.INC(rng${SEP}0.85))${SEP}out)${SEP}0)${SEP}2)`;
 
     const fSup = `=ROUND(IFERROR(LET(win${SEP}IFS($S${row}<20${SEP}10${SEP}$S${row}<35${SEP}22${SEP}TRUE${SEP}40)${SEP}n${SEP}${lastRowCount}${SEP}start${SEP}MAX(0${SEP}n-win)${SEP}len${SEP}MIN(win${SEP}n)${SEP}rng${SEP}IF(len<=0${SEP}OFFSET(DATA!$${lowCol}$5${SEP}0${SEP}0)${SEP}OFFSET(DATA!$${lowCol}$5${SEP}start${SEP}0${SEP}len))${SEP}out${SEP}IF(COUNTA(rng)<3${SEP}IFERROR(MIN(rng)${SEP}0)${SEP}PERCENTILE.INC(rng${SEP}0.15))${SEP}out)${SEP}0)${SEP}2)`;
-    
+
     // Target: Hybrid Logic (High of Resistance vs. 3:1 Projection)
     const fTgt = `=ROUND(MAX($V${row}${SEP}$E${row}+(($E${row}-$U${row})*3))${SEP}2)`;
 
     const fATR =
       `=ROUND(IFERROR(AVERAGE(ARRAYFORMULA(` +
-        `OFFSET(DATA!$${highCol}$5${SEP}${lastRowCount}-14${SEP}0${SEP}14)` +
-        `-OFFSET(DATA!$${lowCol}$5${SEP}${lastRowCount}-14${SEP}0${SEP}14)` +
+      `OFFSET(DATA!$${highCol}$5${SEP}${lastRowCount}-14${SEP}0${SEP}14)` +
+      `-OFFSET(DATA!$${lowCol}$5${SEP}${lastRowCount}-14${SEP}0${SEP}14)` +
       `))${SEP}0)${SEP}2)`;
 
     const fBBP =
@@ -849,90 +952,177 @@ function generateCalculationsSheet() {
     // Z TECH NOTES — parse-safe + correct columns + Stoch shown as %
     const fTechNotes =
       `=IF($A${row}=""${SEP}""${SEP}` +
-        `"VOL: RVOL "&TEXT(IFERROR(VALUE($G${row})${SEP}0)${SEP}"0.00")&"x; "&` +
-          `IF(IFERROR(VALUE($G${row})${SEP}0)<1${SEP}"sub-average (weak sponsorship)."${SEP}"healthy participation.")&CHAR(10)&` +
+      `"VOL: RVOL "&TEXT(IFERROR(VALUE($G${row})${SEP}0)${SEP}"0.00")&"x; "&` +
+      `IF(IFERROR(VALUE($G${row})${SEP}0)<1${SEP}"sub-average (weak sponsorship)."${SEP}"healthy participation.")&CHAR(10)&` +
 
-        `"REGIME: Price "&TEXT(IFERROR(VALUE($E${row})${SEP}0)${SEP}"0.00")&" vs SMA200 "&` +
-          `TEXT(IFERROR(VALUE($O${row})${SEP}0)${SEP}"0.00")&"; "&` +
-          `IF(IFERROR(VALUE($E${row})${SEP}0)<IFERROR(VALUE($O${row})${SEP}0)${SEP}"risk-off below SMA200."${SEP}"risk-on above SMA200.")&CHAR(10)&` +
+      `"REGIME: Price "&TEXT(IFERROR(VALUE($E${row})${SEP}0)${SEP}"0.00")&" vs SMA200 "&` +
+      `TEXT(IFERROR(VALUE($O${row})${SEP}0)${SEP}"0.00")&"; "&` +
+      `IF(IFERROR(VALUE($E${row})${SEP}0)<IFERROR(VALUE($O${row})${SEP}0)${SEP}"risk-off below SMA200."${SEP}"risk-on above SMA200.")&CHAR(10)&` +
 
-        `"VOL/STRETCH: ATR(14) "&TEXT(IFERROR(VALUE($X${row})${SEP}0)${SEP}"0.00")&"; stretch "&` +
-          `IF(` +
-            `OR(IFERROR(VALUE($X${row})${SEP}0)=0${SEP}IFERROR(VALUE($M${row})${SEP}0)=0)${SEP}` +
-            `"—"${SEP}` +
-            `TEXT((IFERROR(VALUE($E${row})${SEP}0)-IFERROR(VALUE($M${row})${SEP}0))/IFERROR(VALUE($X${row})${SEP}1)${SEP}"0.0")&"x ATR"` +
-          `)&" (<= +/-2x)."&CHAR(10)&` +
+      `"VOL/STRETCH: ATR(14) "&TEXT(IFERROR(VALUE($X${row})${SEP}0)${SEP}"0.00")&"; stretch "&` +
+      `IF(` +
+      `OR(IFERROR(VALUE($X${row})${SEP}0)=0${SEP}IFERROR(VALUE($M${row})${SEP}0)=0)${SEP}` +
+      `"—"${SEP}` +
+      `TEXT((IFERROR(VALUE($E${row})${SEP}0)-IFERROR(VALUE($M${row})${SEP}0))/IFERROR(VALUE($X${row})${SEP}1)${SEP}"0.0")&"x ATR"` +
+      `)&" (<= +/-2x)."&CHAR(10)&` +
 
-        `"MOMENTUM: RSI(14) "&TEXT(IFERROR(VALUE($P${row})${SEP}0)${SEP}"0.0")&"; "&` +
-          `IF(IFERROR(VALUE($P${row})${SEP}0)<40${SEP}"negative bias."${SEP}"constructive.")&` +
-          `" MACD hist "&TEXT(IFERROR(VALUE($Q${row})${SEP}0)${SEP}"0.000")&"; "&` +
-          `IF(IFERROR(VALUE($Q${row})${SEP}0)>0${SEP}"improving."${SEP}"weak.")&CHAR(10)&` +
+      `"MOMENTUM: RSI(14) "&TEXT(IFERROR(VALUE($P${row})${SEP}0)${SEP}"0.0")&"; "&` +
+      `IF(IFERROR(VALUE($P${row})${SEP}0)<40${SEP}"negative bias."${SEP}"constructive.")&` +
+      `" MACD hist "&TEXT(IFERROR(VALUE($Q${row})${SEP}0)${SEP}"0.000")&"; "&` +
+      `IF(IFERROR(VALUE($Q${row})${SEP}0)>0${SEP}"improving."${SEP}"weak.")&CHAR(10)&` +
 
-        `"TREND: ADX(14) "&TEXT(IFERROR(VALUE($S${row})${SEP}0)${SEP}"0.0")&"; "&` +
-          `IF(IFERROR(VALUE($S${row})${SEP}0)>=25${SEP}"strong."${SEP}"weak.")&` +
-          `" Stoch %K "&TEXT(IFERROR(VALUE($T${row})${SEP}0)${SEP}"0.0%")&" — "&` +
-          `IF(IFERROR(VALUE($T${row})${SEP}0)<=0.2${SEP}"oversold zone (mean-reversion potential)."${SEP}` +
-            `IF(IFERROR(VALUE($T${row})${SEP}0)>=0.8${SEP}"overbought zone (pullback risk)."${SEP}"neutral range (no timing edge)."))&CHAR(10)&` +
+      `"TREND: ADX(14) "&TEXT(IFERROR(VALUE($S${row})${SEP}0)${SEP}"0.0")&"; "&` +
+      `IF(IFERROR(VALUE($S${row})${SEP}0)>=25${SEP}"strong."${SEP}"weak.")&` +
+      `" Stoch %K "&TEXT(IFERROR(VALUE($T${row})${SEP}0)${SEP}"0.0%")&" — "&` +
+      `IF(IFERROR(VALUE($T${row})${SEP}0)<=0.2${SEP}"oversold zone (mean-reversion potential)."${SEP}` +
+      `IF(IFERROR(VALUE($T${row})${SEP}0)>=0.8${SEP}"overbought zone (pullback risk)."${SEP}"neutral range (no timing edge)."))&CHAR(10)&` +
 
-        `"R:R: "&TEXT(IFERROR(VALUE($J${row})${SEP}0)${SEP}"0.00")&"x; "&` +
-          `IF(IFERROR(VALUE($J${row})${SEP}0)>=3${SEP}"favorable."${SEP}"limited")` +
+      `"R:R: "&TEXT(IFERROR(VALUE($J${row})${SEP}0)${SEP}"0.00")&"x; "&` +
+      `IF(IFERROR(VALUE($J${row})${SEP}0)>=3${SEP}"favorable."${SEP}"limited")` +
       `)`;
 
-    // AA FUND NOTES — Plain English narrative explaining Signal, Fundamental, and Decision
-    const fFundNotes =
+    // AA FUND NOTES — WHY moved to its own line ("Why:")
+    const fFundNotesLong =
+      `=IF($A${row}=""${SEP}""${SEP}` +
+      `IF(OR(ISBLANK($E${row})${SEP}$E${row}=0)${SEP}` +
+      `"LOADING"${SEP}` +
+
+      `TEXTJOIN(CHAR(10)${SEP}TRUE${SEP}` +
+
+      // 1) SIGNAL PATH (why SIGNAL fired)
+      `"SIGNAL PATH: "&` +
+      `IFS(` +
+      `$B${row}="REDUCE / EXIT"${SEP}` +
+      `IF($E${row}<$U${row}${SEP}` +
+      `"STRUCTURAL BREAK: Price breached key support → de-risk / exit posture."${SEP}` +
+      `"REGIME FLIP: Price below SMA200 → long-term trend broken (risk-off)."` +
+      `)${SEP}` +
+
+      `$B${row}="ACCUMULATE"${SEP}` +
+      `"ACCUMULATION SETUP: Above SMA200 with bullish momentum; pullback into institutional buy-zone (near SMA50/SMA20) with trend strength (ADX) confirmation."${SEP}` +
+
+      `$B${row}="HOLD"${SEP}` +
+      `"EXTENSION / HOLD: Uptrend intact and momentum positive, but price is extended vs SMA20 → avoid chasing; hold core exposure."${SEP}` +
+
+      `$B${row}="WAIT (PULLBACK)"${SEP}` +
+      `"WAIT STATE: Trend constructive, but entry is not in the accumulation zone → wait for pullback toward SMA50/SMA20."${SEP}` +
+
+      `TRUE${SEP}` +
+      `"NO-TREND: Structure/momentum not in a bullish regime → watchlist only."` +
+      `)${SEP}` +
+
+      // 2) TECH CONTEXT (inputs that drove it)
+      `"TECH CONTEXT: "` +
+      `&"Px "&TEXT($E${row}${SEP}"0.00")` +
+      `&" | SMA20 "&TEXT($M${row}${SEP}"0.00")` +
+      `&" / SMA50 "&TEXT($N${row}${SEP}"0.00")` +
+      `&" / SMA200 "&TEXT($O${row}${SEP}"0.00")` +
+      `&" | RSI "&TEXT($P${row}${SEP}"0.0")` +
+      `&" | MACD(H) "&TEXT($Q${row}${SEP}"0.000")` +
+      `&" | ADX "&TEXT($S${row}${SEP}"0.0")` +
+      `&IF($U${row}>0${SEP}" | Support "&TEXT($U${row}${SEP}"0.00")${SEP}"" )${SEP}` +
+
+      // 3) VALUATION REGIME (why FUNDAMENTAL matters)
+      `"VALUATION REGIME: "&$D${row}&" — "&` +
+      `IFS(` +
+      `ISNUMBER(SEARCH("PERFECTION"${SEP}UPPER(TRIM($D${row}))))${SEP}` +
+      `"priced-for-perfection; require margin-of-safety (smaller adds / only on pullbacks). "${SEP}` +
+      `ISNUMBER(SEARCH("EXPENSIVE"${SEP}UPPER(TRIM($D${row}))))${SEP}` +
+      `"valuation headwind; stage entries and avoid oversized adds at extensions."${SEP}` +
+      `ISNUMBER(SEARCH("FAIR"${SEP}UPPER(TRIM($D${row}))))${SEP}` +
+      `"neutral valuation; sizing can be driven mainly by technical regime and risk limits."${SEP}` +
+      `OR(` +
+      `ISNUMBER(SEARCH("CHEAP"${SEP}UPPER(TRIM($D${row}))))${SEP}` +
+      `ISNUMBER(SEARCH("UNDER"${SEP}UPPER(TRIM($D${row}))))` +
+      `)${SEP}` +
+      `"valuation support; improves long-term reward-to-risk when trend is intact."${SEP}` +
+      `TRUE${SEP}` +
+      `"valuation unclear; treat as neutral and defer to structure + risk controls."` +
+      `)${SEP}` +
+
+      // 4) DECISION PATH (why DECISION fired)
+      `"DECISION PATH: "&$C${row}&" — "&` +
+      `IFS(` +
+      `ISNUMBER(SEARCH("EXIT"${SEP}$C${row}))${SEP}` +
+      `"capital preservation; structural rules override valuation."${SEP}` +
+      `ISNUMBER(SEARCH("BUY / ADD"${SEP}$C${row}))${SEP}` +
+      `"trend confirmed + valuation supportive; accumulate in tranches."${SEP}` +
+      `ISNUMBER(SEARCH("ADD (SMALL)"${SEP}$C${row}))${SEP}` +
+      `"trend ok but valuation elevated; add marginally and only on deeper pullbacks."${SEP}` +
+      `ISNUMBER(SEARCH("HOLD / ADD CAUTIOUS"${SEP}$C${row}))${SEP}` +
+      `"high valuation regime; hold core; add only on high-quality pullbacks."${SEP}` +
+      `OR(` +
+      `ISNUMBER(SEARCH("HOLD / REDUCE"${SEP}$C${row}))${SEP}` +
+      `ISNUMBER(SEARCH("REDUCE"${SEP}$C${row}))` +
+      `)${SEP}` +
+      `"valuation risk management; consider trimming into strength."${SEP}` +
+      `ISNUMBER(SEARCH("WAIT"${SEP}$C${row}))${SEP}` +
+      `"no edge at current level; wait for mean reversion toward structure."${SEP}` +
+      `TRUE${SEP}` +
+      `"monitor; re-evaluate when regime inputs change."` +
+      `)` +
+
+      `)` +  // TEXTJOIN
+      `)` +
+      `)`;
+
+    const fFundNotesTrade =
       `=IF($A${row}=""${SEP}""${SEP}
-      "FUNDAMENTAL ANALYSIS: "&IFS(
-        $D${row}="VALUE"${SEP}"This stock is attractively priced with strong earnings and reasonable valuation (PE ≤ 25). The fundamentals provide a supportive tailwind for any position."
-        ${SEP}$D${row}="FAIR"${SEP}"This stock has decent fundamentals but nothing exceptional. The valuation is neither cheap nor expensive, so fundamentals are neutral to the trade."
-        ${SEP}$D${row}="EXPENSIVE"${SEP}"This stock is trading at a premium valuation (PE 35-59). While not prohibitive, there's less margin for error and fundamentals create a headwind."
-        ${SEP}$D${row}="PRICED FOR PERFECTION"${SEP}"This stock has extremely high expectations built into the price (PE ≥ 60). Any disappointment could cause significant downside. Fundamentals are fragile."
-        ${SEP}$D${row}="ZOMBIE"${SEP}"This company is losing money or has very weak earnings quality (EPS ≤ 0). High risk of permanent capital loss. Fundamentals are severely negative."
-        ${SEP}TRUE${SEP}"Fundamental analysis is inconclusive due to missing data."
-      )&CHAR(10)&CHAR(10)&
+        "FUNDAMENTAL ANALYSIS: "&IFS(
+          $D${row}="VALUE"${SEP}"This stock is attractively priced with strong earnings and reasonable valuation (PE ≤ 25). The fundamentals provide a supportive tailwind for any position."
+          ${SEP}$D${row}="FAIR"${SEP}"This stock has decent fundamentals but nothing exceptional. The valuation is neither cheap nor expensive, so fundamentals are neutral to the trade."
+          ${SEP}$D${row}="EXPENSIVE"${SEP}"This stock is trading at a premium valuation (PE 35-59). While not prohibitive, there's less margin for error and fundamentals create a headwind."
+          ${SEP}$D${row}="PRICED FOR PERFECTION"${SEP}"This stock has extremely high expectations built into the price (PE ≥ 60). Any disappointment could cause significant downside. Fundamentals are fragile."
+          ${SEP}$D${row}="ZOMBIE"${SEP}"This company is losing money or has very weak earnings quality (EPS ≤ 0). High risk of permanent capital loss. Fundamentals are severely negative."
+          ${SEP}TRUE${SEP}"Fundamental analysis is inconclusive due to missing data."
+        )&CHAR(10)&CHAR(10)&
 
-      "TECHNICAL SIGNAL: "&$B${row}&CHAR(10)&
-      "Why this signal: "&IFS(
-        $B${row}="Stop-Out"${SEP}"Price has broken below the key support level, invalidating the bullish thesis. This is a defensive exit signal to preserve capital."
-        ${SEP}$B${row}="Breakout (High Volume)"${SEP}"Price is breaking above resistance with strong volume confirmation, suggesting institutional participation and potential for continued upside momentum."
-        ${SEP}$B${row}="Trend Continuation"${SEP}"Price is above the 200-day moving average with positive momentum indicators, suggesting the existing uptrend has room to continue higher."
-        ${SEP}$B${row}="Mean Reversion (Oversold)"${SEP}"Price is oversold on short-term indicators but holding above key support, creating a potential bounce opportunity back toward fair value."
-        ${SEP}$B${row}="Volatility Squeeze (Coiling)"${SEP}"Price volatility has compressed to extremely low levels, often preceding significant directional moves. Waiting for the breakout direction."
-        ${SEP}$B${row}="Range-Bound (Low ADX)"${SEP}"Trend strength is weak with price moving sideways. This environment favors range trading rather than directional bets."
-        ${SEP}TRUE${SEP}"Market conditions don't clearly favor any specific technical setup. Monitoring for clearer signals."
-      )&CHAR(10)&CHAR(10)&
+        "TECHNICAL SIGNAL: "&$B${row}&CHAR(10)&
+        "Why this signal: "&IFS(
+          $B${row}="Stop-Out"${SEP}"Price has broken below the key support level, invalidating the bullish thesis. This is a defensive exit signal to preserve capital."
+          ${SEP}$B${row}="Breakout (High Volume)"${SEP}"Price is breaking above resistance with strong volume confirmation, suggesting institutional participation and potential for continued upside momentum."
+          ${SEP}$B${row}="Trend Continuation"${SEP}"Price is above the 200-day moving average with positive momentum indicators, suggesting the existing uptrend has room to continue higher."
+          ${SEP}$B${row}="Mean Reversion (Oversold)"${SEP}"Price is oversold on short-term indicators but holding above key support, creating a potential bounce opportunity back toward fair value."
+          ${SEP}$B${row}="Volatility Squeeze (Coiling)"${SEP}"Price volatility has compressed to extremely low levels, often preceding significant directional moves. Waiting for the breakout direction."
+          ${SEP}$B${row}="Range-Bound (Low ADX)"${SEP}"Trend strength is weak with price moving sideways. This environment favors range trading rather than directional bets."
+          ${SEP}TRUE${SEP}"Market conditions don't clearly favor any specific technical setup. Monitoring for clearer signals."
+        )&CHAR(10)&CHAR(10)&
 
-      "INVESTMENT DECISION: "&$C${row}&CHAR(10)&
-      "Why this decision: "&IFS(
-        $C${row}="Stop-Out"${SEP}"Price has broken below support level. Exiting to prevent further losses and preserve capital."
-        ${SEP}AND($C${row}="Take Profit",IFERROR(VALUE(INDEX(CALCULATIONS!E:E,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0))),0)>=IFERROR(VALUE(INDEX(CALCULATIONS!W:W,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0))),0),IFERROR(VALUE(INDEX(CALCULATIONS!W:W,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0))),0)>0)${SEP}"Price has reached target level. Taking profits while conditions are favorable."
-        ${SEP}$C${row}="Take Profit"${SEP}"Price is overbought near resistance. Taking profits to avoid pullback risk from elevated RSI and Stochastic levels."
-        ${SEP}$C${row}="Reduce (Momentum Weak)"${SEP}"MACD histogram has turned negative and price is below SMA50. Reducing position size to manage deteriorating momentum."
-        ${SEP}$C${row}="Reduce (Overextended)"${SEP}"Price has extended too far above SMA20 relative to average volatility. Taking partial profits to reduce pullback risk."
-        ${SEP}$C${row}="Risk-Off (Below SMA200)"${SEP}"Price is below the 200-day moving average indicating risk-off conditions. Maintaining defensive posture until trend improves."
-        ${SEP}$C${row}="Avoid"${SEP}"Price is below SMA200 indicating risk-off conditions. Avoiding new positions until trend improves above key moving average."
-        ${SEP}$C${row}="Add in Dip"${SEP}"Price is above support with Stochastic showing oversold conditions. Adding to position on this dip opportunity."
-        ${SEP}$C${row}="Trade Long"${SEP}"Breakout signal confirmed with strong fundamentals. Initiating long position with favorable risk/reward setup."
-        ${SEP}$C${row}="Accumulate"${SEP}"Trend continuation signal with VALUE fundamentals. Adding to existing position as uptrend remains intact above SMA200."
-        ${SEP}$C${row}="Hold"${SEP}"Current market conditions suggest maintaining existing position. Monitoring for clearer directional signals before making changes."
-        ${SEP}TRUE${SEP}"Decision framework suggests maintaining current stance until market conditions become clearer."
-      )&
+        "INVESTMENT DECISION: "&$C${row}&CHAR(10)&
+        "Why this decision: "&IFS(
+          $C${row}="Stop-Out"${SEP}"Price has broken below support level. Exiting to prevent further losses and preserve capital."
+          ${SEP}AND($C${row}="Take Profit",IFERROR(VALUE(INDEX(CALCULATIONS!E:E,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0))),0)>=IFERROR(VALUE(INDEX(CALCULATIONS!W:W,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0))),0),IFERROR(VALUE(INDEX(CALCULATIONS!W:W,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0))),0)>0)${SEP}"Price has reached target level. Taking profits while conditions are favorable."
+          ${SEP}$C${row}="Take Profit"${SEP}"Price is overbought near resistance. Taking profits to avoid pullback risk from elevated RSI and Stochastic levels."
+          ${SEP}$C${row}="Reduce (Momentum Weak)"${SEP}"MACD histogram has turned negative and price is below SMA50. Reducing position size to manage deteriorating momentum."
+          ${SEP}$C${row}="Reduce (Overextended)"${SEP}"Price has extended too far above SMA20 relative to average volatility. Taking partial profits to reduce pullback risk."
+          ${SEP}$C${row}="Risk-Off (Below SMA200)"${SEP}"Price is below the 200-day moving average indicating risk-off conditions. Maintaining defensive posture until trend improves."
+          ${SEP}$C${row}="Avoid"${SEP}"Price is below SMA200 indicating risk-off conditions. Avoiding new positions until trend improves above key moving average."
+          ${SEP}$C${row}="Add in Dip"${SEP}"Price is above support with Stochastic showing oversold conditions. Adding to position on this dip opportunity."
+          ${SEP}$C${row}="Trade Long"${SEP}"Breakout signal confirmed with strong fundamentals. Initiating long position with favorable risk/reward setup."
+          ${SEP}$C${row}="Accumulate"${SEP}"Trend continuation signal with VALUE fundamentals. Adding to existing position as uptrend remains intact above SMA200."
+          ${SEP}$C${row}="Hold"${SEP}"Current market conditions suggest maintaining existing position. Monitoring for clearer directional signals before making changes."
+          ${SEP}TRUE${SEP}"Decision framework suggests maintaining current stance until market conditions become clearer."
+        )&
 
-      IF(
-        AND(
-          OR($B${row}="Breakout (High Volume)"${SEP}$B${row}="Trend Continuation")${SEP}
-          OR($D${row}="ZOMBIE"${SEP}$D${row}="PRICED FOR PERFECTION"${SEP}$D${row}="EXPENSIVE")
-        )
-        ${SEP}CHAR(10)&CHAR(10)&"⚠️ RISK WARNING: Strong technical momentum is conflicting with weak or fragile fundamentals. This creates higher risk of sharp reversals if momentum fails."
-        ${SEP}IF(
+        IF(
           AND(
-            OR($B${row}="Mean Reversion (Oversold)"${SEP}$B${row}="Stop-Out")${SEP}
-            $D${row}="VALUE"
+            OR($B${row}="Breakout (High Volume)"${SEP}$B${row}="Trend Continuation")${SEP}
+            OR($D${row}="ZOMBIE"${SEP}$D${row}="PRICED FOR PERFECTION"${SEP}$D${row}="EXPENSIVE")
           )
-          ${SEP}CHAR(10)&CHAR(10)&"💡 OPPORTUNITY NOTE: Attractive valuation is present, but technical structure needs to improve before becoming more aggressive."
-          ${SEP}""
+          ${SEP}CHAR(10)&CHAR(10)&"⚠️ RISK WARNING: Strong technical momentum is conflicting with weak or fragile fundamentals. This creates higher risk of sharp reversals if momentum fails."
+          ${SEP}IF(
+            AND(
+              OR($B${row}="Mean Reversion (Oversold)"${SEP}$B${row}="Stop-Out")${SEP}
+              $D${row}="VALUE"
+            )
+            ${SEP}CHAR(10)&CHAR(10)&"💡 OPPORTUNITY NOTE: Attractive valuation is present, but technical structure needs to improve before becoming more aggressive."
+            ${SEP}""
+          )
         )
-      )
-      )`;
+        )`;
+
+    const fFundNotes = useLongTermSignal ? fFundNotesLong : fFundNotesTrade;
+
 
     formulas.push([
       fSignal,      // B
@@ -1059,14 +1249,14 @@ function generateDashboardSheet() {
     };
 
     dashboard.getRange("A2:AA2").clearContent();
-    styleGroup("A2:A2",   "IDENTITY",        "#263238");
-    styleGroup("B2:D2",   "SIGNALING",       "#0D47A1");
-    styleGroup("E2:G2",   "PRICE / VOLUME",  "#1B5E20");
-    styleGroup("H2:J2",   "PERFORMANCE",     "#004D40");
-    styleGroup("K2:O2",   "TREND",           "#2E7D32");
-    styleGroup("P2:T2",   "MOMENTUM",        "#33691E");
-    styleGroup("U2:Y2",   "LEVELS / RISK",   "#B71C1C");
-    styleGroup("Z2:AA2",  "NOTES",           "#212121");
+    styleGroup("A2:A2", "IDENTITY", "#263238");
+    styleGroup("B2:D2", "SIGNALING", "#0D47A1");
+    styleGroup("E2:G2", "PRICE / VOLUME", "#1B5E20");
+    styleGroup("H2:J2", "PERFORMANCE", "#004D40");
+    styleGroup("K2:O2", "TREND", "#2E7D32");
+    styleGroup("P2:T2", "MOMENTUM", "#33691E");
+    styleGroup("U2:Y2", "LEVELS / RISK", "#B71C1C");
+    styleGroup("Z2:AA2", "NOTES", "#212121");
     dashboard.getRange("A2:AA2").setWrap(true);
 
     // --- Row 3 column headers ---
@@ -1108,71 +1298,71 @@ function generateDashboardSheet() {
   // Filter formula (always re-written)
   const filterFormula =
     '=IFERROR(' +
-      'SORT(' +
-        'FILTER({' +
-          'CALCULATIONS!$A$3:$A,' +
-          'CALCULATIONS!$B$3:$B,' +
-          'CALCULATIONS!$D$3:$D,' +
-          'CALCULATIONS!$C$3:$C,' +
-          'CALCULATIONS!$E$3:$E,' +
-          'CALCULATIONS!$F$3:$F,' +
-          'CALCULATIONS!$G$3:$G,' +
-          'CALCULATIONS!$H$3:$H,' +
-          'CALCULATIONS!$I$3:$I,' +
-          'CALCULATIONS!$J$3:$J,' +
-          'CALCULATIONS!$K$3:$K,' +
-          'CALCULATIONS!$L$3:$L,' +
-          'CALCULATIONS!$M$3:$M,' +
-          'CALCULATIONS!$N$3:$N,' +
-          'CALCULATIONS!$O$3:$O,' +
-          'CALCULATIONS!$P$3:$P,' +
-          'CALCULATIONS!$Q$3:$Q,' +
-          'CALCULATIONS!$R$3:$R,' +
-          'CALCULATIONS!$S$3:$S,' +
-          'CALCULATIONS!$T$3:$T,' +
-          'CALCULATIONS!$U$3:$U,' +
-          'CALCULATIONS!$V$3:$V,' +
-          'CALCULATIONS!$W$3:$W,' +
-          'CALCULATIONS!$X$3:$X,' +
-          'CALCULATIONS!$Y$3:$Y,' +
-          'CALCULATIONS!$Z$3:$Z,' +
-          'CALCULATIONS!$AA$3:$AA' +
-        '},' +
-        'ISNUMBER(MATCH(' +
-          'CALCULATIONS!$A$3:$A,' +
-          'FILTER(INPUT!$A$3:$A,' +
-            'INPUT!$A$3:$A<>"",' +
-            '(' +
-              'IF(' +
-                'OR(' +
-                  'INPUT!$B$1="",' +
-                  'REGEXMATCH(UPPER(INPUT!$B$1),"(^|,\\s*)ALL(\\s*|,|$)")' +
-                '),' +
-                'TRUE,' +
-                'REGEXMATCH(' +
-                  '","&UPPER(TRIM(INPUT!$B$3:$B))&"," ,' +
-                  '",\\s*(" & REGEXREPLACE(UPPER(TRIM(INPUT!$B$1)),"\\s*,\\s*","|") & ")\\s*,"' +
-                ')' +
-              ')' +
-            ')' +
-            '*' +
-            '(' +
-              'IF(' +
-                'OR(' +
-                  'INPUT!$C$1="",' +
-                  'REGEXMATCH(UPPER(INPUT!$C$1),"(^|,\\s*)ALL(\\s*|,|$)")' +
-                '),' +
-                'TRUE,' +
-                'REGEXMATCH(' +
-                  '","&REGEXREPLACE(UPPER(TRIM(INPUT!$C$3:$C)),"\\s+","")&"," ,' +
-                  '",\\s*(" & REGEXREPLACE(REGEXREPLACE(UPPER(TRIM(INPUT!$C$1)),"\\s+",""),"\\s*,\\s*","|") & ")\\s*,"' +
-                ')' +
-              ')' +
-            ')' +
-          '),0)' +
-        '))' +
-        ',6,FALSE' +
-      '),' +
+    'SORT(' +
+    'FILTER({' +
+    'CALCULATIONS!$A$3:$A,' +
+    'CALCULATIONS!$B$3:$B,' +
+    'CALCULATIONS!$D$3:$D,' +
+    'CALCULATIONS!$C$3:$C,' +
+    'CALCULATIONS!$E$3:$E,' +
+    'CALCULATIONS!$F$3:$F,' +
+    'CALCULATIONS!$G$3:$G,' +
+    'CALCULATIONS!$H$3:$H,' +
+    'CALCULATIONS!$I$3:$I,' +
+    'CALCULATIONS!$J$3:$J,' +
+    'CALCULATIONS!$K$3:$K,' +
+    'CALCULATIONS!$L$3:$L,' +
+    'CALCULATIONS!$M$3:$M,' +
+    'CALCULATIONS!$N$3:$N,' +
+    'CALCULATIONS!$O$3:$O,' +
+    'CALCULATIONS!$P$3:$P,' +
+    'CALCULATIONS!$Q$3:$Q,' +
+    'CALCULATIONS!$R$3:$R,' +
+    'CALCULATIONS!$S$3:$S,' +
+    'CALCULATIONS!$T$3:$T,' +
+    'CALCULATIONS!$U$3:$U,' +
+    'CALCULATIONS!$V$3:$V,' +
+    'CALCULATIONS!$W$3:$W,' +
+    'CALCULATIONS!$X$3:$X,' +
+    'CALCULATIONS!$Y$3:$Y,' +
+    'CALCULATIONS!$Z$3:$Z,' +
+    'CALCULATIONS!$AA$3:$AA' +
+    '},' +
+    'ISNUMBER(MATCH(' +
+    'CALCULATIONS!$A$3:$A,' +
+    'FILTER(INPUT!$A$3:$A,' +
+    'INPUT!$A$3:$A<>"",' +
+    '(' +
+    'IF(' +
+    'OR(' +
+    'INPUT!$B$1="",' +
+    'REGEXMATCH(UPPER(INPUT!$B$1),"(^|,\\s*)ALL(\\s*|,|$)")' +
+    '),' +
+    'TRUE,' +
+    'REGEXMATCH(' +
+    '","&UPPER(TRIM(INPUT!$B$3:$B))&"," ,' +
+    '",\\s*(" & REGEXREPLACE(UPPER(TRIM(INPUT!$B$1)),"\\s*,\\s*","|") & ")\\s*,"' +
+    ')' +
+    ')' +
+    ')' +
+    '*' +
+    '(' +
+    'IF(' +
+    'OR(' +
+    'INPUT!$C$1="",' +
+    'REGEXMATCH(UPPER(INPUT!$C$1),"(^|,\\s*)ALL(\\s*|,|$)")' +
+    '),' +
+    'TRUE,' +
+    'REGEXMATCH(' +
+    '","&REGEXREPLACE(UPPER(TRIM(INPUT!$C$3:$C)),"\\s+","")&"," ,' +
+    '",\\s*(" & REGEXREPLACE(REGEXREPLACE(UPPER(TRIM(INPUT!$C$1)),"\\s+",""),"\\s*,\\s*","|") & ")\\s*,"' +
+    ')' +
+    ')' +
+    ')' +
+    '),0)' +
+    '))' +
+    ',6,FALSE' +
+    '),' +
     '"No Matches Found")';
 
   dashboard.getRange("A4").setFormula(filterFormula);
@@ -1192,11 +1382,11 @@ function applyDashboardBloombergFormatting_(sh, DATA_START_ROW) {
   // ---------------------------
   const C_WHITE = "#FFFFFF";
   const C_GREEN = "#C6EFCE";
-  const C_RED   = "#FFC7CE";
-  const C_GREY  = "#E7E6E6";
+  const C_RED = "#FFC7CE";
+  const C_GREY = "#E7E6E6";
 
   const HEADER_DARK = "#1F1F1F"; // header grey
-  const HEADER_MID  = "#E7E6E6"; // header grey (light)
+  const HEADER_MID = "#E7E6E6"; // header grey (light)
 
   // Data columns in DASHBOARD (A..AA = 27); notes are Z(26) and AA(27)
   const TOTAL_COLS = 27;
@@ -1365,20 +1555,20 @@ function applyDashboardBloombergFormatting_(sh, DATA_START_ROW) {
   // ATH Diff%
   sh.getRange(DATA_START_ROW, 9, numRows, 1).setNumberFormat("0.00%");     // I
   // R:R
-  sh.getRange(DATA_START_ROW,10, numRows, 1).setNumberFormat("0.00");      // J
+  sh.getRange(DATA_START_ROW, 10, numRows, 1).setNumberFormat("0.00");      // J
   // SMAs
-  sh.getRange(DATA_START_ROW,13, numRows, 3).setNumberFormat("#,##0.00");  // M:N:O
+  sh.getRange(DATA_START_ROW, 13, numRows, 3).setNumberFormat("#,##0.00");  // M:N:O
   // RSI, ADX
-  sh.getRange(DATA_START_ROW,16, numRows, 1).setNumberFormat("0.0");       // P
-  sh.getRange(DATA_START_ROW,19, numRows, 1).setNumberFormat("0.0");       // S
+  sh.getRange(DATA_START_ROW, 16, numRows, 1).setNumberFormat("0.0");       // P
+  sh.getRange(DATA_START_ROW, 19, numRows, 1).setNumberFormat("0.0");       // S
   // MACD
-  sh.getRange(DATA_START_ROW,17, numRows, 1).setNumberFormat("0.000");     // Q
+  sh.getRange(DATA_START_ROW, 17, numRows, 1).setNumberFormat("0.000");     // Q
   // Stoch (0..1)
-  sh.getRange(DATA_START_ROW,20, numRows, 1).setNumberFormat("0.00%");     // T
+  sh.getRange(DATA_START_ROW, 20, numRows, 1).setNumberFormat("0.00%");     // T
   // Support/Res/Target/ATR
-  sh.getRange(DATA_START_ROW,21, numRows, 4).setNumberFormat("#,##0.00");  // U..X
+  sh.getRange(DATA_START_ROW, 21, numRows, 4).setNumberFormat("#,##0.00");  // U..X
   // %B
-  sh.getRange(DATA_START_ROW,25, numRows, 1).setNumberFormat("0.00");      // Y
+  sh.getRange(DATA_START_ROW, 25, numRows, 1).setNumberFormat("0.00");      // Y
 
   // ---------------------------
   // Clear any previous conditional formatting then apply new rules
@@ -1403,128 +1593,128 @@ function applyDashboardBloombergFormatting_(sh, DATA_START_ROW) {
   // Red   = stop-out / risk-off
   // Grey  = squeeze / range / hold
   add(`=REGEXMATCH($B${r0},"Breakout|Trend Continuation|Mean Reversion")`, C_GREEN, 2);
-  add(`=REGEXMATCH($B${r0},"Stop-Out|Risk-Off")`,                           C_RED,   2);
-  add(`=REGEXMATCH($B${r0},"Volatility Squeeze|Range-Bound|Hold")`,         C_GREY,  2);
+  add(`=REGEXMATCH($B${r0},"Stop-Out|Risk-Off")`, C_RED, 2);
+  add(`=REGEXMATCH($B${r0},"Volatility Squeeze|Range-Bound|Hold")`, C_GREY, 2);
 
   // ---- FUNDAMENTAL (C) ----
   // Green = VALUE
   // Grey  = FAIR
   // Red   = EXPENSIVE / PRICED FOR PERFECTION / ZOMBIE
-  add(`=$C${r0}="VALUE"`,                                                   C_GREEN, 3);
-  add(`=$C${r0}="FAIR"`,                                                    C_GREY,  3);
-  add(`=REGEXMATCH($C${r0},"EXPENSIVE|PRICED FOR PERFECTION|ZOMBIE")`,      C_RED,   3);
+  add(`=$C${r0}="VALUE"`, C_GREEN, 3);
+  add(`=$C${r0}="FAIR"`, C_GREY, 3);
+  add(`=REGEXMATCH($C${r0},"EXPENSIVE|PRICED FOR PERFECTION|ZOMBIE")`, C_RED, 3);
 
   // ---- DECISION (D) ----
   // Green = Trade Long / Accumulate / Add in Dip
   // Red   = Stop-Out / Avoid / Reduce / Take Profit
   // Grey  = Hold / Monitor / LOADING
-  add(`=REGEXMATCH($D${r0},"Trade Long|Accumulate|Add in Dip")`,            C_GREEN, 4);
-  add(`=REGEXMATCH($D${r0},"Stop-Out|Avoid|Reduce|Take Profit")`,          C_RED,   4);
-  add(`=REGEXMATCH($D${r0},"Hold|Monitor|LOADING")`,                       C_GREY,  4);
+  add(`=REGEXMATCH($D${r0},"Trade Long|Accumulate|Add in Dip")`, C_GREEN, 4);
+  add(`=REGEXMATCH($D${r0},"Stop-Out|Avoid|Reduce|Take Profit")`, C_RED, 4);
+  add(`=REGEXMATCH($D${r0},"Hold|Monitor|LOADING")`, C_GREY, 4);
 
   // ---- PRICE (E) and Change% (F) ----
-  add(`=$F${r0}>0`,                                                         C_GREEN, 5);
-  add(`=$F${r0}<0`,                                                         C_RED,   5);
-  add(`=OR($F${r0}=0,$F${r0}="")`,                                          C_GREY,  5);
+  add(`=$F${r0}>0`, C_GREEN, 5);
+  add(`=$F${r0}<0`, C_RED, 5);
+  add(`=OR($F${r0}=0,$F${r0}="")`, C_GREY, 5);
 
-  add(`=$F${r0}>0`,                                                         C_GREEN, 6);
-  add(`=$F${r0}<0`,                                                         C_RED,   6);
-  add(`=OR($F${r0}=0,$F${r0}="")`,                                          C_GREY,  6);
+  add(`=$F${r0}>0`, C_GREEN, 6);
+  add(`=$F${r0}<0`, C_RED, 6);
+  add(`=OR($F${r0}=0,$F${r0}="")`, C_GREY, 6);
 
   // ---- Vol Trend RVOL (G) ----
-  add(`=$G${r0}>=1.5`,                                                      C_GREEN, 7);
-  add(`=$G${r0}<=0.85`,                                                     C_RED,   7);
-  add(`=AND($G${r0}>0.85,$G${r0}<1.5)`,                                     C_GREY,  7);
+  add(`=$G${r0}>=1.5`, C_GREEN, 7);
+  add(`=$G${r0}<=0.85`, C_RED, 7);
+  add(`=AND($G${r0}>0.85,$G${r0}<1.5)`, C_GREY, 7);
 
   // ---- ATH (H) / ATH Diff % (I) ----
   // Near ATH: green; deep below ATH: red; else grey
-  add(`=AND($H${r0}>0,$E${r0}>=$H${r0}*0.995)`,                             C_GREEN, 8);
-  add(`=AND($H${r0}>0,$E${r0}<=$H${r0}*0.80)`,                              C_RED,   8);
-  add(`=AND($H${r0}>0,$E${r0}>$H${r0}*0.80,$E${r0}<$H${r0}*0.995)`,         C_GREY,  8);
+  add(`=AND($H${r0}>0,$E${r0}>=$H${r0}*0.995)`, C_GREEN, 8);
+  add(`=AND($H${r0}>0,$E${r0}<=$H${r0}*0.80)`, C_RED, 8);
+  add(`=AND($H${r0}>0,$E${r0}>$H${r0}*0.80,$E${r0}<$H${r0}*0.995)`, C_GREY, 8);
 
-  add(`=$I${r0}>=-0.05`,                                                    C_GREEN, 9);
-  add(`=$I${r0}<=-0.20`,                                                    C_RED,   9);
-  add(`=AND($I${r0}>-0.20,$I${r0}<-0.05)`,                                  C_GREY,  9);
+  add(`=$I${r0}>=-0.05`, C_GREEN, 9);
+  add(`=$I${r0}<=-0.20`, C_RED, 9);
+  add(`=AND($I${r0}>-0.20,$I${r0}<-0.05)`, C_GREY, 9);
 
   // ---- R:R (J) ----
-  add(`=$J${r0}>=3`,                                                        C_GREEN,10);
-  add(`=$J${r0}<1.5`,                                                       C_RED,  10);
-  add(`=AND($J${r0}>=1.5,$J${r0}<3)`,                                       C_GREY, 10);
+  add(`=$J${r0}>=3`, C_GREEN, 10);
+  add(`=$J${r0}<1.5`, C_RED, 10);
+  add(`=AND($J${r0}>=1.5,$J${r0}<3)`, C_GREY, 10);
 
   // ---- Trend Score (K) — star count ----
-  add(`=LEN($K${r0})>=3`,                                                   C_GREEN,11);
-  add(`=LEN($K${r0})<=1`,                                                   C_RED,  11);
-  add(`=LEN($K${r0})=2`,                                                    C_GREY, 11);
+  add(`=LEN($K${r0})>=3`, C_GREEN, 11);
+  add(`=LEN($K${r0})<=1`, C_RED, 11);
+  add(`=LEN($K${r0})=2`, C_GREY, 11);
 
   // ---- Trend State (L) ----
-  add(`=$L${r0}="BULL"`,                                                    C_GREEN,12);
-  add(`=$L${r0}="BEAR"`,                                                    C_RED,  12);
-  add(`=AND($L${r0}<>"BULL",$L${r0}<>"BEAR")`,                              C_GREY, 12);
+  add(`=$L${r0}="BULL"`, C_GREEN, 12);
+  add(`=$L${r0}="BEAR"`, C_RED, 12);
+  add(`=AND($L${r0}<>"BULL",$L${r0}<>"BEAR")`, C_GREY, 12);
 
   // ---- SMA20/50/200 (M/N/O) vs Price ----
-  add(`=AND($M${r0}>0,$E${r0}>=$M${r0})`,                                   C_GREEN,13);
-  add(`=AND($M${r0}>0,$E${r0}<$M${r0})`,                                    C_RED,  13);
+  add(`=AND($M${r0}>0,$E${r0}>=$M${r0})`, C_GREEN, 13);
+  add(`=AND($M${r0}>0,$E${r0}<$M${r0})`, C_RED, 13);
 
-  add(`=AND($N${r0}>0,$E${r0}>=$N${r0})`,                                   C_GREEN,14);
-  add(`=AND($N${r0}>0,$E${r0}<$N${r0})`,                                    C_RED,  14);
+  add(`=AND($N${r0}>0,$E${r0}>=$N${r0})`, C_GREEN, 14);
+  add(`=AND($N${r0}>0,$E${r0}<$N${r0})`, C_RED, 14);
 
-  add(`=AND($O${r0}>0,$E${r0}>=$O${r0})`,                                   C_GREEN,15);
-  add(`=AND($O${r0}>0,$E${r0}<$O${r0})`,                                    C_RED,  15);
+  add(`=AND($O${r0}>0,$E${r0}>=$O${r0})`, C_GREEN, 15);
+  add(`=AND($O${r0}>0,$E${r0}<$O${r0})`, C_RED, 15);
 
   // ---- RSI (P) ----
-  add(`=$P${r0}<=30`,                                                       C_GREEN,16);
-  add(`=$P${r0}>=70`,                                                       C_RED,  16);
-  add(`=AND($P${r0}>30,$P${r0}<70)`,                                        C_GREY, 16);
+  add(`=$P${r0}<=30`, C_GREEN, 16);
+  add(`=$P${r0}>=70`, C_RED, 16);
+  add(`=AND($P${r0}>30,$P${r0}<70)`, C_GREY, 16);
 
   // ---- MACD Hist (Q) ----
-  add(`=$Q${r0}>0`,                                                         C_GREEN,17);
-  add(`=$Q${r0}<0`,                                                         C_RED,  17);
-  add(`=OR($Q${r0}=0,$Q${r0}="")`,                                          C_GREY, 17);
+  add(`=$Q${r0}>0`, C_GREEN, 17);
+  add(`=$Q${r0}<0`, C_RED, 17);
+  add(`=OR($Q${r0}=0,$Q${r0}="")`, C_GREY, 17);
 
   // ---- Divergence (R) ----
-  add(`=REGEXMATCH($R${r0},"BULL")`,                                        C_GREEN,18);
-  add(`=REGEXMATCH($R${r0},"BEAR")`,                                        C_RED,  18);
-  add(`=OR($R${r0}="—",$R${r0}="",NOT(REGEXMATCH($R${r0},"BULL|BEAR")))`,   C_GREY, 18);
+  add(`=REGEXMATCH($R${r0},"BULL")`, C_GREEN, 18);
+  add(`=REGEXMATCH($R${r0},"BEAR")`, C_RED, 18);
+  add(`=OR($R${r0}="—",$R${r0}="",NOT(REGEXMATCH($R${r0},"BULL|BEAR")))`, C_GREY, 18);
 
   // ---- ADX (S) ----
   // Strong trend (>=25) green; low trend (<15) grey; mid grey
-  add(`=$S${r0}>=25`,                                                       C_GREEN,19);
-  add(`=$S${r0}<15`,                                                        C_GREY, 19);
-  add(`=AND($S${r0}>=15,$S${r0}<25)`,                                       C_GREY, 19);
+  add(`=$S${r0}>=25`, C_GREEN, 19);
+  add(`=$S${r0}<15`, C_GREY, 19);
+  add(`=AND($S${r0}>=15,$S${r0}<25)`, C_GREY, 19);
 
   // ---- Stoch %K (T) ----
-  add(`=$T${r0}<=0.2`,                                                      C_GREEN,20);
-  add(`=$T${r0}>=0.8`,                                                      C_RED,  20);
-  add(`=AND($T${r0}>0.2,$T${r0}<0.8)`,                                      C_GREY, 20);
+  add(`=$T${r0}<=0.2`, C_GREEN, 20);
+  add(`=$T${r0}>=0.8`, C_RED, 20);
+  add(`=AND($T${r0}>0.2,$T${r0}<0.8)`, C_GREY, 20);
 
   // ---- Support (U) ----
   // Below support = red; within +1% above support = green; else grey
-  add(`=AND($U${r0}>0,$E${r0}<$U${r0})`,                                    C_RED,  21);
-  add(`=AND($U${r0}>0,$E${r0}>=$U${r0},$E${r0}<=$U${r0}*1.01)`,             C_GREEN,21);
-  add(`=AND($U${r0}>0,$E${r0}>$U${r0}*1.01)`,                               C_GREY, 21);
+  add(`=AND($U${r0}>0,$E${r0}<$U${r0})`, C_RED, 21);
+  add(`=AND($U${r0}>0,$E${r0}>=$U${r0},$E${r0}<=$U${r0}*1.01)`, C_GREEN, 21);
+  add(`=AND($U${r0}>0,$E${r0}>$U${r0}*1.01)`, C_GREY, 21);
 
   // ---- Resistance (V) ----
   // Near/at resistance = red; far below resistance = green; else grey
-  add(`=AND($V${r0}>0,$E${r0}>=$V${r0}*0.995)`,                             C_RED,  22);
-  add(`=AND($V${r0}>0,$E${r0}<=$V${r0}*0.90)`,                              C_GREEN,22);
-  add(`=AND($V${r0}>0,$E${r0}>$V${r0}*0.90,$E${r0}<$V${r0}*0.995)`,         C_GREY, 22);
+  add(`=AND($V${r0}>0,$E${r0}>=$V${r0}*0.995)`, C_RED, 22);
+  add(`=AND($V${r0}>0,$E${r0}<=$V${r0}*0.90)`, C_GREEN, 22);
+  add(`=AND($V${r0}>0,$E${r0}>$V${r0}*0.90,$E${r0}<$V${r0}*0.995)`, C_GREY, 22);
 
   // ---- Target (W) ----
   // Target meaningfully above price = green; too close = red; else grey
-  add(`=AND($W${r0}>0,$W${r0}>=$E${r0}*1.05)`,                              C_GREEN,23);
-  add(`=AND($W${r0}>0,$W${r0}<=$E${r0}*1.01)`,                              C_RED,  23);
-  add(`=AND($W${r0}>0,$W${r0}>$E${r0}*1.01,$W${r0}<$E${r0}*1.05)`,          C_GREY, 23);
+  add(`=AND($W${r0}>0,$W${r0}>=$E${r0}*1.05)`, C_GREEN, 23);
+  add(`=AND($W${r0}>0,$W${r0}<=$E${r0}*1.01)`, C_RED, 23);
+  add(`=AND($W${r0}>0,$W${r0}>$E${r0}*1.01,$W${r0}<$E${r0}*1.05)`, C_GREY, 23);
 
   // ---- ATR (X) as % of price ----
   // Low volatility <=2% = green; high volatility >=5% = red; else grey
-  add(`=IFERROR($X${r0}/$E${r0},0)<=0.02`,                                  C_GREEN,24);
-  add(`=IFERROR($X${r0}/$E${r0},0)>=0.05`,                                  C_RED,  24);
-  add(`=AND(IFERROR($X${r0}/$E${r0},0)>0.02,IFERROR($X${r0}/$E${r0},0)<0.05)`,C_GREY,24);
+  add(`=IFERROR($X${r0}/$E${r0},0)<=0.02`, C_GREEN, 24);
+  add(`=IFERROR($X${r0}/$E${r0},0)>=0.05`, C_RED, 24);
+  add(`=AND(IFERROR($X${r0}/$E${r0},0)>0.02,IFERROR($X${r0}/$E${r0},0)<0.05)`, C_GREY, 24);
 
   // ---- Bollinger %B (Y) ----
-  add(`=$Y${r0}<=0.2`,                                                      C_GREEN,25);
-  add(`=$Y${r0}>=0.8`,                                                      C_RED,  25);
-  add(`=AND($Y${r0}>0.2,$Y${r0}<0.8)`,                                      C_GREY, 25);
+  add(`=$Y${r0}<=0.2`, C_GREEN, 25);
+  add(`=$Y${r0}>=0.8`, C_RED, 25);
+  add(`=AND($Y${r0}>0.2,$Y${r0}<0.8)`, C_GREY, 25);
 
   // Apply rules
   sh.setConditionalFormatRules(rules);
@@ -1548,26 +1738,26 @@ function applyDashboardGroupMapAndColors_(sh) {
 
   // ===== GROUP COLOR PALETTE (header-only) =====
   const COLORS = {
-    SIGNAL:  "#1F4FD8", // blue
-    PRICE:   "#0F766E", // teal
-    PERF:    "#374151", // slate
-    TREND:   "#14532D", // green
-    MOM:     "#7C2D12", // brown
-    LEVELS:  "#4C1D95", // purple
-    NOTES:   "#111827"  // dark
+    SIGNAL: "#1F4FD8", // blue
+    PRICE: "#0F766E", // teal
+    PERF: "#374151", // slate
+    TREND: "#14532D", // green
+    MOM: "#7C2D12", // brown
+    LEVELS: "#4C1D95", // purple
+    NOTES: "#111827"  // dark
   };
 
   const FG = "#FFFFFF"; // white text
 
   // ===== GROUP → COLUMN MAP (1-indexed) =====
   const GROUPS = [
-    { name: "SIGNALING",        c1: 2,  c2: 4,  color: COLORS.SIGNAL }, // B..D
-    { name: "PRICE / VOLUME",   c1: 5,  c2: 7,  color: COLORS.PRICE  }, // E..G
-    { name: "PERFORMANCE",      c1: 8,  c2: 10, color: COLORS.PERF   }, // H..J
-    { name: "TREND",            c1: 11, c2: 15, color: COLORS.TREND  }, // K..O
-    { name: "MOMENTUM",         c1: 16, c2: 20, color: COLORS.MOM    }, // P..T
-    { name: "LEVELS / RISK",    c1: 21, c2: 25, color: COLORS.LEVELS }, // U..Y
-    { name: "NOTES",            c1: 26, c2: 27, color: COLORS.NOTES  }  // Z..AA
+    { name: "SIGNALING", c1: 2, c2: 4, color: COLORS.SIGNAL }, // B..D
+    { name: "PRICE / VOLUME", c1: 5, c2: 7, color: COLORS.PRICE }, // E..G
+    { name: "PERFORMANCE", c1: 8, c2: 10, color: COLORS.PERF }, // H..J
+    { name: "TREND", c1: 11, c2: 15, color: COLORS.TREND }, // K..O
+    { name: "MOMENTUM", c1: 16, c2: 20, color: COLORS.MOM }, // P..T
+    { name: "LEVELS / RISK", c1: 21, c2: 25, color: COLORS.LEVELS }, // U..Y
+    { name: "NOTES", c1: 26, c2: 27, color: COLORS.NOTES }  // Z..AA
   ];
 
   // ===== COMMON HEADER STYLE =====
@@ -1588,7 +1778,7 @@ function applyDashboardGroupMapAndColors_(sh) {
 
     // Merge + label row 2
     const r2 = sh.getRange(2, g.c1, 1, g.c2 - g.c1 + 1);
-    try { r2.breakApart(); } catch (e) {}
+    try { r2.breakApart(); } catch (e) { }
     if (g.c1 !== g.c2) r2.merge();
     r2.setValue(g.name);
 
@@ -1608,9 +1798,9 @@ function applyDashboardBloombergFormattingAfterRefresh_(dashboardSheet) {
   applyDashboardBloombergFormatting_(dashboardSheet, 4); // data starts at row 4
 }
 
-  // ------------------------------------------------------------
-  // CHART SHEET setup engine
-  // ------------------------------------------------------------
+// ------------------------------------------------------------
+// CHART SHEET setup engine
+// ------------------------------------------------------------
 
 function setupChartSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1733,41 +1923,41 @@ function setupChartSheet() {
   sh.getRange("A8:B200").clearContent();
 
   const rows = [
-    ["SIGNAL",   IDX("B", '"Wait"')],
-    ["FUND",     IDX("D", '"-"')],           // FUNDAMENTAL (CALC D)
+    ["SIGNAL", IDX("B", '"Wait"')],
+    ["FUND", IDX("D", '"-"')],           // FUNDAMENTAL (CALC D)
     // DECISION removed from sidebar because moved to row 7
-    ["PRICE",    `=IFERROR(GOOGLEFINANCE(${t}, "price"), 0)`],
-    ["CHG%",     `=IFERROR(GOOGLEFINANCE(${t}, "changepct")/100, 0)`],
-    ["R:R",      IDX("J", "0")],
+    ["PRICE", `=IFERROR(GOOGLEFINANCE(${t}, "price"), 0)`],
+    ["CHG%", `=IFERROR(GOOGLEFINANCE(${t}, "changepct")/100, 0)`],
+    ["R:R", IDX("J", "0")],
     ["", ""],
 
     ["[ PERFORMANCE ]", ""],
     ["VOL TREND", IDX("G", "0")],
-    ["P/E",       `=IFERROR(GOOGLEFINANCE(${t},"pe"), "")`],
-    ["EPS",       `=IFERROR(GOOGLEFINANCE(${t},"eps"), "")`],
-    ["ATH",       IDX("H", "0")],
-    ["ATH %",     IDX("I", "0")],
+    ["P/E", `=IFERROR(GOOGLEFINANCE(${t},"pe"), "")`],
+    ["EPS", `=IFERROR(GOOGLEFINANCE(${t},"eps"), "")`],
+    ["ATH", IDX("H", "0")],
+    ["ATH %", IDX("I", "0")],
     ["52W HIGH", `=IFERROR(GOOGLEFINANCE(${t},"high52"), 0)`],
-    ["52W LOW",  `=IFERROR(GOOGLEFINANCE(${t},"low52"), 0)`],
+    ["52W LOW", `=IFERROR(GOOGLEFINANCE(${t},"low52"), 0)`],
     ["", ""],
 
     ["[ TREND ]", ""],
-    ["SMA 20",    IDX("M", "0")],
-    ["SMA 50",    IDX("N", "0")],
-    ["SMA 200",   IDX("O", "0")],
-    ["RSI",       IDX("P", "50")],
-    ["MACD",      IDX("Q", "0")],
-    ["DIV",       IDX("R", '"-"')],
-    ["ADX",       IDX("S", "0")],
-    ["STO",       IDX("T", "0")],
+    ["SMA 20", IDX("M", "0")],
+    ["SMA 50", IDX("N", "0")],
+    ["SMA 200", IDX("O", "0")],
+    ["RSI", IDX("P", "50")],
+    ["MACD", IDX("Q", "0")],
+    ["DIV", IDX("R", '"-"')],
+    ["ADX", IDX("S", "0")],
+    ["STO", IDX("T", "0")],
     ["", ""],
 
     ["[ LEVELS ]", ""],
-    ["SUPPORT",    IDX("U", "0")],
+    ["SUPPORT", IDX("U", "0")],
     ["RESISTANCE", IDX("V", "0")],
-    ["TARGET",     IDX("W", "0")],
-    ["ATR",        IDX("X", "0")],
-    ["%B",         IDX("Y", "0")]
+    ["TARGET", IDX("W", "0")],
+    ["ATR", IDX("X", "0")],
+    ["%B", IDX("Y", "0")]
   ];
 
   sh.getRange(startRow, 1, rows.length, 1).setValues(rows.map(r => [r[0]])).setFontWeight("bold");
@@ -1932,7 +2122,7 @@ function updateDynamicChart() {
 
   if (livePrice > 0 && (!lastDateInMaster || lastDateInMaster.toDateString() !== today.toDateString())) {
     const lastHistClose = master.length > 0 ? master[master.length - 1][1] : livePrice;
-    
+
     // For live SMAs, we use the historical slices + current price
     const fullCloses = raw.map(r => Number(r[4])).filter(n => isFinite(n) && n > 0);
     fullCloses.push(livePrice);
@@ -1995,9 +2185,3 @@ function updateDynamicChart() {
 
   sheet.insertChart(chart);
 }
-
-  
-function myFunction() {
-  generateMasterMobileReport();
-}
-
