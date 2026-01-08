@@ -56,6 +56,18 @@ function onEdit(e) {
       return;
     }
 
+    // Data refresh trigger (E1)
+    if (a1 === "E1") {
+      try {
+        ss.toast("Data refreshing...", "⚙️ REFRESH", 6);
+        generateDataSheet();
+        SpreadsheetApp.flush();
+      } catch (err) {
+        ss.toast("Data refresh error: " + err.toString(), "⚠️ FAIL", 6);
+      }
+      return;
+    }
+
     // Calculations refresh trigger (E2)
     if (a1 === "E2") {
       try {
