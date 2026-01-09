@@ -107,7 +107,7 @@ function onEdit(e) {
 
   if (sheet.getName() === "REPORT" && (a1 === "A1")) {
     try {
-      ss.toast("Refreshing Mbile Dashboard...", "⚙️ TERMINAL", 3);
+      ss.toast("Refreshing Mobile Dashboard...", "⚙️ TERMINAL", 3);
       //generateMobileReport();
       SpreadsheetApp.flush();
     } catch (err) {
