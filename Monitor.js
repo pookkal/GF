@@ -2,7 +2,7 @@
 
 /**
 * ------------------------------------------------------------------
-* 7. AUTOMATED ALERT & MONITOR SYSTEM (LAST_STATE in AB)
+* 7. AUTOMATED ALERT & MONITOR SYSTEM
 * ------------------------------------------------------------------
 */
 
@@ -16,7 +16,7 @@ function startMarketMonitor() {
 
   SpreadsheetApp.getUi().alert(
     '🔔 MONITOR ACTIVE',
-    'Checking DECISION changes (CALCULATIONS!C) every 30 minutes.\n\n' +
+    'Checking DECISION changes (CALCULATIONS!D) every 30 minutes.\n\n' +
     'You will be emailed only when a DECISION changes, including:\n' +
     '- Trade Long / Accumulate\n' +
     '- Take Profit / Reduce\n' +
@@ -42,7 +42,7 @@ function stopMarketMonitor() {
   SpreadsheetApp.getUi().alert(
     '🔕 MONITOR STOPPED',
     'Automated DECISION checks disabled.\n\n' +
-    'No further emails will be sent for DECISION changes (CALCULATIONS!C) until you start the monitor again.',
+    'No further emails will be sent for DECISION changes (CALCULATIONS!D) until you start the monitor again.',
     SpreadsheetApp.getUi().ButtonSet.OK
   );
 }
@@ -65,7 +65,7 @@ function checkSignalsAndSendAlerts() {
   data.forEach((r, i) => {
     const ticker = (r[0] || "").toString().trim();     // A
     const decision = (r[2] || "").toString().trim();   // C (DECISION) ✅
-    const lastState = (r[27] || "").toString().trim(); // AB (LAST_STATE) ✅
+    // Note: LAST_STATE column removed - state tracking simplified
 
     if (!ticker || !decision || decision === "LOADING") return;
     if (decision === lastState) return;
@@ -88,7 +88,7 @@ function checkSignalsAndSendAlerts() {
   const email = Session.getActiveUser().getEmail();
   const subject = `📈 Terminal Alert: ${alerts.length} Decision Change(s)`;
   const body =
-    "Institutional Terminal detected DECISION changes (CALCULATIONS!C):\n\n" +
+    "Institutional Terminal detected DECISION changes (CALCULATIONS!D):\n\n" +
     alerts.join("\n\n") +
     "\n\nView Terminal:\n" + ss.getUrl();
 

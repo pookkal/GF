@@ -66,8 +66,8 @@ function runAnalysisFromInput() {
     target:     rowData[23], // Col X
     atr:        rowData[24], // Col Y
     bolB:       rowData[27], // Col AB
-    status:     rowData[2],  // Col C (e.g. "PURCHASED")
-    valuation:  rowData[3],  // Col D (e.g. "VALUE")
+    status:     rowData[3],  // Col D - DECISION (swapped)
+    valuation:  rowData[2],  // Col C - FUNDAMENTAL (swapped)
     stopLoss:   rowData[21]  // Mapping Support to StopLoss logic
   };
 
@@ -1026,9 +1026,9 @@ function buildIndicatorPanelHtml_(d) {
   let html = "";
 
   // --- TOP: SIGNAL / FUND / DECISION (tight + bigger) ---
-  // ---  html += row("SIGNAL", fmt.text(d.signal), topBg(colorSignal(d.signal)), true, TOP_YELLOW, TOP_YELLOW);
-  // --- html += row("FUNDAMENTAL", fmt.text(d.valuation), topBg(colorFund(d.valuation)), true, TOP_YELLOW, TOP_YELLOW);
-   // --- html += row("DECISION", fmt.text(d.status), topBg(colorDecision(d.status)), true, TOP_YELLOW, TOP_YELLOW);
+  // --- html += row("SIGNAL", fmt.text(d.signal), topBg(colorSignal(d.signal)), true, TOP_YELLOW, TOP_YELLOW);
+  // --- html += row("FUNDAMENTAL", fmt.text(d.fundamental), topBg(colorFund(d.fundamental)), true, TOP_YELLOW, TOP_YELLOW);
+  // --- html += row("DECISION", fmt.text(d.decision), topBg(colorDecision(d.decision)), true, TOP_YELLOW, TOP_YELLOW);
 
   // --- SECTION: PRICE / VOLUME ---
   html += `<div style="${sectionStyle}">PRICE / VOLUME</div>`;
@@ -1125,8 +1125,8 @@ function getTickerDataFromBaseline(ticker) {
       return {
         ticker:      rowData[0],  // Col A: Ticker
         signal:      rowData[1],  // Col B: SIGNAL
-        decision:    rowData[2],  // Col C: DECISION (e.g BY/SELL)
-        fundamental: rowData[3],  // Col D: FUNDAMENTAL
+        fundamental: rowData[2],  // Col C: FUNDAMENTAL (swapped)
+        decision:    rowData[3],  // Col D: DECISION (swapped)
         price:       rowData[4],  // Col E: Price
         changePct:   rowData[5],  // Col F: Change %
         volRatio:    rowData[6],  // Col G: Vol Trend

@@ -39,8 +39,8 @@ function getSidebarLevels_(chartSheet) {
 
 /**
 * ------------------------------------------------------------------
-* REFERENCE GUIDE (UPDATED: SELL states + aligned to DECISION/SIGNAL formulas)
-* - Keeps your structure; only updates vocabulary tables and explanations.
+* INSTITUTIONAL TERMINAL — COMPREHENSIVE USER GUIDE
+* Industry-grade documentation for dual-mode signal engine
 * ------------------------------------------------------------------
 */
 function generateReferenceSheet() {
@@ -52,171 +52,436 @@ function generateReferenceSheet() {
   const rows = [];
 
   // Title
-  rows.push(["INSTITUTIONAL TERMINAL — REFERENCE GUIDE", "", "", ""]);
-  rows.push(["Dashboard/Chart vocabulary, column definitions, and action playbook (aligned to current formulas).", "", "", ""]);
+  rows.push(["DUAL-MODE SIGNAL ENGINE — USER GUIDE", "", "", ""]);
+  rows.push(["Professional-grade INVEST & TRADE decision systems with enhanced pattern recognition", "", "", ""]);
   rows.push(["", "", "", ""]);
 
-  // NEW: Position tags policy
-  rows.push(["0) POSITION TAGS (INPUT!C) — PRACTICAL USAGE (IMPORTANT)", "", "", ""]);
-  rows.push(["RULE", "MEANING", "HOW IT AFFECTS THE ENGINE", "WHAT YOU SHOULD DO"]);
+  // OVERVIEW
+  rows.push(["1) SYSTEM OVERVIEW", "", "", ""]);
+  rows.push(["FEATURE", "DESCRIPTION", "TECHNICAL SPECS", "BUSINESS VALUE"]);
   rows.push([
-    "PURCHASED (only behavioral tag)",
-    "Indicates you currently hold this ticker (an open position).",
-    "Enables sell-side + position-management actions in DECISION (Stop-Out / Take Profit / Reduce / Add in Dip).",
-    "When you buy, add PURCHASED to INPUT!C for that ticker. When you fully exit, remove PURCHASED."
+    "Dual-Mode Engine",
+    "Two distinct signal systems for different investment horizons",
+    "INVEST (long-term) vs TRADE (tactical) modes via INPUT!E2",
+    "Optimized decision logic for institutional vs active trading"
   ]);
   rows.push([
-    "All other tags (e.g., M7, P0, etc.)",
-    "Custom labels for your own grouping and filtering.",
-    "NO IMPACT on buy/sell logic. They are ignored by the engine for decisions.",
-    "Use them only to filter lists (INPUT filters / watchlists). Do not expect them to alter decisions."
+    "Enhanced Pattern Recognition",
+    "Advanced volatility, ATH, and mean-reversion pattern detection",
+    "ATR expansion, BBP extremes, ATH psychological zones",
+    "Captures institutional-grade setups missed by basic indicators"
+  ]);
+  rows.push([
+    "Position-Aware Logic",
+    "Different decisions for owned vs unowned positions",
+    "PURCHASED tag detection with risk/reward optimization",
+    "Prevents overtrading and optimizes position management"
+  ]);
+  rows.push([
+    "Dynamic Risk Sizing",
+    "ATR and ATH-adjusted position sizing with volatility regimes",
+    "Base 2% with 0.5x-1.5x multipliers based on risk metrics",
+    "Institutional-grade risk management with volatility adaptation"
   ]);
   rows.push(["", "", "", ""]);
 
-  // Column definitions
-  rows.push(["1) DASHBOARD COLUMN DEFINITIONS (TECHNICAL)", "", "", ""]);
-  rows.push(["COLUMN", "WHAT IT IS", "HOW IT IS USED", "USER ACTION"]);
-  const cols = [
-    ["Ticker", "Symbol (key)", "Join key across DATA/CALCULATIONS/CHART", "Select for chart / review notes."],
-    ["SIGNAL", "Technical setup label (rules engine)", "Describes setup type (breakout / trend / mean-rev / risk-off / stop-out)", "Use as setup classification; DECISION is what you act on."],
-    ["FUNDAMENTAL", "EPS + P/E risk bucket", "Blocks trades in weak quality/extreme valuation regimes", "Prefer VALUE/FAIR; avoid ZOMBIE/PRICED FOR PERFECTION when momentum is fragile."],
-    ["DECISION", "Action label (position-aware)", "Final instruction (trade/accumulate/avoid/stop/trim/profit/add-in-dip)", "Primary action field."],
-    ["Price", "Live last price (GOOGLEFINANCE)", "Used for regime tests, distance-to-levels, ATR stretch", "Confirm price vs SMA200 & levels."],
-    ["Change %", "Daily % change", "Tape context; not a signal alone", "Do not chase without a setup."],
-    ["Vol Trend", "Relative volume proxy (RVOL)", "Conviction filter for breakouts", "Prefer >=1.5x for breakout validation."],
-    ["ATH (TRUE)", "All-time high reference", "Context for overhead supply / price discovery", "Avoid chasing into ceilings without RVOL."],
-    ["ATH Diff %", "Distance from ATH", "Pullback vs near-ATH classification", "Use with regime + levels."],
-    ["R:R Quality", "Reward/Risk ratio proxy", "Trade quality gate", ">=3 excellent; 2–3 acceptable; <2 poor."],
-    ["Trend Score", "★ count (Price above SMAs)", "Quick structure strength read", "3★ strongest; <2★ caution."],
-    ["Trend State", "Bull/Bear via SMA200", "Defines risk-on vs risk-off playbook", "Below SMA200 = risk-off bias."],
-    ["SMA 20", "Short-term mean", "Stretch anchor; mean reversion reference", "Avoid buying when >2x ATR above SMA20."],
-    ["SMA 50", "Medium trend line", "Momentum/structure confirmation", "If lost with MACD<0, reduce risk."],
-    ["SMA 200", "Long-term regime line", "Primary risk-on/risk-off filter", "Below: avoid trend-chasing."],
-    ["RSI", "Momentum oscillator (0–100)", "Overbought/oversold + bias filter", "<30 oversold; >70 overbought; 50 bias."],
-    ["MACD Hist", "Impulse (positive/negative)", "Momentum confirmation / deterioration", "Negative impulse with SMA50 loss = reduce."],
-    ["Divergence", "Price vs RSI divergence heuristic", "Early reversal warning", "Bull div supports bounce; bear div warns."],
-    ["ADX (14)", "Trend strength", "Chop vs trend filter", "<15 range; 15–25 weak; >=25 trend."],
-    ["Stoch %K (14)", "Fast oscillator (0–1)", "Timing within regimes", "<0.2 oversold; >0.8 overbought."],
-    ["Support", "20-day min low proxy", "Risk line / invalidation reference", "Break below = Stop-Out."],
-    ["Resistance", "50-day max high proxy", "Ceiling / profit-taking reference", "Near resistance + overbought = Take Profit."],
-    ["Target (3:1)", "Tactical take-profit projection", "Planning exits; not a forecast", "Use for planning only."],
-    ["ATR (14)", "Volatility proxy", "Sizing/stops + stretch detection", "Higher ATR = wider stops / smaller size."],
-    ["Bollinger %B", "Band position proxy", "Compression/range heuristic", "Low %B + low ADX = chop."],
-    ["TECH NOTES", "Narrative (indicator values + rationale)", "Explains what is driving setup and timing", "Read before acting."],
-    ["FUND NOTES", "Narrative (fund + signal + action + flags)", "Explains why decision is allowed/blocked", "Respect blockers (risk-off / fragile valuation)."]
-  ];
-  cols.forEach(r => rows.push(r));
-
-  // SIGNAL vocabulary
+  // MODE SELECTION GUIDE
+  rows.push(["2) MODE SELECTION GUIDE", "", "", ""]);
+  rows.push(["CRITERIA", "INVEST MODE", "TRADE MODE", "SWITCHING LOGIC"]);
+  rows.push([
+    "Time Horizon",
+    "3-12 months holding periods",
+    "Days to weeks holding periods",
+    "Set INPUT!E2 = TRUE for INVEST, FALSE for TRADE"
+  ]);
+  rows.push([
+    "Risk Tolerance",
+    "Lower turnover, trend-following",
+    "Higher turnover, momentum-based",
+    "INVEST for stability, TRADE for active management"
+  ]);
+  rows.push([
+    "Market Conditions",
+    "Bull markets, trending environments",
+    "Volatile markets, range-bound conditions",
+    "Switch based on market regime and VIX levels"
+  ]);
+  rows.push([
+    "Portfolio Role",
+    "Core holdings, strategic positions",
+    "Tactical allocation, opportunistic plays",
+    "Use INVEST for 70-80% core, TRADE for 20-30% tactical"
+  ]);
   rows.push(["", "", "", ""]);
-  rows.push(["2) SIGNAL — FULL VOCABULARY (WHAT IT MEANS + WHAT TO DO)", "", "", ""]);
-  rows.push(["SIGNAL VALUE", "TECHNICAL DEFINITION", "WHEN IT TRIGGERS", "EXPECTED USER ACTION"]);
-  const signal = [
-    ["Stop-Out", "Price < Support", "Breakdown through support floor", "Exit / do not average down. Wait for base."],
-    ["Risk-Off (Below SMA200)", "Price < SMA200", "Long-term risk-off regime", "Avoid chasing; only tactical with strict risk."],
-    ["Volatility Squeeze (Coiling)", "ATR compressed vs recent lows", "Compression / coiling", "Wait for breakout confirmation (RVOL + levels)."],
-    ["Range-Bound (Low ADX)", "ADX < 15", "No trend / chop regime", "Range tactics only; smaller size; tighter targets."],
-    ["Breakout (High Volume)", "RVOL high + price near/above resistance", "Breakout attempt with sponsorship", "Only act when DECISION allows (Trade Long)."],
-    ["Mean Reversion (Oversold)", "StochK<=0.20 above support", "Oversold timing in structure", "If PURCHASED: Add in Dip (when allowed). If not: Tactical long only if DECISION says Trade Long."],
-    ["Trend Continuation", "Above SMA200 with momentum + trend", "Uptrend continuation regime", "Accumulate on pullbacks; avoid chasing stretch."]
-  ];
-  signal.forEach(r => rows.push(r));
 
-  // FUNDAMENTAL vocabulary
+  // INVEST MODE DETAILED
+  rows.push(["3) INVEST MODE — INSTITUTIONAL DECISION SYSTEM", "", "", ""]);
+  rows.push(["SIGNAL", "TRIGGER CONDITIONS", "DECISION LOGIC", "EXPECTED OUTCOME"]);
+  
+  // Enhanced Pattern Signals
+  rows.push([
+    "ATH BREAKOUT",
+    "ATH Diff ≥ -1% + Volume ≥ 1.5x + ADX ≥ 20",
+    "🟢 STRONG BUY (if not purchased) / 🟢 ADD (if purchased + VALUE/FAIR)",
+    "Momentum continuation at new highs with institutional participation"
+  ]);
+  rows.push([
+    "VOLATILITY BREAKOUT", 
+    "ATR > 20-period avg * 1.5 + Volume ≥ 2.0x + Price > Resistance",
+    "🟢 STRONG BUY (if not purchased) / 🟢 ADD (if purchased + VALUE)",
+    "Explosive moves with expanding volatility - institutional accumulation"
+  ]);
+  rows.push([
+    "EXTREME OVERSOLD BUY",
+    "BBP ≤ 0.1 + RSI ≤ 25 + Stoch ≤ 0.20 + Price > SMA200",
+    "🟢 STRONG BUY (if not purchased) / 🟢 ADD (if purchased)",
+    "Multi-indicator oversold confirmation in established uptrend"
+  ]);
+  
+  // Standard Institutional Signals
+  rows.push([
+    "STRONG BUY",
+    "Price > SMA200 + SMA50 > SMA200 + RSI ≤ 30 + MACD > 0 + ADX ≥ 20 + Vol ≥ 1.5x",
+    "🟢 STRONG BUY (if not purchased) / 🟢 ADD (if purchased + VALUE/FAIR)",
+    "Perfect storm of trend, momentum, and oversold conditions"
+  ]);
+  rows.push([
+    "BUY",
+    "Price > SMA200 + SMA50 > SMA200 + RSI ≤ 40 + MACD > 0 + ADX ≥ 15",
+    "🟢 BUY (if not purchased) / 🟢 ADD (if purchased + VALUE/FAIR)",
+    "Solid uptrend structure with reasonable entry point"
+  ]);
+  rows.push([
+    "ACCUMULATE",
+    "Price > SMA200 + RSI ≤ 35 + Price ≥ SMA50 * 0.95",
+    "🟢 BUY (if not purchased) / 🟢 ADD (if purchased + VALUE/FAIR)",
+    "Dip buying opportunity in established uptrend"
+  ]);
+  
+  // Risk Management Signals
+  rows.push([
+    "STOP OUT",
+    "Price < Support Level",
+    "🔴 EXIT (any position) / 🔴 AVOID (no position)",
+    "Capital preservation - structural breakdown"
+  ]);
+  rows.push([
+    "RISK OFF",
+    "Price < SMA200",
+    "🔴 EXIT (if purchased) / 🔴 AVOID (if not purchased)",
+    "Long-term trend invalidation - bearish regime"
+  ]);
+  rows.push([
+    "OVERBOUGHT",
+    "RSI ≥ 80 OR BBP ≥ 0.9",
+    "🟠 TRIM (if purchased + EXPENSIVE) / ⏳ WAIT (if not purchased)",
+    "Pullback warning - take profits or wait for better entry"
+  ]);
+  
+  // Neutral States
+  rows.push([
+    "HOLD",
+    "Price > SMA200 + 40 < RSI < 70",
+    "⚖️ HOLD (any position)",
+    "Neutral conditions in uptrend - maintain positions"
+  ]);
+  rows.push([
+    "OVERSOLD",
+    "RSI ≤ 20",
+    "🟡 WATCH (if not purchased) / ⚖️ HOLD (if purchased)",
+    "Potential bounce opportunity - monitor for confirmation"
+  ]);
   rows.push(["", "", "", ""]);
-  rows.push(["3) FUNDAMENTAL — FULL VOCABULARY (FILTER + RISK)", "", "", ""]);
-  rows.push(["FUNDAMENTAL VALUE", "WHAT IT MEANS (IN THIS MODEL)", "RISK PROFILE", "EXPECTED USER ACTION"]);
-  const fund = [
-    ["VALUE", "EPS positive with supportive P/E", "Lower valuation risk vs others", "Prefer for breakouts/trend setups when tech confirms."],
-    ["FAIR", "Neutral valuation bucket (fallback)", "Neutral valuation risk", "Trade only when technical gates pass."],
-    ["EXPENSIVE", "Valuation premium (lower margin for error)", "Multiple compression risk", "Be selective; prefer strongest technical setups."],
-    ["PRICED FOR PERFECTION", "Very elevated P/E (high expectations)", "Fragile; sharp drawdown risk on misses", "Only best setups; size down; take profits faster."],
-    ["ZOMBIE", "EPS <= 0 / weak earnings quality", "High blow-up risk", "Avoid longs; treat as high risk."]
-  ];
-  fund.forEach(r => rows.push(r));
 
-  // DECISION vocabulary (position-aware)
+  // TRADE MODE DETAILED
+  rows.push(["4) TRADE MODE — TACTICAL DECISION SYSTEM", "", "", ""]);
+  rows.push(["SIGNAL", "TRIGGER CONDITIONS", "DECISION LOGIC", "EXPECTED OUTCOME"]);
+  
+  // Enhanced Pattern Signals
+  rows.push([
+    "VOLATILITY BREAKOUT",
+    "ATR > 20-period avg * 1.5 + Volume ≥ 2.0x + Price > Resistance",
+    "Strong Trade Long (if not purchased + VALUE/FAIR)",
+    "High-probability momentum continuation with institutional flow"
+  ]);
+  rows.push([
+    "ATH BREAKOUT",
+    "ATH Diff ≥ -1% + Volume ≥ 1.5x + ADX ≥ 20",
+    "Strong Trade Long (if not purchased + VALUE/FAIR)",
+    "New high momentum with strong participation"
+  ]);
+  
+  // Standard Tactical Signals
+  rows.push([
+    "BREAKOUT",
+    "Volume ≥ 1.5x + Price ≥ Resistance * 0.995",
+    "Trade Long (if not purchased + VALUE/FAIR)",
+    "Volume-confirmed breakout above resistance"
+  ]);
+  rows.push([
+    "MOMENTUM",
+    "Price > SMA200 + MACD > 0 + ADX ≥ 20",
+    "Accumulate (if not purchased + VALUE) / Hold (if purchased)",
+    "Strong trending conditions - ride the trend"
+  ]);
+  rows.push([
+    "UPTREND",
+    "Price > SMA200 + SMA50 > SMA200 + ADX ≥ 15",
+    "Hold (any position)",
+    "Basic uptrend structure - trend following"
+  ]);
+  rows.push([
+    "BULLISH",
+    "Price > SMA50 + Price > SMA20",
+    "Hold (any position)",
+    "Above key moving averages - short-term bullish bias"
+  ]);
+  
+  // Mean Reversion Signals
+  rows.push([
+    "OVERSOLD",
+    "Stoch %K ≤ 0.20 + Price > Support",
+    "Add in Dip (if purchased) / Hold (if not purchased)",
+    "Oversold bounce opportunity in uptrend"
+  ]);
+  rows.push([
+    "VOLATILITY SQUEEZE",
+    "ATR < 20-period avg * 0.7 + ADX < 15 + BBP near 0.5",
+    "Wait for Breakout (any position)",
+    "Coiling pattern - awaiting directional move"
+  ]);
+  
+  // Risk Management
+  rows.push([
+    "STOP OUT",
+    "Price < Support Level",
+    "Stop-Out (any position)",
+    "Trend invalidated - preserve capital"
+  ]);
+  rows.push([
+    "OVERBOUGHT",
+    "RSI ≥ 80",
+    "Take Profit (if purchased) / Avoid (if not purchased)",
+    "Pullback risk from elevated levels"
+  ]);
+  rows.push([
+    "RANGE",
+    "ADX < 15",
+    "Hold (any position)",
+    "No trend - sideways action, range tactics only"
+  ]);
   rows.push(["", "", "", ""]);
-  rows.push(["4) DECISION — FULL VOCABULARY (WHAT TO DO)", "", "", ""]);
-  rows.push(["DECISION VALUE", "WHY IT HAPPENS (ENGINE RULE)", "POSITION REQUIREMENT", "EXPECTED USER ACTION"]);
-  const decision = [
-    ["Stop-Out", "Price < Support (invalidation)", "Purchased or not", "Exit / stand aside."],
-    ["Avoid", "Risk-off regime or blocked conditions", "Not required", "No trade; deprioritize."],
-    ["Trade Long", "Breakout / setup allowed by gates", "Not purchased", "Enter with stop at Support; plan to Resistance/Target."],
-    ["Accumulate", "Trend continuation in acceptable conditions", "Not purchased (or add later manually)", "Scale in on pullbacks; avoid chasing."],
-    ["Hold", "No edge or gates not met", "Any", "Do nothing; monitor levels and signals."],
-    ["Take Profit", "Target hit OR resistance + overbought", "PURCHASED only", "Trim/sell into strength; do not chase."],
-    ["Reduce (Momentum Weak)", "MACD < 0 AND Price < SMA50", "PURCHASED only", "Reduce exposure; tighten risk."],
-    ["Reduce (Overextended)", "Stretch >= 2x ATR above SMA20", "PURCHASED only", "Trim; wait for mean reversion."],
-    ["Add in Dip", "Oversold timing above support in risk-on regime", "PURCHASED only", "Add small / staged; never add below Support."],
-    ["LOADING", "Data not ready", "N/A", "Wait for refresh; do not act."]
-  ];
-  decision.forEach(r => rows.push(r));
 
-  // Quick playbook
+  // DECISION MATRIX
+  rows.push(["5) COMPREHENSIVE DECISION MATRIX", "", "", ""]);
+  rows.push(["POSITION STATUS", "SIGNAL TYPE", "FUNDAMENTAL", "FINAL DECISION"]);
+  
+  // INVEST MODE DECISIONS
+  rows.push(["INVEST - PURCHASED", "ATH/VOL BREAKOUT + EXTREME OVERSOLD", "VALUE/FAIR", "🟢 ADD"]);
+  rows.push(["INVEST - PURCHASED", "STRONG BUY/BUY/ACCUMULATE", "VALUE/FAIR", "🟢 ADD"]);
+  rows.push(["INVEST - PURCHASED", "STRONG BUY/BUY/ACCUMULATE", "EXPENSIVE", "? HOLD / ADD SMALL"]);
+  rows.push(["INVEST - PURCHASED", "STRONG BUY/BUY/ACCUMULATE", "PRICED FOR PERFECTION", "🟡 HOLD (NO ADD)"]);
+  rows.push(["INVEST - PURCHASED", "OVERBOUGHT", "EXPENSIVE/PERFECTION", "🟠 TRIM"]);
+  rows.push(["INVEST - PURCHASED", "STOP OUT/RISK OFF", "ANY", "🔴 EXIT"]);
+  rows.push(["INVEST - PURCHASED", "HOLD/NEUTRAL", "ANY", "⚖️ HOLD"]);
+  
+  rows.push(["INVEST - NOT PURCHASED", "ATH/VOL BREAKOUT + EXTREME OVERSOLD", "ANY", "🟢 STRONG BUY"]);
+  rows.push(["INVEST - NOT PURCHASED", "STRONG BUY", "ANY", "🟢 STRONG BUY"]);
+  rows.push(["INVEST - NOT PURCHASED", "BUY/ACCUMULATE", "ANY", "🟢 BUY"]);
+  rows.push(["INVEST - NOT PURCHASED", "OVERSOLD", "ANY", "🟡 WATCH (OVERSOLD)"]);
+  rows.push(["INVEST - NOT PURCHASED", "OVERBOUGHT", "ANY", "⏳ WAIT (OVERBOUGHT)"]);
+  rows.push(["INVEST - NOT PURCHASED", "STOP OUT/RISK OFF", "ANY", "🔴 AVOID"]);
+  rows.push(["INVEST - NOT PURCHASED", "HOLD/NEUTRAL", "ANY", "⚪ NEUTRAL"]);
+  
+  // TRADE MODE DECISIONS
+  rows.push(["TRADE - PURCHASED", "STOP OUT", "ANY", "Stop-Out"]);
+  rows.push(["TRADE - PURCHASED", "OVERBOUGHT/TARGET REACHED", "ANY", "Take Profit"]);
+  rows.push(["TRADE - PURCHASED", "RISK OFF", "ANY", "Risk-Off"]);
+  rows.push(["TRADE - PURCHASED", "MOMENTUM/UPTREND/BULLISH", "ANY", "Hold"]);
+  
+  rows.push(["TRADE - NOT PURCHASED", "VOL/ATH BREAKOUT", "VALUE/FAIR", "Strong Trade Long"]);
+  rows.push(["TRADE - NOT PURCHASED", "BREAKOUT", "VALUE/FAIR", "Trade Long"]);
+  rows.push(["TRADE - NOT PURCHASED", "MOMENTUM", "VALUE", "Accumulate"]);
+  rows.push(["TRADE - NOT PURCHASED", "OVERSOLD", "ANY", "Add in Dip"]);
+  rows.push(["TRADE - NOT PURCHASED", "VOLATILITY SQUEEZE", "ANY", "Wait for Breakout"]);
+  rows.push(["TRADE - NOT PURCHASED", "RISK OFF", "ANY", "Avoid"]);
+  rows.push(["TRADE - NOT PURCHASED", "RANGE/NEUTRAL", "ANY", "Hold"]);
   rows.push(["", "", "", ""]);
-  rows.push(["5) QUICK PLAYBOOK (HOW TO USE THE TERMINAL)", "", "", ""]);
-  rows.push(["RULE", "WHY", "WHAT TO LOOK FOR", "WHAT TO AVOID"]);
-  rows.push(["Position flagging", "Ensures sell logic only triggers for holdings", "INPUT!C contains PURCHASED", "Expecting M7/P0/etc. to change decisions (they will not)."]);
-  rows.push(["Trend trades", "Best expectancy in strong regimes", "Above SMA200, ADX>=25, MACD>0, RVOL>=1.5", "Buying in Risk-Off or with ADX<15."]);
-  rows.push(["Range trades", "Chop markets are mean-reverting", "ADX<15 and price near Support/Resistance", "Chasing mid-range; poor R:R."]);
-  rows.push(["Profit-taking", "Avoid giving back gains", "Take Profit near Resistance/Target", "Adding new longs when stretched/overbought."]);
-  rows.push(["Loss avoidance", "Stops define survival", "Stop-Out (Price<Support)", "Averaging down below Support."]);
-  rows.push(["R:R gating", "Prevents low-quality trades", "R:R>=2 tactical; >=3 preferred", "R:R<2 unless exceptional setup."]);
 
-  // Write
+  // ENHANCED FEATURES
+  rows.push(["6) ENHANCED PATTERN RECOGNITION FEATURES", "", "", ""]);
+  rows.push(["FEATURE", "CALCULATION", "INTERPRETATION", "TRADING APPLICATION"]);
+  rows.push([
+    "Volatility Regime",
+    "ATR / Price ratio with 4 levels: LOW/NORMAL/HIGH/EXTREME",
+    "LOW VOL = larger position sizes, EXTREME VOL = smaller sizes",
+    "Dynamic position sizing based on current volatility environment"
+  ]);
+  rows.push([
+    "ATH Psychological Zones",
+    "6 zones from AT ATH to DEEP VALUE based on % from highs",
+    "AT ATH = resistance, DEEP VALUE = potential value opportunity",
+    "Psychological level awareness for entry/exit timing"
+  ]);
+  rows.push([
+    "BBP Mean Reversion",
+    "Bollinger %B with RSI confirmation for extreme readings",
+    "EXTREME OVERSOLD/OVERBOUGHT = high-probability reversals",
+    "Enhanced mean reversion signals with multiple confirmations"
+  ]);
+  rows.push([
+    "Pattern Detection",
+    "Multi-indicator pattern recognition (VOL BREAKOUT, SQUEEZE, etc.)",
+    "Combines volatility, momentum, and mean reversion patterns",
+    "Institutional-grade setup identification"
+  ]);
+  rows.push([
+    "ATR-Based Stops/Targets",
+    "Dynamic stops at 2x ATR, targets at 3x ATR from entry",
+    "Volatility-adjusted risk management levels",
+    "Professional risk/reward optimization"
+  ]);
+  rows.push(["", "", "", ""]);
+
+  // OPERATIONAL GUIDE
+  rows.push(["7) OPERATIONAL USER GUIDE", "", "", ""]);
+  rows.push(["TASK", "PROCEDURE", "LOCATION", "EXPECTED RESULT"]);
+  rows.push([
+    "Switch Modes",
+    "Toggle TRUE/FALSE in cell",
+    "INPUT!E2",
+    "Changes all signal calculations between INVEST/TRADE logic"
+  ]);
+  rows.push([
+    "Mark Position",
+    "Add/Remove PURCHASED tag",
+    "INPUT!C column (ticker row)",
+    "Enables position-aware decision logic"
+  ]);
+  rows.push([
+    "Refresh Data",
+    "Click refresh trigger",
+    "INPUT!E1",
+    "Updates all market data and calculations"
+  ]);
+  rows.push([
+    "View Signals",
+    "Check SIGNAL column",
+    "CALCULATIONS!B or DASHBOARD",
+    "Current technical signal for each ticker"
+  ]);
+  rows.push([
+    "View Decisions",
+    "Check DECISION column",
+    "CALCULATIONS!D or DASHBOARD",
+    "Position-aware action recommendation"
+  ]);
+  rows.push([
+    "Monitor Risk",
+    "Check POSITION SIZE column",
+    "CALCULATIONS!Z",
+    "ATR and ATH-adjusted position sizing"
+  ]);
+  rows.push([
+    "Read Analysis",
+    "Check TECH/FUND NOTES",
+    "CALCULATIONS!AA/AB or REPORT sheet",
+    "Detailed reasoning for signals and decisions"
+  ]);
+  rows.push(["", "", "", ""]);
+
+  // PERFORMANCE BENCHMARKS
+  rows.push(["8) PERFORMANCE BENCHMARKS & VALIDATION", "", "", ""]);
+  rows.push(["METRIC", "INVEST MODE TARGET", "TRADE MODE TARGET", "MONITORING METHOD"]);
+  rows.push([
+    "Signal Accuracy",
+    "> 65% profitable signals",
+    "> 55% profitable signals",
+    "Track P&L by signal type over 3-6 months"
+  ]);
+  rows.push([
+    "Risk-Adjusted Returns",
+    "Sharpe Ratio > 1.5",
+    "Sharpe Ratio > 1.2",
+    "Monthly return / volatility calculation"
+  ]);
+  rows.push([
+    "Maximum Drawdown",
+    "< 15% peak-to-trough",
+    "< 20% peak-to-trough",
+    "Track largest loss from any peak"
+  ]);
+  rows.push([
+    "Position Sizing Efficiency",
+    "Outperform equal-weight by 200+ bps",
+    "Outperform equal-weight by 150+ bps",
+    "Compare vs equal-weight portfolio returns"
+  ]);
+  rows.push([
+    "Turnover Rate",
+    "< 200% annually",
+    "< 500% annually",
+    "Sum of buys + sells / average portfolio value"
+  ]);
+  rows.push(["", "", "", ""]);
+
+  // Write all rows
   sh.getRange(1, 1, rows.length, 4).setValues(rows);
 
-  // Styling (professional)
-  sh.setColumnWidth(1, 240);
-  sh.setColumnWidth(2, 520);
-  sh.setColumnWidth(3, 360);
-  sh.setColumnWidth(4, 280);
-  sh.setRowHeights(1, Math.min(rows.length, 900), 18);
+  // Professional styling
+  sh.setColumnWidth(1, 200);
+  sh.setColumnWidth(2, 400);
+  sh.setColumnWidth(3, 350);
+  sh.setColumnWidth(4, 350);
+  sh.setRowHeights(1, Math.min(rows.length, 900), 20);
   sh.setFrozenRows(3);
 
-  // Title bars
+  // Title styling
   sh.getRange("A1:D1").merge()
-    .setBackground("#0B5394").setFontColor("white")
-    .setFontWeight("bold").setFontSize(13)
+    .setBackground("#1B4332").setFontColor("white")
+    .setFontWeight("bold").setFontSize(14)
     .setHorizontalAlignment("center").setVerticalAlignment("middle");
 
   sh.getRange("A2:D2").merge()
-    .setBackground("#073763").setFontColor("#FFFF00")
-    .setFontWeight("bold").setFontSize(9)
+    .setBackground("#2D5A3D").setFontColor("#FFEB3B")
+    .setFontWeight("bold").setFontSize(10)
     .setHorizontalAlignment("center").setVerticalAlignment("middle");
 
   // Section headers
   for (let r = 1; r <= rows.length; r++) {
     const v = String(sh.getRange(r, 1).getValue() || "");
-    if (/^\d\)|^0\)/.test(v)) {
+    if (/^\d\)/.test(v)) {
       sh.getRange(r, 1, 1, 4).merge()
-        .setBackground("#212121").setFontColor("white")
-        .setFontWeight("bold").setFontSize(10)
+        .setBackground("#1B4332").setFontColor("white")
+        .setFontWeight("bold").setFontSize(11)
         .setHorizontalAlignment("left");
     }
   }
 
-  // Table header rows
+  // Table headers
+  const headerTerms = ["FEATURE", "CRITERIA", "SIGNAL", "POSITION STATUS", "TASK", "METRIC"];
   for (let r = 1; r <= rows.length; r++) {
     const a = String(sh.getRange(r, 1).getValue() || "").trim();
-    if (["RULE", "COLUMN", "SIGNAL VALUE", "FUNDAMENTAL VALUE", "DECISION VALUE"].includes(a)) {
+    if (headerTerms.includes(a)) {
       sh.getRange(r, 1, 1, 4)
-        .setBackground("#F3F3F3")
+        .setBackground("#E8F5E8")
         .setFontWeight("bold")
-        .setFontColor("#111111")
+        .setFontColor("#1B4332")
         .setHorizontalAlignment("center");
     }
   }
 
-  sh.getRange(1, 1, rows.length, 4).setWrap(true).setVerticalAlignment("top");
+  // Global formatting
   sh.getRange(1, 1, rows.length, 4)
-    .setBorder(true, true, true, true, true, true, "#BDBDBD", SpreadsheetApp.BorderStyle.SOLID);
+    .setWrap(true)
+    .setVerticalAlignment("top")
+    .setBorder(true, true, true, true, true, true, "#CCCCCC", SpreadsheetApp.BorderStyle.SOLID);
 
+  // Alternating row colors
   const band = sh.getRange(4, 1, Math.max(1, rows.length - 3), 4).applyRowBanding();
   band.setHeaderRowColor("#FFFFFF");
   band.setFirstRowColor("#FFFFFF");
-  band.setSecondRowColor("#FAFAFA");
+  band.setSecondRowColor("#F8F9FA");
 
-  ss.toast("REFERENCE_GUIDE updated: PURCHASED is the only behavioral tag; others are filter-only.", "✅ DONE", 3);
+  ss.toast("REFERENCE_GUIDE updated with comprehensive dual-mode user documentation.", "✅ INDUSTRY GRADE", 4);
 }
