@@ -251,8 +251,9 @@ function createFormulaReport_(REPORT) {
   row = addDataRow_(REPORT, row, 'TREND STATE', lookup('L'), '@');
   row = addDataRow_(REPORT, row, 'TREND SCORE', lookup('K'), '@');
   
-  // MOMENTUM OSCILLATORS Section - MACD, Stochastic (RSI removed as requested)
+  // MOMENTUM OSCILLATORS Section - RSI, MACD, Stochastic
   row = addSection_(REPORT, row, 'MOMENTUM OSCILLATORS');
+  row = addDataRow_(REPORT, row, 'RSI', lookup('P'), '0.0');
   row = addDataRow_(REPORT, row, 'MACD Hist', lookup('Q'), '0.000');
   row = addDataRow_(REPORT, row, 'Stoch %K', lookup('T'), '0.0%');
   row = addDataRow_(REPORT, row, 'Divergence', lookup('R'), '@');
@@ -407,94 +408,112 @@ function getNarrativeFormula_(label) {
   
   switch (label) {
     case 'PRICE':
-      return '=IFERROR("Last price " & TEXT(' + lookup('E') + ',"$#,##0.00") & ".","—")';
+      return '=""';
     
     case 'CHG%':
-      return '=IFERROR(IF(' + lookup('F') + '>0,"Up " & TEXT(ABS(' + lookup('F') + '),"0.00%") & " today.",IF(' + lookup('F') + '<0,"Down " & TEXT(ABS(' + lookup('F') + '),"0.00%") & " today.","Flat today.")),"—")';
+      return '=""';
     
     case 'P/E':
-      return '=IFERROR("P/E ratio: " & TEXT(GOOGLEFINANCE($A$1,"pe"),"0.00") & IF(GOOGLEFINANCE($A$1,"pe")<=25," (attractive)",IF(GOOGLEFINANCE($A$1,"pe")<=35," (fair)",IF(GOOGLEFINANCE($A$1,"pe")<=60," (expensive)"," (extreme)"))),"P/E data unavailable")';
+      return '=""';
     
     case 'EPS':
-      return '=IFERROR("Earnings per share: $" & TEXT(GOOGLEFINANCE($A$1,"eps"),"0.00") & IF(GOOGLEFINANCE($A$1,"eps")>=0.50," (profitable)",IF(GOOGLEFINANCE($A$1,"eps")>0," (weak)"," (losing money)")),"EPS data unavailable")';
+      return '=IFERROR(IF(GOOGLEFINANCE($A$1,"eps")>=0.50,"profitable","unprofitable"),"—")';
     
     case 'ATH':
-      return '=IFERROR("All-time high: " & TEXT(' + numLookup('H') + ',"$#,##0.00") & " (current price " & TEXT((' + numLookup('E') + '/' + numLookup('H') + '-1),"+0.0%;-0.0%") & " vs ATH).","—")';
+      return '=""';
     
     case 'ATH %':
-      return '=IFERROR(TEXT(' + lookup('I') + ',"+0.00%;-0.00%") & " from ATH" & IF(' + lookup('I') + '>=-0.02," - at resistance zone.",IF(' + lookup('I') + '>=-0.15," - pullback zone."," - correction territory.")),"—")';
+      return '=IFERROR(TEXT(' + lookup('I') + ',"+0.00%;-0.00%") & IF(' + lookup('I') + '>=-0.02," at ATH zone",IF(' + lookup('I') + '>=-0.15," pullback zone"," correction territory")) & ". Range % " & TEXT((' + numLookup('E') + '/INDEX(GOOGLEFINANCE($A$1,"close",TODAY()-30,TODAY()),2,2)-1),"+0.00%;-0.00%") & " from " & TEXT(TODAY()-30,"yyyy-mm-dd"),"—")';
     
     case 'Range %':
-      return '=IFERROR(IF(AND(ISNUMBER(VALUE(LEFT(A2,LEN(A2)-1))),ISNUMBER(VALUE(LEFT(B2,LEN(B2)-1))),ISNUMBER(VALUE(LEFT(C2,LEN(C2)-1)))),LET(currentPrice,GOOGLEFINANCE($A$1,"price"),historicalDate,TODAY()-VALUE(LEFT(A2,LEN(A2)-1))*365-VALUE(LEFT(B2,LEN(B2)-1))*30-VALUE(LEFT(C2,LEN(C2)-1)),historicalPrice,INDEX(GOOGLEFINANCE($A$1,"close",historicalDate,historicalDate+1),2,2),rangePercent,(currentPrice/historicalPrice-1),TEXT(rangePercent,"+0.00%;-0.00%") & " from " & TEXT(historicalDate,"yyyy-mm-dd") & " price " & TEXT(historicalPrice,"$0.00")),"Select date range first."),"—")';
+      return '=IFERROR(TEXT((' + numLookup('E') + '/INDEX(GOOGLEFINANCE($A$1,"close",TODAY()-30,TODAY()),2,2)-1),"+0.00%;-0.00%") & " from " & TEXT(TODAY()-30,"yyyy-mm-dd"),"—")';
+    
+    case 'TREND ANALYSIS':
+      return '=""';
     
     case 'SMA20':
-      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('M') + '-1),"+0.0%;-0.0%") & " vs SMA20 " & TEXT(' + numLookup('M') + ',"$0.00") & IF(' + numLookup('E') + '>=' + numLookup('M') + '," - short-term bullish."," - short-term bearish."),\"—\")';
+      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('M') + '-1),"+0.0%;-0.0%") & " vs " & TEXT(' + numLookup('E') + ',"$#,##0.00") & IF(' + numLookup('E') + '>=' + numLookup('M') + '," - short-term bullish."," - short-term bearish."),"—")';
     
     case 'SMA50':
-      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('N') + '-1),"+0.0%;-0.0%") & " vs SMA50 " & TEXT(' + numLookup('N') + ',"$0.00") & IF(' + numLookup('E') + '>=' + numLookup('N') + '," - medium-term bullish."," - medium-term bearish."),\"—\")';
+      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('N') + '-1),"+0.0%;-0.0%") & " vs " & TEXT(' + numLookup('E') + ',"$#,##0.00") & IF(' + numLookup('E') + '>=' + numLookup('N') + '," - medium-term bullish."," - medium-term bearish."),"—")';
     
     case 'SMA200':
-      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('O') + '-1),"+0.0%;-0.0%") & " vs SMA200 " & TEXT(' + numLookup('O') + ',"$0.00") & IF(' + numLookup('E') + '>=' + numLookup('O') + '," - RISK-ON regime."," - RISK-OFF regime."),\"—\")';
+      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('O') + '-1),"+0.0%;-0.0%") & " vs " & TEXT(' + numLookup('E') + ',"$#,##0.00") & IF(' + numLookup('E') + '>=' + numLookup('O') + '," - RISK-ON regime."," - RISK-OFF regime."),"—")';
     
     case 'ADX':
-      return '=IFERROR("Trend strength: " & TEXT(' + lookup('S') + ',"0.0") & IF(' + lookup('S') + '>=25," - strong trend.",IF(' + lookup('S') + '>=20," - trend developing.",IF(' + lookup('S') + '>=15," - weak trend."," - range-bound."))),"—")';
+      return '=IFERROR("Trend strength: " & IF(' + lookup('S') + '>=25," strong ",IF(' + lookup('S') + '>=20," developing ",IF(' + lookup('S') + '>=15," weak "," range-bound "))),"—")';
     
     case 'TREND STATE':
       return '=IFERROR(' + lookup('L') + ' & " market regime based on SMA200 position.","—")';
     
     case 'TREND SCORE':
-      return '=IFERROR("Moving average alignment: " & ' + lookup('K') + ' & " stars (max 3 for price above all SMAs).","—")';
+      return '=""';
+    
+    case 'MOMENTUM OSCILLATORS':
+      return '=""';
     
     case 'RSI':
-      return '=IFERROR("RSI(14): " & TEXT(' + lookup('P') + ',"0.0") & IF(' + lookup('P') + '>=70," - overbought zone.",IF(' + lookup('P') + '<=30," - oversold zone.",IF(' + lookup('P') + '>=55," - positive momentum.",IF(' + lookup('P') + '<=45," - weak momentum."," - neutral range.")))),"—")';
+      return '=IFERROR(IF(' + lookup('P') + '>=70,"overbought zone.",IF(' + lookup('P') + '<=30,"oversold zone.",IF(' + lookup('P') + '>=55,"positive momentum.",IF(' + lookup('P') + '<=45,"weak momentum.","neutral range.")))),"—")';
     
     case 'MACD Hist':
-      return '=IFERROR("MACD histogram: " & TEXT(' + lookup('Q') + ',"0.000") & IF(' + lookup('Q') + '>0," - positive momentum impulse.",IF(' + lookup('Q') + '<0," - negative momentum impulse."," - flat momentum.")),"—")';
+      return '=IFERROR(IF(' + lookup('Q') + '>0,"positive momentum impulse.",IF(' + lookup('Q') + '<0,"negative momentum impulse.","flat momentum.")),"—")';
     
     case 'Stoch %K':
-      return '=IFERROR("Stochastic %K: " & TEXT(' + lookup('T') + ',"0.0%") & IF(' + lookup('T') + '>=0.8," - overbought timing.",IF(' + lookup('T') + '<=0.2," - oversold timing."," - neutral timing.")),"—")';
+      return '=IFERROR(IF(' + lookup('T') + '>=0.8,"overbought timing.",IF(' + lookup('T') + '<=0.2,"oversold timing.","neutral timing.")),"—")';
     
     case 'Divergence':
-      return '=IFERROR(IF(' + lookup('R') + '="BULL DIV","Bullish divergence detected - price lower but momentum higher.",IF(' + lookup('R') + '="BEAR DIV","Bearish divergence detected - price higher but momentum lower.","No momentum divergence detected.")),"—")';
+      return '=IFERROR(IF(' + lookup('R') + '="BULL DIV","Bullish divergence detected.",IF(' + lookup('R') + '="BEAR DIV","Bearish divergence detected.","— No momentum divergence detected.")),"—")';
+    
+    case 'VOLATILITY & VOLUME':
+      return '=""';
     
     case 'ATR':
-      return '=IFERROR("Average True Range: " & TEXT(' + lookup('X') + ',"$0.00") & " (" & TEXT(' + lookup('X') + '/' + lookup('E') + ',"0.0%") & " of price) - volatility measure.","—")';
+      return '=IFERROR(TEXT(' + lookup('X') + '/' + lookup('E') + ',"0.0%") & " of price - volatility measure.","—")';
     
     case 'RVOL':
-      return '=IFERROR("Relative volume: " & TEXT(' + lookup('G') + ',"0.00") & "x average" & IF(' + lookup('G') + '>=1.5," - strong participation.",IF(' + lookup('G') + '>=1," - average participation."," - low participation (drift risk).")),"—")';
+      return '=IFERROR(IF(' + lookup('G') + '>=1.5,"strong participation.",IF(' + lookup('G') + '>=1,"average participation.","low participation (drift risk).")),"—")';
     
     case 'Bollinger %B':
-      return '=IFERROR("Bollinger %B: " & TEXT(' + lookup('Y') + ',"0.0%") & IF(' + lookup('Y') + '>1," - above upper band (expansion).",IF(' + lookup('Y') + '>=0.8," - upper band zone.",IF(' + lookup('Y') + '<0," - below lower band (extreme).",IF(' + lookup('Y') + '<=0.2," - lower band zone."," - mid-band zone.")))),"—")';
+      return '=IFERROR(IF(' + lookup('Y') + '>1," above upper band.",IF(' + lookup('Y') + '>=0.8," upper band zone.",IF(' + lookup('Y') + '<0," below lower band.",IF(' + lookup('Y') + '<=0.2," lower band zone."," mid-band zone.")))),"—")';
     
     case 'VOL REGIME':
-      return '=IFERROR(' + lookup('AC') + ' & " - volatility classification based on ATR/Price ratio for position sizing.","—")';
+      return '=""';
+    
+    case 'SUPPORT & RESISTANCE':
+      return '=""';
     
     case 'Support':
-      return '=IFERROR("Support level: " & TEXT(' + numLookup('U') + ',"$0.00") & " (" & TEXT((' + numLookup('E') + '/' + numLookup('U') + '-1),"+0.0%;-0.0%") & ")" & IF(' + numLookup('E') + '<' + numLookup('U') + '," - BREAKDOWN RISK."," - holding above support."),\"—\")';
+      return '=IFERROR(IF(' + numLookup('U') + '<' + numLookup('E') + ',TEXT(' + numLookup('E') + ',"$#,##0.00") & " > " & TEXT((' + numLookup('E') + '/' + numLookup('U') + '-1),"+0.0%") & " support",TEXT(' + numLookup('E') + ',"$#,##0.00") & " < " & TEXT((' + numLookup('U') + '/' + numLookup('E') + '-1),"+0.0%") & " support"),"—")';
     
     case 'Resistance':
-      return '=IFERROR("Resistance level: " & TEXT(' + numLookup('V') + ',"$0.00") & " (" & TEXT((' + numLookup('V') + '/' + numLookup('E') + '-1),"+0.0%;-0.0%") & " away)" & IF(' + numLookup('E') + '>' + numLookup('V') + '," - BREAKOUT CONFIRMED."," - below resistance."),\"—\")';
+      return '=IFERROR(IF(' + numLookup('V') + '>' + numLookup('E') + ',TEXT(' + numLookup('E') + ',"$#,##0.00") & " " & TEXT((' + numLookup('E') + '/' + numLookup('V') + '-1),"0.0%") & " below Resistance",TEXT(' + numLookup('E') + ',"$#,##0.00") & " " & TEXT((' + numLookup('E') + '/' + numLookup('V') + '-1),"+0.0%") & " above Resistance"),"—")';
     
     case 'Target':
-      return '=IFERROR("Price target: " & TEXT(' + numLookup('W') + ',"$#,##0.00") & " (" & TEXT((' + numLookup('W') + '/' + numLookup('E') + '-1),"+0.00%;-0.00%") & " upside potential).","—")';
+      return '=IFERROR(TEXT((' + numLookup('W') + '/' + numLookup('E') + '-1),"+0.00%;-0.00%") & " upside potential","—")';
     
     case 'R:R Ratio':
-      return '=IFERROR("Risk/Reward ratio: " & TEXT(' + lookup('J') + ',"0.00") & ":1" & IF(' + lookup('J') + '>=3," - elite asymmetry.",IF(' + lookup('J') + '>=1.5," - acceptable asymmetry."," - poor asymmetry.")),"—")';
+      return '=IFERROR(IF(' + lookup('J') + '>=3," elite asymmetry.",IF(' + lookup('J') + '>=1.5," acceptable asymmetry."," poor asymmetry.")),"—")';
+    
+    case 'ENHANCED PATTERNS':
+      return '=""';
     
     case 'ATH ZONE':
-      return '=IFERROR(' + lookup('AD') + ' & " - psychological zone based on distance from all-time highs.","—")';
+      return '=IFERROR(' + lookup('AD') + ' & " distance from all-time highs.","—")';
     
     case 'BBP SIGNAL':
-      return '=IFERROR(' + lookup('AE') + ' & " - Bollinger Band position signal for mean reversion opportunities.","—")';
+      return '=IFERROR(' + lookup('AE') + ' & " Bollinger Band position signal for mean reversion opportunities.","—")';
     
     case 'PATTERNS':
-      return '=IFERROR(IF(ISBLANK(' + lookup('AF') + '),"No enhanced patterns detected.",' + lookup('AF') + ' & " - institutional-grade pattern recognition."),"—")';
+      return '=""';
+    
+    case 'RISK MANAGEMENT':
+      return '=""';
     
     case 'ATR STOP':
-      return '=IFERROR("ATR-based stop: " & TEXT(' + numLookup('AG') + ',"$#,##0.00") & " (" & TEXT((' + numLookup('E') + '/' + numLookup('AG') + '-1),"+0.0%;-0.0%") & " risk from current price).","—")';
+      return '=IFERROR(TEXT(ABS((' + numLookup('E') + '/' + numLookup('AG') + '-1)),"+0.0%;-0.0%") & " risk from current price","—")';
     
     case 'ATR TARGET':
-      return '=IFERROR("ATR-based target: " & TEXT(' + numLookup('AH') + ',"$#,##0.00") & " (" & TEXT((' + numLookup('AH') + '/' + numLookup('E') + '-1),"+0.0%;-0.0%") & " reward potential).","—")';
+      return '=IFERROR(TEXT((' + numLookup('AH') + '/' + numLookup('E') + '-1),"+0.0%;-0.0%") & " reward potential","—")';
     
     case 'POSITION SIZE':
       return '=IFERROR(' + lookup('Z') + ' & " - volatility and ATH-adjusted institutional position sizing.","—")';
@@ -1035,6 +1054,17 @@ function setupChartSection_(REPORT) {
   REPORT.getRange('E3:M22')
     .setBackground('#0F172A')
     .setBorder(true, true, true, true, false, false, '#374151', SpreadsheetApp.BorderStyle.SOLID);
+  
+  // Add AI fundamental analysis in E17:M22 merged area
+  REPORT.getRange('E17:M25').merge()
+    .setFormula('=AI("Analyze " & A1 & " fundamentals for investment decision: analyst consensus rating and price target, forward P/E vs industry, revenue/earnings growth estimates, debt levels, profitability metrics, dividend sustainability, and any red flags or catalysts. Summarize investment thesis in 3-4 sentences.", A1)')
+    .setFontColor('#FFFFFF')
+    .setBackground('#0F172A')
+    .setWrap(true)
+    .setVerticalAlignment('top')
+    .setHorizontalAlignment('left')
+    .setFontSize(10)
+    .setFontFamily('Calibri');
 }
 
 /**
