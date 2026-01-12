@@ -1,6 +1,6 @@
 /**
  * ==============================================================================
- * CLEAN MOBILE REPORT GENERATOR - GOOGLE SHEETS FORMULA VERSION
+ * STABLE_MASTER_ALL_CLEAN_v2.1.4_KIRO_FINAL
  * ==============================================================================
  * Run: setupFormulaBasedReport()
  */
@@ -162,7 +162,7 @@ function createFormulaReport_(REPORT) {
   // Row 3: NEW ROW - Calculated date display (A3:B3 merged) and Weekly/Daily dropdown (C3)
   // Calculated date display (A3:B3 merged)
   REPORT.getRange('A3:B3').merge()
-    .setFormula('=IF(AND(ISNUMBER(VALUE(LEFT(A2,LEN(A2)-1))),ISNUMBER(VALUE(LEFT(B2,LEN(B2)-1))),ISNUMBER(VALUE(LEFT(C2,LEN(C2)-1)))),TEXT(TODAY()-VALUE(LEFT(A2,LEN(A2)-1))*365-VALUE(LEFT(B2,LEN(B2)-1))*30-VALUE(LEFT(C2,LEN(C2)-1)),"yyyy-mm-dd"),"Select Date")')
+    .setFormula('=IF(AND(ISNUMBER(VALUE(LEFT(A2,LEN(A2)-1))),ISNUMBER(VALUE(LEFT(B2,LEN(B2)-1))),ISNUMBER(VALUE(LEFT(C2,LEN(C2)-1)))),TODAY()-VALUE(LEFT(A2,LEN(A2)-1))*365-VALUE(LEFT(B2,LEN(B2)-1))*30-VALUE(LEFT(C2,LEN(C2)-1)),"Select Date")')
     .setBackground(P.BG_TOP)
     .setFontColor('#FFFFFF')
     .setFontWeight('normal')
@@ -226,7 +226,7 @@ function createFormulaReport_(REPORT) {
     .setFontWeight('normal')
     .setFontFamily('Calibri');
   
-  // Chart section (E3:M22) - starts after controls
+  // Chart section (E3:M30) - starts after controls
   setupChartSection_(REPORT);
   
   // Data rows start at row 8 (removed empty row, moved up from row 9)
@@ -240,7 +240,7 @@ function createFormulaReport_(REPORT) {
   row = addDataRow_(REPORT, row, 'EPS', '=IFERROR(GOOGLEFINANCE($A$1,"eps"),"")', '0.00');
   row = addDataRow_(REPORT, row, 'ATH', lookup('H'), '$#,##0.00');
   row = addDataRow_(REPORT, row, 'ATH %', lookup('I'), '0.00%');
-  row = addDataRow_(REPORT, row, 'Range %', `=IFERROR(IF(AND(ISNUMBER(VALUE(LEFT(A2,LEN(A2)-1))),ISNUMBER(VALUE(LEFT(B2,LEN(B2)-1))),ISNUMBER(VALUE(LEFT(C2,LEN(C2)-1)))),LET(currentPrice,GOOGLEFINANCE($A$1,"price"),historicalDate,TODAY()-VALUE(LEFT(A2,LEN(A2)-1))*365-VALUE(LEFT(B2,LEN(B2)-1))*30-VALUE(LEFT(C2,LEN(C2)-1)),historicalPrice,INDEX(GOOGLEFINANCE($A$1,"close",historicalDate,historicalDate+1),2,2),(currentPrice/historicalPrice-1)),"Select Date"),"—")`, '0.00%');
+  row = addDataRow_(REPORT, row, 'Range %', `=IFERROR(IF(AND(ISNUMBER(VALUE(LEFT(A2,LEN(A2)-1))),ISNUMBER(VALUE(LEFT(B2,LEN(B2)-1))),ISNUMBER(VALUE(LEFT(C2,LEN(C2)-1)))),LET(currentPrice,GOOGLEFINANCE($A$1,"price"),historicalDate,A3,historicalPrice,INDEX(GOOGLEFINANCE($A$1,"price",historicalDate),2,2),(currentPrice/historicalPrice-1)),"Select Date"),"—")`, '0.00%');
   
   // TREND ANALYSIS Section - Moving Averages & Trend Strength
   row = addSection_(REPORT, row, 'TREND ANALYSIS');
@@ -423,22 +423,22 @@ function getNarrativeFormula_(label) {
       return '=""';
     
     case 'ATH %':
-      return '=IFERROR(TEXT(' + lookup('I') + ',"+0.00%;-0.00%") & IF(' + lookup('I') + '>=-0.02," at ATH zone",IF(' + lookup('I') + '>=-0.15," pullback zone"," correction territory")) & ". Range % " & TEXT((' + numLookup('E') + '/INDEX(GOOGLEFINANCE($A$1,"close",TODAY()-30,TODAY()),2,2)-1),"+0.00%;-0.00%") & " from " & TEXT(TODAY()-30,"yyyy-mm-dd"),"—")';
+      return '=IFERROR(TEXT(' + lookup('I') + ',"+0.00%;-0.00%") & IF(' + lookup('I') + '>=-0.02," at ATH zone",IF(' + lookup('I') + '>=-0.15," pullback zone"," correction territory")),"—")';
     
     case 'Range %':
-      return '=IFERROR(TEXT((' + numLookup('E') + '/INDEX(GOOGLEFINANCE($A$1,"close",TODAY()-30,TODAY()),2,2)-1),"+0.00%;-0.00%") & " from " & TEXT(TODAY()-30,"yyyy-mm-dd"),"—")';
+      return '=IFERROR(TEXT((GOOGLEFINANCE($A$1,"price")/INDEX(GOOGLEFINANCE($A$1,"price",A3),2,2)-1),"+0.00%;-0.00%") & " from " & TEXT(A3,"yyyy-mm-dd"),"—")';
     
     case 'TREND ANALYSIS':
       return '=""';
     
     case 'SMA20':
-      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('M') + '-1),"+0.0%;-0.0%") & " vs " & TEXT(' + numLookup('E') + ',"$#,##0.00") & IF(' + numLookup('E') + '>=' + numLookup('M') + '," - short-term bullish."," - short-term bearish."),"—")';
+      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('M') + '-1),"+0.0%;-0.0%") & IF(' + numLookup('E') + '>=' + numLookup('M') + '," - short-term bullish."," - short-term bearish."),"—")';
     
     case 'SMA50':
-      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('N') + '-1),"+0.0%;-0.0%") & " vs " & TEXT(' + numLookup('E') + ',"$#,##0.00") & IF(' + numLookup('E') + '>=' + numLookup('N') + '," - medium-term bullish."," - medium-term bearish."),"—")';
+      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('N') + '-1),"+0.0%;-0.0%") & IF(' + numLookup('E') + '>=' + numLookup('N') + '," - medium-term bullish."," - medium-term bearish."),"—")';
     
     case 'SMA200':
-      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('O') + '-1),"+0.0%;-0.0%") & " vs " & TEXT(' + numLookup('E') + ',"$#,##0.00") & IF(' + numLookup('E') + '>=' + numLookup('O') + '," - RISK-ON regime."," - RISK-OFF regime."),"—")';
+      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('O') + '-1),"+0.0%;-0.0%") & IF(' + numLookup('E') + '>=' + numLookup('O') + '," - RISK-ON regime."," - RISK-OFF regime."),"—")';
     
     case 'ADX':
       return '=IFERROR("Trend strength: " & IF(' + lookup('S') + '>=25," strong ",IF(' + lookup('S') + '>=20," developing ",IF(' + lookup('S') + '>=15," weak "," range-bound "))),"—")';
@@ -1047,18 +1047,18 @@ function setupChartControls_(REPORT) {
  * Setup chart section placeholder - NO MERGE, prepare for floating chart (E3:M22)
  */
 function setupChartSection_(REPORT) {
-  // Clear the chart area completely - no merging, let chart float (E3:M22)
-  REPORT.getRange('E3:M22').clearContent().clearFormat();
+  // Clear the chart area completely - no merging, let chart float (E3:M30)
+  REPORT.getRange('E3:M30').clearContent().clearFormat();
   
   // Just set a simple background color for the chart area
-  REPORT.getRange('E3:M22')
+  REPORT.getRange('E3:M30')
     .setBackground('#0F172A')
     .setBorder(true, true, true, true, false, false, '#374151', SpreadsheetApp.BorderStyle.SOLID);
   
-  // Add AI fundamental analysis in E17:M22 merged area
-  REPORT.getRange('E17:M25').merge()
+  // Add AI fundamental analysis in E18:M30 merged area with yellow font
+  REPORT.getRange('E18:M30').merge()
     .setFormula('=AI("Analyze " & A1 & " fundamentals for investment decision: analyst consensus rating and price target, forward P/E vs industry, revenue/earnings growth estimates, debt levels, profitability metrics, dividend sustainability, and any red flags or catalysts. Summarize investment thesis in 3-4 sentences.", A1)')
-    .setFontColor('#FFFFFF')
+    .setFontColor('#FFFF00')
     .setBackground('#0F172A')
     .setWrap(true)
     .setVerticalAlignment('top')

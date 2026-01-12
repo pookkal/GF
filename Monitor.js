@@ -2,7 +2,7 @@
 
 /**
 * ------------------------------------------------------------------
-* 7. AUTOMATED ALERT & MONITOR SYSTEM
+* STABLE_MASTER_ALL_CLEAN_v2.1.4_KIRO_FINAL
 * ------------------------------------------------------------------
 */
 
@@ -56,16 +56,16 @@ function checkSignalsAndSendAlerts() {
   const lastRow = calcSheet.getLastRow();
   if (lastRow < 3) return;
 
-  // A..AB (28 cols)
-  const range = calcSheet.getRange(3, 1, lastRow - 2, 28);
+  // A..AI (35 cols) - includes new LAST STATE column
+  const range = calcSheet.getRange(3, 1, lastRow - 2, 35);
   const data = range.getValues();
 
   const alerts = [];
 
   data.forEach((r, i) => {
     const ticker = (r[0] || "").toString().trim();     // A
-    const decision = (r[2] || "").toString().trim();   // C (DECISION) ✅
-    // Note: LAST_STATE column removed - state tracking simplified
+    const decision = (r[3] || "").toString().trim();   // D (DECISION)
+    const lastState = (r[34] || "").toString().trim(); // AI (LAST STATE)
 
     if (!ticker || !decision || decision === "LOADING") return;
     if (decision === lastState) return;
@@ -79,8 +79,8 @@ function checkSignalsAndSendAlerts() {
       );
     }
 
-    // Persist the new last notified decision into AB
-    calcSheet.getRange(i + 3, 28).setValue(decision);
+    // Persist the new last notified decision into AI (column 35)
+    calcSheet.getRange(i + 3, 35).setValue(decision);
   });
 
   if (alerts.length === 0) return;

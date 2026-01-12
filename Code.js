@@ -1,6 +1,6 @@
 /**
 * ==============================================================================
-* STABLE_MASTER_ALL_CLEAN_v2.1._INVEST
+* STABLE_MASTER_ALL_CLEAN_v2.1.4_KIRO_FINAL
 * ==============================================================================
 */
 
@@ -507,10 +507,10 @@ function generateCalculationsSheet() {
 
   calc.clear().clearFormats();
 
-  // Ensure sheet has enough columns for all our data (34 columns total)
+  // Ensure sheet has enough columns for all our data (35 columns total)
   const maxCols = calc.getMaxColumns();
-  if (maxCols < 34) {
-    calc.insertColumnsAfter(maxCols, 34 - maxCols);
+  if (maxCols < 35) {
+    calc.insertColumnsAfter(maxCols, 35 - maxCols);
   }
 
   // ------------------------------------------------------------------
@@ -548,16 +548,16 @@ function generateCalculationsSheet() {
     .setVerticalAlignment("middle");
 
   // ------------------------------------------------------------------
-  // ROW 2: COLUMN HEADERS (34 columns total - includes enhanced indicators AC-AH)
+  // ROW 2: COLUMN HEADERS (35 columns total - includes enhanced indicators AC-AH + lastState AI)
   // ------------------------------------------------------------------
   const headers = [[
     "Ticker", "SIGNAL", "FUNDAMENTAL", "DECISION", "Price", "Change %", "Vol Trend", "ATH (TRUE)", "ATH Diff %", "R:R Quality",
     "Trend Score", "Trend State", "SMA 20", "SMA 50", "SMA 200", "RSI", "MACD Hist", "Divergence", "ADX (14)", "Stoch %K (14)",
     "Support", "Resistance", "Target (3:1)", "ATR (14)", "Bollinger %B", "POSITION SIZE", "TECH NOTES", "FUND NOTES",
-    "VOL REGIME", "ATH ZONE", "BBP SIGNAL", "PATTERNS", "ATR STOP", "ATR TARGET"
+    "VOL REGIME", "ATH ZONE", "BBP SIGNAL", "PATTERNS", "ATR STOP", "ATR TARGET", "LAST STATE"
   ]];
 
-  calc.getRange(2, 1, 1, 34)
+  calc.getRange(2, 1, 1, 35)
     .setValues(headers)
     .setBackground("#111111")
     .setFontColor("white")
@@ -954,6 +954,9 @@ function generateCalculationsSheet() {
     const fATRStop = `=ROUND(MAX($U${row}${SEP}$E${row}-($X${row}*2))${SEP}2)`;
     const fATRTarget = `=ROUND($E${row}+($X${row}*3)${SEP}2)`;
 
+    // AI LAST STATE - Copy previous DECISION value for monitoring changes
+    const fLastState = `=IF($A${row}=""${SEP}""${SEP}$D${row})`;
+
     // Z TECH NOTES — parse-safe + correct columns + Stoch shown as %
     const fTechNotes =
       `=IF($A${row}=""${SEP}""${SEP}` +
@@ -1253,13 +1256,14 @@ function generateCalculationsSheet() {
       fBBSignal,    // AE - BBP mean reversion signals
       fPatterns,    // AF - Pattern detection
       fATRStop,     // AG - ATR-based stop loss
-      fATRTarget    // AH - ATR-based target
+      fATRTarget,   // AH - ATR-based target
+      fLastState    // AI - Last state for monitoring changes
     ]);
   });
 
   if (tickers.length > 0) {
-    // B..AH (33 cols total: B-Y=24, Z=1 position size, AA-AB=2 notes, AC-AH=6 enhanced indicators)
-    calc.getRange(3, 2, formulas.length, 33).setFormulas(formulas);
+    // B..AI (34 cols total: B-Y=24, Z=1 position size, AA-AB=2 notes, AC-AH=6 enhanced indicators, AI=1 last state)
+    calc.getRange(3, 2, formulas.length, 34).setFormulas(formulas);
   }
 
   // ------------------------------------------------------------------
@@ -1271,7 +1275,7 @@ function generateCalculationsSheet() {
   if (lr > 2) {
     const dataRows = lr - 2;
     calc.setRowHeights(3, dataRows, 72);
-    calc.getRange(3, 1, dataRows, 34)
+    calc.getRange(3, 1, dataRows, 35)
       .setHorizontalAlignment("left")
       .setVerticalAlignment("middle")
       .setWrap(true);
