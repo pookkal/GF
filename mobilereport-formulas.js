@@ -92,7 +92,7 @@ function createFormulaReport_(REPORT) {
     .setBackground(P.BG_TOP)
     .setFontColor('#FFFFFF')
     .setFontWeight('normal')
-    .setFontSize(14)
+    .setFontSize(10)
     .setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
   
@@ -166,7 +166,7 @@ function createFormulaReport_(REPORT) {
     .setBackground(P.BG_TOP)
     .setFontColor('#FFFFFF')
     .setFontWeight('normal')
-    .setFontSize(12)
+    .setFontSize(10)
     .setFontFamily('Calibri')
     .setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
@@ -200,15 +200,15 @@ function createFormulaReport_(REPORT) {
   
   // Style decision section
   REPORT.getRange('A4:D6')
-    .setFontColor(P.BLACK)
     .setFontWeight('normal')
-    .setFontSize(11)
+    .setFontSize(10)
     .setFontFamily('Calibri')
     .setBorder(true, true, true, true, true, true, P.GRID, SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
   
-  // Apply yellow background only to labels (column A)
+  // Set decision label cells (A4:A6) to header background with dark pink font
   REPORT.getRange('A4:A6')
-    .setBackground(P.YELLOW);
+    .setBackground(P.BG_TOP)
+    .setFontColor('#FF1493'); // Dark pink
   
   // Set decision value cells to dark background
   REPORT.getRange('B4:D6')
@@ -218,74 +218,82 @@ function createFormulaReport_(REPORT) {
   // Apply conditional formatting to decision cells
   applyDecisionConditionalFormatting_(REPORT);
   
-  // Regime status (now row 7, was row 6)
-  REPORT.getRange('A7').setFormula(`=IF(ISBLANK($A$1),"Select ticker in A1",IF(IFERROR(INDEX(CALCULATIONS!E:E,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0)),0)>=IFERROR(INDEX(CALCULATIONS!O:O,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0)),0),"RISK-ON (Above SMA200)","RISK-OFF (Below SMA200)"))`);
-  REPORT.getRange('A7:D7').merge()
-    .setBackground('#1F2937')
-    .setFontColor('#FFFFFF')
-    .setFontWeight('normal')
-    .setFontFamily('Calibri');
-  
   // Chart section (E3:M30) - starts after controls
   setupChartSection_(REPORT);
   
-  // Data rows start at row 8 (removed empty row, moved up from row 9)
-  let row = 8;
+  // Data rows start at row 7 - organized to match Dashboard structure
+  let row = 7;
   
-  // MARKET SNAPSHOT Section - Basic Price & Fundamental Data (Added PRICE)
-  row = addSection_(REPORT, row, 'MARKET SNAPSHOT');
+  // SIGNALING Section - Signal, Fundamental, Decision (Dashboard columns B-D)
+  // NOTE: These are already displayed in rows 4-6, so we skip them here to avoid duplication
+  
+  // PRICE Section - Price & Change % (Dashboard columns E-F)
+  row = addSection_(REPORT, row, 'PRICE');
   row = addDataRow_(REPORT, row, 'PRICE', lookup('E'), '$#,##0.00');
   row = addDataRow_(REPORT, row, 'CHG%', lookup('F'), '0.00%');
   row = addDataRow_(REPORT, row, 'P/E', '=IFERROR(GOOGLEFINANCE($A$1,"pe"),"")', '0.00');
   row = addDataRow_(REPORT, row, 'EPS', '=IFERROR(GOOGLEFINANCE($A$1,"eps"),"")', '0.00');
-  row = addDataRow_(REPORT, row, 'ATH', lookup('H'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'ATH %', lookup('I'), '0.00%');
   row = addDataRow_(REPORT, row, 'Range %', `=IFERROR(IF(AND(ISNUMBER(VALUE(LEFT(A2,LEN(A2)-1))),ISNUMBER(VALUE(LEFT(B2,LEN(B2)-1))),ISNUMBER(VALUE(LEFT(C2,LEN(C2)-1)))),LET(currentPrice,GOOGLEFINANCE($A$1,"price"),historicalDate,A3,historicalPrice,INDEX(GOOGLEFINANCE($A$1,"price",historicalDate),2,2),(currentPrice/historicalPrice-1)),"Select Date"),"—")`, '0.00%');
   
-  // TREND ANALYSIS Section - Moving Averages & Trend Strength
-  row = addSection_(REPORT, row, 'TREND ANALYSIS');
-  row = addDataRow_(REPORT, row, 'SMA20', lookup('M'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'SMA50', lookup('N'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'SMA200', lookup('O'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'ADX', lookup('S'), '0.00');
-  row = addDataRow_(REPORT, row, 'TREND STATE', lookup('L'), '@');
-  row = addDataRow_(REPORT, row, 'TREND SCORE', lookup('K'), '@');
+  // PERFORMANCE Section - ATH metrics & R:R Quality (Dashboard columns G-J)
+  row = addSection_(REPORT, row, 'PERFORMANCE');
+  row = addDataRow_(REPORT, row, 'ATH (TRUE)', lookup('H'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'ATH Diff %', lookup('I'), '0.00%');
+  row = addDataRow_(REPORT, row, 'ATH ZONE', lookup('AD'), '@');
+  row = addDataRow_(REPORT, row, 'R:R Quality', lookup('J'), '0.00"x"');
   
-  // MOMENTUM OSCILLATORS Section - RSI, MACD, Stochastic
-  row = addSection_(REPORT, row, 'MOMENTUM OSCILLATORS');
+  // TREND Section - Trend Score, State & SMAs (Dashboard columns K-O)
+  row = addSection_(REPORT, row, 'TREND');
+  row = addDataRow_(REPORT, row, 'TREND SCORE', lookup('K'), '@');
+  row = addDataRow_(REPORT, row, 'TREND STATE', lookup('L'), '@');
+  row = addDataRow_(REPORT, row, 'SMA 20', lookup('M'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'SMA 50', lookup('N'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'SMA 200', lookup('O'), '$#,##0.00');
+  
+  // MOMENTUM Section - RSI, MACD, Divergence, ADX, Stochastic (Dashboard columns P-T)
+  row = addSection_(REPORT, row, 'MOMENTUM');
   row = addDataRow_(REPORT, row, 'RSI', lookup('P'), '0.0');
   row = addDataRow_(REPORT, row, 'MACD Hist', lookup('Q'), '0.000');
-  row = addDataRow_(REPORT, row, 'Stoch %K', lookup('T'), '0.0%');
   row = addDataRow_(REPORT, row, 'Divergence', lookup('R'), '@');
+  row = addDataRow_(REPORT, row, 'ADX (14)', lookup('S'), '0.00');
+  row = addDataRow_(REPORT, row, 'Stoch %K (14)', lookup('T'), '0.00%');
   
-  // VOLATILITY & VOLUME Section - ATR, Volume, Bollinger Bands
-  row = addSection_(REPORT, row, 'VOLATILITY & VOLUME');
-  row = addDataRow_(REPORT, row, 'ATR', lookup('X'), '0.00');
-  row = addDataRow_(REPORT, row, 'RVOL', lookup('G'), '0.00"x"');
+  // VOLUME / VOLATILITY Section - Vol Trend, ATR, Bollinger, Vol Regime, Position Size, Event (CALC columns G, X, Y, AC, Z, AF)
+  row = addSection_(REPORT, row, 'VOLUME / VOLATILITY');
+  row = addDataRow_(REPORT, row, 'Vol Trend', lookup('G'), '0.00"x"');
+  row = addDataRow_(REPORT, row, 'ATR (14)', lookup('X'), '0.00');
   row = addDataRow_(REPORT, row, 'Bollinger %B', lookup('Y'), '0.0%');
   row = addDataRow_(REPORT, row, 'VOL REGIME', lookup('AC'), '@');
+  row = addDataRow_(REPORT, row, 'POSITION SIZE', lookup('Z'), '@');
+  row = addDataRow_(REPORT, row, 'EVENT', lookup('AF'), '@');
   
-  // SUPPORT & RESISTANCE Section - Key Levels & Targets
-  row = addSection_(REPORT, row, 'SUPPORT & RESISTANCE');
+  // TARGET Section - BBP Signal, Support, Resistance, Target, ATR Stop, ATR Target (CALC columns AE, U, V, W, AG, AH)
+  row = addSection_(REPORT, row, 'TARGET');
+  row = addDataRow_(REPORT, row, 'BBP SIGNAL', lookup('AE'), '@');
   row = addDataRow_(REPORT, row, 'Support', lookup('U'), '$#,##0.00');
   row = addDataRow_(REPORT, row, 'Resistance', lookup('V'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'Target', lookup('W'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'R:R Ratio', lookup('J'), '0.00"x"');
-  
-  // ENHANCED PATTERNS Section - New Pattern Recognition
-  row = addSection_(REPORT, row, 'ENHANCED PATTERNS');
-  row = addDataRow_(REPORT, row, 'ATH ZONE', lookup('AD'), '@');
-  row = addDataRow_(REPORT, row, 'BBP SIGNAL', lookup('AE'), '@');
-  row = addDataRow_(REPORT, row, 'PATTERNS', lookup('AF'), '@');
-  
-  // RISK MANAGEMENT Section - ATR-based Stops & Targets
-  row = addSection_(REPORT, row, 'RISK MANAGEMENT');
+  row = addDataRow_(REPORT, row, 'Target (3:1)', lookup('W'), '$#,##0.00');
   row = addDataRow_(REPORT, row, 'ATR STOP', lookup('AG'), '$#,##0.00');
   row = addDataRow_(REPORT, row, 'ATR TARGET', lookup('AH'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'POSITION SIZE', lookup('Z'), '@');
   
-  // Narrative sections - only FUND NOTES (now in column AB)
-  row = addNarrative_(REPORT, row, 'FUND NOTES', `=IFERROR(INDEX(CALCULATIONS!AB:AB,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0)),"—")`);
+  // FUND NOTES - Add as merged cell area at row 44 (A44:C55) with yellow font
+  REPORT.getRange('A44:C55').merge()
+    .setFormula(lookup('AB'))
+    .setBackground(P.BG_ROW_A)
+    .setFontColor('#FFFF00') // Yellow font
+    .setFontWeight('normal')
+    .setFontSize(10)
+    .setFontFamily('Calibri')
+    .setWrap(true)
+    .setVerticalAlignment('top')
+    .setHorizontalAlignment('left')
+    .setBorder(true, true, true, true, false, false, P.GRID, SpreadsheetApp.BorderStyle.SOLID);
+  
+  // Add margin: 4 columns × 4 rows below the report (starting at row 56)
+  const marginStartRow = 56;
+  REPORT.getRange(marginStartRow, 1, 4, 4)
+    .setBackground('#000000')
+    .clearContent();
   
   // Final styling
   const finalRow = REPORT.getLastRow();
@@ -304,10 +312,10 @@ function addSection_(REPORT, row, title) {
   const P = reportPalette___();
   REPORT.getRange(row, 1).setValue(title);
   REPORT.getRange(row, 1, 1, 3).merge()
-    .setBackground(P.PANEL)
+    .setBackground('#1F2937') // Slightly lighter than PANEL for distinction
     .setFontColor(P.TEXT)
-    .setFontWeight('normal')
-    .setFontSize(11)
+    .setFontWeight('bold') // Make section headers bold
+    .setFontSize(10)
     .setFontFamily('Calibri')
     .setBorder(true, true, true, true, false, false, P.GRID, SpreadsheetApp.BorderStyle.SOLID)
     .setHorizontalAlignment('left');
@@ -321,8 +329,8 @@ function addSection_(REPORT, row, title) {
 function addDataRow_(REPORT, row, label, formula, format) {
   const P = reportPalette___();
   
-  // Check if this is in the enhanced inference section (rows 35-45)
-  const isInferenceSection = (row >= 35 && row <= 45);
+  // Check if this is in the enhanced inference section (rows 34-44)
+  const isInferenceSection = (row >= 34 && row <= 44);
   
   // Label
   REPORT.getRange(row, 1).setValue(label);
@@ -330,7 +338,7 @@ function addDataRow_(REPORT, row, label, formula, format) {
   // Formula in column B
   REPORT.getRange(row, 2).setFormula(formula);
   
-  // Enhanced two-column format for inference section (rows 35-45)
+  // Enhanced two-column format for inference section (rows 34-44)
   if (isInferenceSection) {
     // Column C gets the inference/narrative
     const narrativeFormula = getNarrativeFormula_(label);
@@ -346,13 +354,15 @@ function addDataRow_(REPORT, row, label, formula, format) {
     
     REPORT.setRowHeight(row, 40); // Taller for inference content
   } else {
-    // Original format for other rows - check if split zone (rows 8-34)
-    const isSplit = (row >= 8 && row <= 34);
+    // Original format for other rows - check if split zone (rows 7-44)
+    const isSplit = (row >= 7 && row <= 44);
     if (isSplit) {
       const narrativeFormula = getNarrativeFormula_(label);
       REPORT.getRange(row, 3).setFormula(narrativeFormula);
+      
+      // NO MERGE - keep B and C separate for split zone
     } else {
-      // Merge B:C for non-split rows
+      // Merge B:C for non-split rows (rows beyond 44)
       REPORT.getRange(row, 2, 1, 2).merge();
     }
     
@@ -381,7 +391,7 @@ function addDataRow_(REPORT, row, label, formula, format) {
   applyConditionalFormatting_(REPORT, row, label);
   
   // Special handling for SMA color coding (post-process after formula is set)
-  if (label === 'SMA20' || label === 'SMA50' || label === 'SMA200') {
+  if (label === 'SMA 20' || label === 'SMA 50' || label === 'SMA 200') {
     applySMAColorCoding_(REPORT, row, label);
   }
   
@@ -407,6 +417,17 @@ function getNarrativeFormula_(label) {
   const numLookup = (col) => `IFERROR(VALUE(INDEX(CALCULATIONS!${col}:${col},MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0))),0)`;
   
   switch (label) {
+    // SIGNALING Section
+    case 'SIGNAL':
+      return '=""';
+    
+    case 'FUNDAMENTAL':
+      return '=""';
+    
+    case 'DECISION':
+      return '=""';
+    
+    // PRICE Section
     case 'PRICE':
       return '=""';
     
@@ -419,59 +440,60 @@ function getNarrativeFormula_(label) {
     case 'EPS':
       return '=IFERROR(IF(GOOGLEFINANCE($A$1,"eps")>=0.50,"profitable","unprofitable"),"—")';
     
-    case 'ATH':
-      return '=""';
-    
-    case 'ATH %':
-      return '=IFERROR(TEXT(' + lookup('I') + ',"+0.00%;-0.00%") & IF(' + lookup('I') + '>=-0.02," at ATH zone",IF(' + lookup('I') + '>=-0.15," pullback zone"," correction territory")),"—")';
-    
     case 'Range %':
       return '=IFERROR(TEXT((GOOGLEFINANCE($A$1,"price")/INDEX(GOOGLEFINANCE($A$1,"price",A3),2,2)-1),"+0.00%;-0.00%") & " from " & TEXT(A3,"yyyy-mm-dd"),"—")';
     
-    case 'TREND ANALYSIS':
+    // PERFORMANCE Section
+    case 'ATH (TRUE)':
       return '=""';
     
-    case 'SMA20':
-      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('M') + '-1),"+0.0%;-0.0%") & IF(' + numLookup('E') + '>=' + numLookup('M') + '," - short-term bullish."," - short-term bearish."),"—")';
+    case 'ATH Diff %':
+      return '=IFERROR(TEXT(' + lookup('I') + ',"+0.00%;-0.00%") & IF(' + lookup('I') + '>=-0.02," at ATH zone",IF(' + lookup('I') + '>=-0.15," pullback zone"," correction territory")),"—")';
     
-    case 'SMA50':
-      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('N') + '-1),"+0.0%;-0.0%") & IF(' + numLookup('E') + '>=' + numLookup('N') + '," - medium-term bullish."," - medium-term bearish."),"—")';
+    case 'ATH ZONE':
+      return '=IFERROR(' + lookup('AD') + ' & " distance from all-time highs.","—")';
     
-    case 'SMA200':
-      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('O') + '-1),"+0.0%;-0.0%") & IF(' + numLookup('E') + '>=' + numLookup('O') + '," - RISK-ON regime."," - RISK-OFF regime."),"—")';
+    case 'R:R Quality':
+      return '=IFERROR(IF(' + lookup('J') + '>=3," elite asymmetry.",IF(' + lookup('J') + '>=1.5," acceptable asymmetry."," poor asymmetry.")),"—")';
     
-    case 'ADX':
-      return '=IFERROR("Trend strength: " & IF(' + lookup('S') + '>=25," strong ",IF(' + lookup('S') + '>=20," developing ",IF(' + lookup('S') + '>=15," weak "," range-bound "))),"—")';
+    // TREND Section
+    case 'TREND SCORE':
+      return '=""';
     
     case 'TREND STATE':
       return '=IFERROR(' + lookup('L') + ' & " market regime based on SMA200 position.","—")';
     
-    case 'TREND SCORE':
-      return '=""';
+    case 'SMA 20':
+      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('M') + '-1),"+0.0%;-0.0%") & IF(' + numLookup('E') + '>=' + numLookup('M') + '," - short-term bullish."," - short-term bearish."),"—")';
     
-    case 'MOMENTUM OSCILLATORS':
-      return '=""';
+    case 'SMA 50':
+      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('N') + '-1),"+0.0%;-0.0%") & IF(' + numLookup('E') + '>=' + numLookup('N') + '," - medium-term bullish."," - medium-term bearish."),"—")';
     
+    case 'SMA 200':
+      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('O') + '-1),"+0.0%;-0.0%") & IF(' + numLookup('E') + '>=' + numLookup('O') + '," - RISK-ON regime."," - RISK-OFF regime."),"—")';
+    
+    // MOMENTUM Section
     case 'RSI':
       return '=IFERROR(IF(' + lookup('P') + '>=70,"overbought zone.",IF(' + lookup('P') + '<=30,"oversold zone.",IF(' + lookup('P') + '>=55,"positive momentum.",IF(' + lookup('P') + '<=45,"weak momentum.","neutral range.")))),"—")';
     
     case 'MACD Hist':
       return '=IFERROR(IF(' + lookup('Q') + '>0,"positive momentum impulse.",IF(' + lookup('Q') + '<0,"negative momentum impulse.","flat momentum.")),"—")';
     
-    case 'Stoch %K':
-      return '=IFERROR(IF(' + lookup('T') + '>=0.8,"overbought timing.",IF(' + lookup('T') + '<=0.2,"oversold timing.","neutral timing.")),"—")';
-    
     case 'Divergence':
       return '=IFERROR(IF(' + lookup('R') + '="BULL DIV","Bullish divergence detected.",IF(' + lookup('R') + '="BEAR DIV","Bearish divergence detected.","— No momentum divergence detected.")),"—")';
     
-    case 'VOLATILITY & VOLUME':
-      return '=""';
+    case 'ADX (14)':
+      return '=IFERROR("Trend strength: " & IF(' + lookup('S') + '>=25," strong ",IF(' + lookup('S') + '>=20," developing ",IF(' + lookup('S') + '>=15," weak "," range-bound "))),"—")';
     
-    case 'ATR':
-      return '=IFERROR(TEXT(' + lookup('X') + '/' + lookup('E') + ',"0.0%") & " of price - volatility measure.","—")';
+    case 'Stoch %K (14)':
+      return '=IFERROR(IF(' + lookup('T') + '>=0.8,"overbought timing.",IF(' + lookup('T') + '<=0.2,"oversold timing.","neutral timing.")),"—")';
     
-    case 'RVOL':
+    // VOLUME / VOLATILITY Section
+    case 'Vol Trend':
       return '=IFERROR(IF(' + lookup('G') + '>=1.5,"strong participation.",IF(' + lookup('G') + '>=1,"average participation.","low participation (drift risk).")),"—")';
+    
+    case 'ATR (14)':
+      return '=IFERROR(TEXT(' + lookup('X') + '/' + lookup('E') + ',"0.0%") & " of price - volatility measure.","—")';
     
     case 'Bollinger %B':
       return '=IFERROR(IF(' + lookup('Y') + '>1," above upper band.",IF(' + lookup('Y') + '>=0.8," upper band zone.",IF(' + lookup('Y') + '<0," below lower band.",IF(' + lookup('Y') + '<=0.2," lower band zone."," mid-band zone.")))),"—")';
@@ -479,8 +501,15 @@ function getNarrativeFormula_(label) {
     case 'VOL REGIME':
       return '=""';
     
-    case 'SUPPORT & RESISTANCE':
+    case 'POSITION SIZE':
+      return '=IFERROR(' + lookup('Z') + ' & " - volatility and ATH-adjusted institutional position sizing.","—")';
+    
+    case 'EVENT':
       return '=""';
+    
+    // TARGET Section
+    case 'BBP SIGNAL':
+      return '=IFERROR(' + lookup('AE') + ' & " Bollinger Band position signal for mean reversion opportunities.","—")';
     
     case 'Support':
       return '=IFERROR(IF(' + numLookup('U') + '<' + numLookup('E') + ',TEXT(' + numLookup('E') + ',"$#,##0.00") & " > " & TEXT((' + numLookup('E') + '/' + numLookup('U') + '-1),"+0.0%") & " support",TEXT(' + numLookup('E') + ',"$#,##0.00") & " < " & TEXT((' + numLookup('U') + '/' + numLookup('E') + '-1),"+0.0%") & " support"),"—")';
@@ -488,35 +517,14 @@ function getNarrativeFormula_(label) {
     case 'Resistance':
       return '=IFERROR(IF(' + numLookup('V') + '>' + numLookup('E') + ',TEXT(' + numLookup('E') + ',"$#,##0.00") & " " & TEXT((' + numLookup('E') + '/' + numLookup('V') + '-1),"0.0%") & " below Resistance",TEXT(' + numLookup('E') + ',"$#,##0.00") & " " & TEXT((' + numLookup('E') + '/' + numLookup('V') + '-1),"+0.0%") & " above Resistance"),"—")';
     
-    case 'Target':
+    case 'Target (3:1)':
       return '=IFERROR(TEXT((' + numLookup('W') + '/' + numLookup('E') + '-1),"+0.00%;-0.00%") & " upside potential","—")';
-    
-    case 'R:R Ratio':
-      return '=IFERROR(IF(' + lookup('J') + '>=3," elite asymmetry.",IF(' + lookup('J') + '>=1.5," acceptable asymmetry."," poor asymmetry.")),"—")';
-    
-    case 'ENHANCED PATTERNS':
-      return '=""';
-    
-    case 'ATH ZONE':
-      return '=IFERROR(' + lookup('AD') + ' & " distance from all-time highs.","—")';
-    
-    case 'BBP SIGNAL':
-      return '=IFERROR(' + lookup('AE') + ' & " Bollinger Band position signal for mean reversion opportunities.","—")';
-    
-    case 'PATTERNS':
-      return '=""';
-    
-    case 'RISK MANAGEMENT':
-      return '=""';
     
     case 'ATR STOP':
       return '=IFERROR(TEXT(ABS((' + numLookup('E') + '/' + numLookup('AG') + '-1)),"+0.0%;-0.0%") & " risk from current price","—")';
     
     case 'ATR TARGET':
       return '=IFERROR(TEXT((' + numLookup('AH') + '/' + numLookup('E') + '-1),"+0.0%;-0.0%") & " reward potential","—")';
-    
-    case 'POSITION SIZE':
-      return '=IFERROR(' + lookup('Z') + ' & " - volatility and ATH-adjusted institutional position sizing.","—")';
     
     default:
       return '"No explanation available."';
@@ -598,7 +606,7 @@ function applyConditionalFormatting_(REPORT, row, label) {
       );
       break;
       
-    case 'ATH %':
+    case 'ATH DIFF %':
       rules.push(
         SpreadsheetApp.newConditionalFormatRule()
           .whenNumberGreaterThanOrEqualTo(-0.02)
@@ -638,7 +646,7 @@ function applyConditionalFormatting_(REPORT, row, label) {
       );
       break;
       
-    case 'RVOL':
+    case 'VOL TREND':
       rules.push(
         SpreadsheetApp.newConditionalFormatRule()
           .whenNumberGreaterThanOrEqualTo(1.5)
@@ -655,7 +663,7 @@ function applyConditionalFormatting_(REPORT, row, label) {
       );
       break;
       
-    case 'R:R RATIO':
+    case 'R:R QUALITY':
       rules.push(
         SpreadsheetApp.newConditionalFormatRule()
           .whenNumberGreaterThanOrEqualTo(3)
@@ -707,7 +715,7 @@ function applyConditionalFormatting_(REPORT, row, label) {
       );
       break;
       
-    case 'ADX':
+    case 'ADX (14)':
       rules.push(
         SpreadsheetApp.newConditionalFormatRule()
           .whenNumberGreaterThanOrEqualTo(25)
@@ -724,7 +732,7 @@ function applyConditionalFormatting_(REPORT, row, label) {
       );
       break;
       
-    case 'STOCH %K':
+    case 'STOCH %K (14)':
       rules.push(
         SpreadsheetApp.newConditionalFormatRule()
           .whenNumberGreaterThanOrEqualTo(0.8)
@@ -770,9 +778,9 @@ function applyConditionalFormatting_(REPORT, row, label) {
       );
       break;
       
-    case 'SMA20':
-    case 'SMA50':  
-    case 'SMA200':
+    case 'SMA 20':
+    case 'SMA 50':  
+    case 'SMA 200':
       // Note: For SMA comparison, we'd need cross-sheet references which aren't allowed
       // The color coding will be handled by the narrative text instead
       break;
@@ -1179,9 +1187,9 @@ function createReportChartInternal_(REPORT, ticker) {
     if (tickerRow !== -1) {
       const calcRow = calcData[tickerRow];
       currentPrice = Number(calcRow[4]) || 0; // Column E - Current Price
-      support = Number(calcRow[20]) || 0; // Column U - Support  
-      resistance = Number(calcRow[21]) || 0; // Column V - Resistance
-      atr = Number(calcRow[23]) || 0; // Column X - ATR
+      support = Number(calcRow[20]) || 0; // Column U - Support (index 20)
+      resistance = Number(calcRow[21]) || 0; // Column V - Resistance (index 21)
+      atr = Number(calcRow[23]) || 0; // Column X - ATR (14) (index 23)
       currentRSI = Number(calcRow[15]) || 50; // Column P - RSI
     }
   }
@@ -2093,13 +2101,13 @@ function applySMAColorCoding_(REPORT, row, label) {
   let helperFormula = '';
   
   switch (label) {
-    case 'SMA20':
+    case 'SMA 20':
       helperFormula = '=IF(IFERROR(INDEX(CALCULATIONS!E:E,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0)),0)>=IFERROR(INDEX(CALCULATIONS!M:M,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0)),0),1,0)';
       break;
-    case 'SMA50':
+    case 'SMA 50':
       helperFormula = '=IF(IFERROR(INDEX(CALCULATIONS!E:E,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0)),0)>=IFERROR(INDEX(CALCULATIONS!N:N,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0)),0),1,0)';
       break;
-    case 'SMA200':
+    case 'SMA 200':
       helperFormula = '=IF(IFERROR(INDEX(CALCULATIONS!E:E,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0)),0)>=IFERROR(INDEX(CALCULATIONS!O:O,MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0)),0),1,0)';
       break;
   }
