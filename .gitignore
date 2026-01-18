@@ -22,3 +22,14 @@ CURRENT_STATE_REVIEW.md
 getPriceDataForTicker.test.js
 .kiro/specs/sheet-formatting-improvements/requirements.md
 .kiro/specs/chart-refresh-formula-fix/tasks.md
+AI_PROMPT_IMPLEMENTATION.md
+AIPrompt.js
+FIXES_SUMMARY.md
+.kiro/specs/mcp-stock-dashboard-server/requirements.md
+.gitignore
+.gitignore
+.kiro/specs/sheet-formatting-improvements/design.md
+.kiro/specs/sheet-formatting-improvements/tasks.md
+.kiro/specs/volume-calculation-fix/design.md
+.kiro/specs/volume-calculation-fix/requirements.md
+.kiro/specs/volume-calculation-fix/tasks.md

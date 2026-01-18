@@ -94,21 +94,16 @@ function onEdit(e) {
     return;
   }
 
-  // REPORT sheet controls - consolidated block
+  // REPORT sheet controls - delegated to generateMobileDashboard.js
   if (sheet.getName() === "REPORT") {
-    const row = range.getRow();
-    const col = range.getColumn();
-    
-    // Handle chart controls: checkbox changes (row 2, columns E-M: 5-13), ticker change (A1), or date/interval change (A2:C2 and C3)
-    if ((row === 2 && col >= 5 && col <= 13) || a1 === "A1" || (row === 2 && col >= 1 && col <= 3) || a1 === "C3") {
-      try {
-        ss.toast("🔄 Updating REPORT Chart...", "WORKING", 2);
-        updateReportChart();
-      } catch (err) {
-        ss.toast("REPORT Chart update error: " + err.toString(), "⚠️ FAIL", 6);
+    try {
+      if (typeof handleReportSheetEdit === "function") {
+        handleReportSheetEdit(e);
       }
-      return;
+    } catch (err) {
+      ss.toast("REPORT sheet error: " + err.toString(), "⚠️ FAIL", 6);
     }
+    return;
   }
 
   if (sheet.getName() === "CHART") {

@@ -25,11 +25,8 @@ function generateMobileReport() {
   
   SpreadsheetApp.flush();
   
-  // Create initial chart if ticker is selected
-  const ticker = String(REPORT.getRange('A1').getValue() || '').trim();
-  if (ticker) {
-    createReportChart_(REPORT);
-  }
+  // NOTE: Chart creation is now handled inside createFormulaReport_() 
+  // based on PRICE checkbox state - removed duplicate call here
 }
 
 /**
@@ -88,12 +85,12 @@ function createFormulaReport_(REPORT) {
   // Numeric lookup for calculations
   const numLookup = (col) => `IFERROR(VALUE(INDEX(CALCULATIONS!${col}:${col}${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
   
-  // Row 1: Ticker name merged A1:C1, Date in D1
+  // Row 1: Ticker name merged A1:C1 - Clean professional header
   REPORT.getRange('A1:C1').merge()
-    .setBackground(P.BG_TOP)
+    .setBackground('#1E3A8A')  // Deep blue for ticker
     .setFontColor('#FFFFFF')
     .setFontWeight('normal')
-    .setFontSize(10)
+    .setFontSize(16)
     .setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
   
@@ -103,17 +100,7 @@ function createFormulaReport_(REPORT) {
     setupReportTickerDropdown_(REPORT, INPUT);
   }
   
-  // Date in D1 (calculated from dropdowns)
-  REPORT.getRange('D1').setFormula('=IF(AND(ISNUMBER(VALUE(LEFT(A2,LEN(A2)-1))),ISNUMBER(VALUE(LEFT(B2,LEN(B2)-1))),ISNUMBER(VALUE(LEFT(C2,LEN(C2)-1)))),TEXT(TODAY()-VALUE(LEFT(A2,LEN(A2)-1))*365-VALUE(LEFT(B2,LEN(B2)-1))*30-VALUE(LEFT(C2,LEN(C2)-1)),"yyyy-mm-dd"),"Select Date")')
-    .setBackground(P.BG_TOP)
-    .setFontColor('#FFFFFF')
-    .setFontWeight('normal')
-    .setFontSize(12)
-    .setFontFamily('Calibri')
-    .setHorizontalAlignment('center')
-    .setVerticalAlignment('middle');
-  
-  // Row 2: Date selection dropdowns A2:C2, Interval dropdown D2
+  // Row 2: Date selection dropdowns A2:C2
   // Years dropdown (A2): 0Y to 20Y
   const yearsValues = [];
   for (let i = 0; i <= 20; i++) {
@@ -122,7 +109,7 @@ function createFormulaReport_(REPORT) {
   REPORT.getRange('A2')
     .setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(yearsValues.flat(), true).build())
     .setValue('0Y')
-    .setBackground(P.BG_TOP)
+    .setBackground('#374151')
     .setFontColor('#FFFFFF')
     .setFontWeight('normal')
     .setFontSize(10)
@@ -137,7 +124,7 @@ function createFormulaReport_(REPORT) {
   REPORT.getRange('B2')
     .setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(monthsValues.flat(), true).build())
     .setValue('1M')
-    .setBackground(P.BG_TOP)
+    .setBackground('#374151')
     .setFontColor('#FFFFFF')
     .setFontWeight('normal')
     .setFontSize(10)
@@ -152,86 +139,106 @@ function createFormulaReport_(REPORT) {
   REPORT.getRange('C2')
     .setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(daysValues.flat(), true).build())
     .setValue('0D')
-    .setBackground(P.BG_TOP)
+    .setBackground('#374151')
     .setFontColor('#FFFFFF')
     .setFontWeight('normal')
     .setFontSize(10)
     .setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
   
-  // Row 3: NEW ROW - Calculated date display (A3:B3 merged) and Weekly/Daily dropdown (C3)
-  // Calculated date display (A3:B3 merged)
+  // Row 3: Date display (A3:B3 merged) and Interval dropdown (C3)
+  // Calculated date display (A3:B3 merged) - Clean display
   REPORT.getRange('A3:B3').merge()
-    .setFormula('=IF(AND(ISNUMBER(VALUE(LEFT(A2,LEN(A2)-1))),ISNUMBER(VALUE(LEFT(B2,LEN(B2)-1))),ISNUMBER(VALUE(LEFT(C2,LEN(C2)-1)))),TODAY()-VALUE(LEFT(A2,LEN(A2)-1))*365-VALUE(LEFT(B2,LEN(B2)-1))*30-VALUE(LEFT(C2,LEN(C2)-1)),"Select Date")')
-    .setBackground(P.BG_TOP)
-    .setFontColor('#FFFFFF')
+    .setFormula('=IF(AND(ISNUMBER(VALUE(LEFT(A2,LEN(A2)-1))),ISNUMBER(VALUE(LEFT(B2,LEN(B2)-1))),ISNUMBER(VALUE(LEFT(C2,LEN(C2)-1)))),TEXT(TODAY()-VALUE(LEFT(A2,LEN(A2)-1))*365-VALUE(LEFT(B2,LEN(B2)-1))*30-VALUE(LEFT(C2,LEN(C2)-1)),"yyyy-mm-dd"),"Select Date")')
+    .setBackground('#1F2937')
+    .setFontColor('#60A5FA')  // Light blue for date
     .setFontWeight('normal')
-    .setFontSize(10)
+    .setFontSize(11)
     .setFontFamily('Calibri')
     .setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
   
-  // Weekly/Daily dropdown moved to C3
+  // Interval dropdown C3 (Weekly/Daily)
   REPORT.getRange('C3')
     .setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(['Weekly', 'Daily'], true).build())
     .setValue('Daily')
-    .setBackground(P.BG_TOP)
+    .setBackground('#374151')
     .setFontColor('#FFFFFF')
     .setFontWeight('normal')
     .setFontSize(10)
     .setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
   
-  // Chart controls starting from E1:N2 (labels in row 1, checkboxes in row 2)
+  // Chart controls starting from D1:M2 (labels in row 1, checkboxes in row 2)
   setupChartControls_(REPORT);
   
   // Decision section starts at row 4 (moved down to accommodate new row 3)
-  REPORT.getRange('A4').setValue('SIGNAL');
-  REPORT.getRange('B4').setFormula(lookup('B'));
-  REPORT.getRange('B4:D4').merge();
+  // Order: DECISION, SIGNAL, PATTERNS
+  REPORT.getRange('A4').setValue('DECISION');
+  REPORT.getRange('B4').setFormula(lookup('D')); // DECISION from CALCULATIONS column D
+  REPORT.getRange('B4:C4').merge();
   
-  REPORT.getRange('A5').setValue('PATTERNS');
-  REPORT.getRange('B5').setFormula(lookup('C')); // PATTERNS from CALCULATIONS column C (NEW POSITION)
-  REPORT.getRange('B5:D5').merge();
+  REPORT.getRange('A5').setValue('SIGNAL');
+  REPORT.getRange('B5').setFormula(lookup('B'));
+  REPORT.getRange('B5:C5').merge();
   
-  REPORT.getRange('A6').setValue('DECISION');
-  REPORT.getRange('B6').setFormula(lookup('D')); // DECISION from CALCULATIONS column D
-  REPORT.getRange('B6:D6').merge();
+  REPORT.getRange('A6').setValue('PATTERNS');
+  REPORT.getRange('B6').setFormula(lookup('C')); // PATTERNS from CALCULATIONS column C
+  REPORT.getRange('B6:C6').merge();
   
-  // Style decision section
-  REPORT.getRange('A4:D6')
+  // Row 7: MARKET RATING - Analyst consensus rating (STRONG BUY/BUY/HOLD/SELL)
+  REPORT.getRange('A7').setValue('MARKET RATING');
+  REPORT.getRange('B7:C7').merge();
+  REPORT.getRange('B7').setFormula('=AI("Give consensus analysts rating in just STRONG BUY/BUY/SELL/HOLD/etc form for the stock " & A1 & ". If no rating is available, show —. Return ONLY the rating, nothing else.", A1)');
+  
+  // Row 8: CONSENSUS PRICE - 12-month consensus price target from analysts
+  REPORT.getRange('A8').setValue('CONSENSUS PRICE');
+  REPORT.getRange('B8:C8').merge();
+  REPORT.getRange('B8').setFormula('=AI("What is the 12-month consensus price target from analysts for " & A1 & "? Return ONLY the price target as a number with dollar sign (e.g., $150.00). If no consensus price target is available, return —. Do not include any explanation or additional text.", A1)');
+  
+  // Style decision section (updated to include rows 7-8) - Professional styling with minimal borders
+  REPORT.getRange('A4:C8')
     .setFontWeight('normal')
-    .setFontSize(10)
-    .setFontFamily('Calibri')
-    .setBorder(true, true, true, true, true, true, P.GRID, SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+    .setFontSize(11)
+    .setFontFamily('Calibri');
   
-  // Set decision label cells (A4:A6) to header background with dark pink font
-  REPORT.getRange('A4:A6')
-    .setBackground(P.BG_TOP)
-    .setFontColor('#FF1493'); // Dark pink
+  // Add only outer border for clean look - WHITE borders
+  REPORT.getRange('A4:C8')
+    .setBorder(true, true, true, true, false, false, '#FFFFFF', SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
   
-  // Set decision value cells to dark background
-  REPORT.getRange('B4:D6')
+  // Set decision label cells (A4:A8) with professional gradient-like appearance
+  REPORT.getRange('A4:A8')
+    .setBackground('#2D3748')
+    .setFontColor('#F59E0B')  // Amber color for labels
+    .setFontWeight('normal')
+    .setHorizontalAlignment('right')
+    .setVerticalAlignment('middle');
+  
+  // Set decision value cells with clean dark background
+  REPORT.getRange('B4:C8')
     .setBackground(P.BG_ROW_A)
-    .setFontColor(P.TEXT);
+    .setFontColor(P.TEXT)
+    .setFontWeight('normal')
+    .setHorizontalAlignment('left')
+    .setVerticalAlignment('middle');
   
   // Apply conditional formatting to decision cells
   applyDecisionConditionalFormatting_(REPORT);
   
-  // Chart section (E3:M30) - starts after controls
+  // Chart section at D3:N17 - starts after controls
   setupChartSection_(REPORT);
   
-  // Data rows start at row 7 - organized to match CALCULATIONS column grouping
-  let row = 7;
+  // Data rows start at row 9 - organized to match CALCULATIONS column grouping (rows 7-8 are MARKET RATING and CONSENSUS PRICE)
+  let row = 9;
   
-  // Define section colors matching CALCULATIONS groups
+  // Define section colors - Professional color scheme with better contrast
   const SECTION_COLORS = {
-    PRICE_VOLUME: '#D84315',    // Orange-red
-    PERFORMANCE: '#1976D2',     // Blue
-    TREND: '#00838F',           // Teal
-    MOMENTUM: '#F57C00',        // Orange
-    VOLATILITY: '#C62828',      // Red
-    TARGET: '#AD1457'           // Pink
+    PRICE_VOLUME: '#2563EB',    // Blue - Primary data
+    PERFORMANCE: '#7C3AED',     // Purple - Performance metrics
+    TREND: '#059669',           // Green - Trend indicators
+    MOMENTUM: '#DC2626',        // Red - Momentum signals
+    VOLATILITY: '#EA580C',      // Orange - Volatility measures
+    TARGET: '#DB2777'           // Pink - Target levels
   };
   
   // SIGNALING Section (B-D) - Already displayed in rows 4-6, skip to avoid duplication
@@ -360,24 +367,36 @@ function createFormulaReport_(REPORT) {
     .setWrap(true)
     .setVerticalAlignment('top')
     .setHorizontalAlignment('left')
-    .setBorder(true, true, true, true, false, false, P.GRID, SpreadsheetApp.BorderStyle.SOLID);
+    .setBorder(true, true, true, true, false, false, '#FFFFFF', SpreadsheetApp.BorderStyle.SOLID);
   
-  // NOTE: E18:M64 AI analysis merge is created in setupChartSection_() - DO NOT duplicate here
-  
-  // Add margin: 4 columns × 4 rows below the report (starting at row 61)
+  // Add margin: 3 columns × 4 rows below the report (starting at row 61)
   const marginStartRow = 61;
-  REPORT.getRange(marginStartRow, 1, 4, 4)
+  REPORT.getRange(marginStartRow, 1, 4, 3)
     .setBackground('#000000')
     .clearContent();
   
-  // Final styling
-  const finalRow = REPORT.getLastRow();
-  REPORT.getRange(1, 1, finalRow, 13) // Extended to column M for chart controls
-    .setBorder(true, true, true, true, true, true, P.GRID, SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+  // DON'T DELETE COLUMN D - keep all columns as they are
+  // Column D is now used for chart controls and chart area
+  
+  // Set white borders for columns A, B, C (all data rows)
+  const lastDataRow = Math.max(60, REPORT.getLastRow());
+  REPORT.getRange(1, 1, lastDataRow, 3)
+    .setBorder(true, true, true, true, true, true, '#FFFFFF', SpreadsheetApp.BorderStyle.SOLID);
+  
+  // Final styling - NO BORDERS for clean professional look
   REPORT.setHiddenGridlines(true);
   
-  // Create the chart
-  createReportChart_(REPORT);
+  // Setup report layout (dark backgrounds for M1:N1, cell merges)
+  // Called at the END to avoid merge conflicts with earlier cell operations
+  setupReportLayout(REPORT);
+  
+  // Only create chart if PRICE checkbox is checked (for faster sheet generation)
+  const priceChecked = REPORT.getRange('D2').getValue();
+  if (priceChecked === true) {
+    createReportChart_(REPORT);
+  } else {
+    console.log('PRICE checkbox not checked, skipping chart creation for faster generation');
+  }
 }
 
 /**
@@ -389,10 +408,10 @@ function addSection_(REPORT, row, title) {
   REPORT.getRange(row, 1, 1, 3).merge()
     .setBackground('#1F2937') // Slightly lighter than PANEL for distinction
     .setFontColor(P.TEXT)
-    .setFontWeight('bold') // Make section headers bold
+    .setFontWeight('normal')
     .setFontSize(10)
     .setFontFamily('Calibri')
-    .setBorder(true, true, true, true, false, false, P.GRID, SpreadsheetApp.BorderStyle.SOLID)
+    .setBorder(true, true, true, true, false, false, '#FFFFFF', SpreadsheetApp.BorderStyle.SOLID)
     .setHorizontalAlignment('left');
   REPORT.setRowHeight(row, 22);
   return row + 1;
@@ -407,10 +426,10 @@ function addSectionWithColor_(REPORT, row, title, color) {
   REPORT.getRange(row, 1, 1, 3).merge()
     .setBackground(color)  // Use custom color instead of default
     .setFontColor('#FFFFFF')  // White text for better contrast
-    .setFontWeight('bold')
+    .setFontWeight('normal')
     .setFontSize(10)
     .setFontFamily('Calibri')
-    .setBorder(true, true, true, true, false, false, P.GRID, SpreadsheetApp.BorderStyle.SOLID)
+    .setBorder(true, true, true, true, false, false, '#FFFFFF', SpreadsheetApp.BorderStyle.SOLID)
     .setHorizontalAlignment('left');
   REPORT.setRowHeight(row, 22);
   return row + 1;
@@ -493,9 +512,9 @@ function addDataRow_(REPORT, row, label, formula, format) {
     applySupportResistanceColorCoding_(REPORT, row, label);
   }
   
-  // Borders
+  // Borders - Clean minimal style (only bottom border for separation) - WHITE borders
   REPORT.getRange(row, 1, 1, 3)
-    .setBorder(false, false, true, false, false, false, P.GRID, SpreadsheetApp.BorderStyle.SOLID);
+    .setBorder(false, false, true, false, false, false, '#FFFFFF', SpreadsheetApp.BorderStyle.SOLID);
   
   return row + 1;
 }
@@ -1060,7 +1079,7 @@ function setupReportTickerDropdown_(reportSheet, inputSheet) {
     
     SpreadsheetApp.flush();
     Utilities.sleep(100);
-    createReportChart_(reportSheet);
+    // NOTE: Chart creation now handled by PRICE checkbox - removed automatic call
     return;
   }
   
@@ -1088,10 +1107,9 @@ function setupReportTickerDropdown_(reportSheet, inputSheet) {
     }
   }
   
-  // Force chart update when ticker is set
+  // NOTE: Chart creation now handled by PRICE checkbox - removed automatic call
   SpreadsheetApp.flush();
   Utilities.sleep(100);
-  createReportChart_(reportSheet);
 }
 
 /**
@@ -1101,12 +1119,14 @@ function setupReportTickerDropdown_(reportSheet, inputSheet) {
  * Setup chart control checkboxes - UPDATED VERSION without date controls (now in A2:D2)
  */
 function setupChartControls_(REPORT) {
-  // Clear row 1 and 2 from E to N first
-  REPORT.getRange('E1:N2').clearContent().clearFormat();
+  const P = reportPalette___();
   
-  // All 9 controls in consecutive columns E through M (removed RSI)
+  // Clear row 1 and 2 from D to M
+  REPORT.getRange('D1:M2').clearContent().clearFormat();
+  
+  // All 9 controls in consecutive columns D through L
   const controls = [
-    ['PRICE', true],
+    ['PRICE', false],  // Changed to false - only generate chart when clicked
     ['SMA20', false], 
     ['SMA50', false],
     ['SMA200', false],
@@ -1119,57 +1139,64 @@ function setupChartControls_(REPORT) {
   
   for (let i = 0; i < controls.length; i++) {
     const [label, defaultValue] = controls[i];
-    const col = 5 + i; // E=5, F=6, G=7, H=8, I=9, J=10, K=11, L=12, M=13, N=14
+    const col = 4 + i; // D=4, E=5, F=6, G=7, H=8, I=9, J=10, K=11, L=12
     
     // Set column width to ensure all are visible
     REPORT.setColumnWidth(col, 80);
     
-    // Add label in row 1
+    // Add label in row 1 with professional styling
     REPORT.getRange(1, col).setValue(label);
     REPORT.getRange(1, col)
-      .setBackground('#374151')
-      .setFontColor('#FFFFFF')
+      .setBackground(P.CONTROL_LABEL)
+      .setFontColor(P.WHITE)
       .setFontWeight('normal')
-      .setFontSize(8)
+      .setFontSize(9)
       .setHorizontalAlignment('center')
       .setVerticalAlignment('middle');
     
-    // Add checkbox in row 2
+    // Add checkbox in row 2 with professional styling
     REPORT.getRange(2, col).insertCheckboxes();
     REPORT.getRange(2, col).setValue(defaultValue);
     REPORT.getRange(2, col)
-      .setBackground('#1F2937')
+      .setBackground(P.CONTROL_BG)
       .setHorizontalAlignment('center')
       .setVerticalAlignment('middle');
   }
 }
 
 /**
- * Setup chart section placeholder - NO MERGE, prepare for floating chart (E3:M22)
- * CRITICAL: E18:M64 contains AI analysis and must NOT be overwritten
+ * Setup chart section placeholder - prepare for floating chart at D3:N17
+ * Add AI analysis below chart in D18
+ * CRITICAL: Never clear D18 or below to protect AI formula
  */
 function setupChartSection_(REPORT) {
-  // Clear only the chart display area E3:M17 - DO NOT touch E18:M64 (AI analysis area)
-  REPORT.getRange('E3:M17').clearContent().clearFormat();
+  const P = reportPalette___();
   
-  // Set background for chart display area only
-  REPORT.getRange('E3:M17')
-    .setBackground('#0F172A')
-    .setBorder(true, true, true, true, false, false, '#374151', SpreadsheetApp.BorderStyle.SOLID);
+  // Clear ONLY the chart display area D3:N17 - NEVER touch D18 or below
+  REPORT.getRange('D3:N17').clearContent().clearFormat();
   
-  // Add comprehensive AI investment analysis in E18:M64 merged area with yellow font
-  // This area is PROTECTED and should not be cleared by chart creation
-  REPORT.getRange('E18:M64').merge()
-    .setFormula('=AI("Perform a comprehensive, professional investment analysis for " & A1 & " as of Jan 2026. 1. FUNDAMENTAL PROFILE: Analyst consensus and 12-month price target. Compare forward P/E to industry peers. Detail 3-year revenue/earnings CAGR estimates. 2. FINANCIAL HEALTH: Assess debt-to-equity, gross/operating margins, and dividend payout ratio sustainability. 3. TECHNICAL ANALYSIS: Identify the current primary trend, status of key moving averages (50-day and 200-day), and momentum indicators (RSI/MACD). 4. CHART PATTERNS & LEVELS: Identify specific patterns (e.g., Head & Shoulders, Ascending Triangle) and provide exact Support and Resistance levels. 5. RISKS & CATALYSTS: Outline specific bearish red flags and upcoming bullish catalysts. 6. INVESTMENT THESIS: Conclude with a 3-4 sentence summary of the investment decision rationale.", A1)')
-    .setFontColor('#FFFF00')
-    .setBackground('#0F172A')
-    .setWrap(true)
-    .setVerticalAlignment('top')
-    .setHorizontalAlignment('left')
-    .setFontSize(9)
-    .setFontFamily('Calibri')
-    .setFontSize(10)
-    .setFontFamily('Calibri');
+  // Set professional background for chart display area - NO BORDERS for clean look
+  REPORT.getRange('D3:N17')
+    .setBackground('#0F1419');  // Deep black for chart area
+  
+  // Add AI investment analysis in D18:N42 merged area with professional styling
+  // Set AI formula for analysis (works in both web and Android)
+  // ONLY set if formula doesn't already exist (check for =AI formula)
+  const d18 = REPORT.getRange('D18');
+  const existingFormula = d18.getFormula();
+  
+  if (!existingFormula || !existingFormula.includes('=AI(')) {
+    REPORT.getRange('D18:N42').merge()
+      .setFormula('=AI("Perform a comprehensive, professional investment analysis for " & A1 & " as of Jan 2026. 1. FUNDAMENTAL PROFILE: Analyst consensus and 12-month price target. Compare forward P/E to industry peers. Detail 3-year revenue/earnings CAGR estimates. 2. FINANCIAL HEALTH: Assess debt-to-equity, gross/operating margins, and dividend payout ratio sustainability. 3. TECHNICAL ANALYSIS: Identify the current primary trend, status of key moving averages (50-day and 200-day), and momentum indicators (RSI/MACD). 4. CHART PATTERNS & LEVELS: Identify specific patterns (e.g., Head & Shoulders, Ascending Triangle) and provide exact Support and Resistance levels. 5. RISKS & CATALYSTS: Outline specific bearish red flags and upcoming bullish catalysts. 6. INVESTMENT THESIS: Conclude with a 3-4 sentence summary of the investment decision rationale.", A1)')
+      .setFontColor('#FDE047')  // Bright yellow for AI text
+      .setBackground('#1A1D29')  // Dark background
+      .setWrap(true)
+      .setVerticalAlignment('top')
+      .setHorizontalAlignment('left')
+      .setFontSize(10)
+      .setFontFamily('Calibri')
+      .setFontWeight('normal');
+  }
 }
 
 /**
@@ -1177,6 +1204,10 @@ function setupChartSection_(REPORT) {
  */
 function createReportChart_(REPORT) {
   try {
+    // Remove all existing charts first to prevent overlapping
+    const existingCharts = REPORT.getCharts();
+    existingCharts.forEach(chart => REPORT.removeChart(chart));
+    
     const ticker = String(REPORT.getRange('A1').getValue() || '').trim();
     if (!ticker) {
       console.log('No ticker selected, skipping chart creation');
@@ -1191,11 +1222,11 @@ function createReportChart_(REPORT) {
   } catch (e) {
     console.log(`Critical error in createReportChart_: ${e.toString()}`);
     
-    // Try to show a simple error message in the chart area
+    // Try to show a simple error message in the chart area - ONLY clear D3:N17, NOT D18 or below
     try {
-      REPORT.getRange('E3:M22').clearContent().clearFormat();
-      REPORT.getRange('E3').setValue(`Chart Error: ${e.toString().substring(0, 100)}`);
-      REPORT.getRange('E3:M22')
+      REPORT.getRange('D3:N17').clearContent().clearFormat();
+      REPORT.getRange('D3').setValue(`Chart Error: ${e.toString().substring(0, 100)}`);
+      REPORT.getRange('D3:N17')
         .setBackground('#2A0B0B')
         .setFontColor('#F87171')
         .setFontSize(10)
@@ -1213,17 +1244,18 @@ function createReportChart_(REPORT) {
  */
 function createReportChartInternal_(REPORT, ticker) {
   
-  // Get checkbox states from row 2, columns E-M (5-13) - RSI removed
+  // Get checkbox states from row 2, columns D-L (4-12) AFTER column D deletion
+  // BEFORE deletion they were in E-M (5-13), but column D was deleted
   const checkboxes = {
-    PRICE: REPORT.getRange(2, 5).getValue() || false,
-    SMA20: REPORT.getRange(2, 6).getValue() || false,
-    SMA50: REPORT.getRange(2, 7).getValue() || false,
-    SMA200: REPORT.getRange(2, 8).getValue() || false,
-    VOLUME: REPORT.getRange(2, 9).getValue() || false,
-    SUPPORT: REPORT.getRange(2, 10).getValue() || false,
-    RESISTANCE: REPORT.getRange(2, 11).getValue() || false,
-    ATR_STOP: REPORT.getRange(2, 12).getValue() || false,
-    ATR_TARGET: REPORT.getRange(2, 13).getValue() || false
+    PRICE: REPORT.getRange(2, 4).getValue() || false,      // Was E2, now D2
+    SMA20: REPORT.getRange(2, 5).getValue() || false,      // Was F2, now E2
+    SMA50: REPORT.getRange(2, 6).getValue() || false,      // Was G2, now F2
+    SMA200: REPORT.getRange(2, 7).getValue() || false,     // Was H2, now G2
+    VOLUME: REPORT.getRange(2, 8).getValue() || false,     // Was I2, now H2
+    SUPPORT: REPORT.getRange(2, 9).getValue() || false,    // Was J2, now I2
+    RESISTANCE: REPORT.getRange(2, 10).getValue() || false, // Was K2, now J2
+    ATR_STOP: REPORT.getRange(2, 11).getValue() || false,  // Was L2, now K2
+    ATR_TARGET: REPORT.getRange(2, 12).getValue() || false // Was M2, now L2
   };
   
   // Debug checkbox states
@@ -1363,18 +1395,24 @@ function createReportChartInternal_(REPORT, ticker) {
       // Always add price first if selected
       if (checkboxes.PRICE) dataRow.push(close);
       
-      // Add SMAs next (before volume to prevent shifting)
-      if (checkboxes.SMA20 && s20) dataRow.push(s20);
-      if (checkboxes.SMA50 && s50) dataRow.push(s50);
-      if (checkboxes.SMA200 && s200) dataRow.push(s200);
+      // Add SMAs next - ALWAYS add if checkbox is checked to maintain column alignment
+      if (checkboxes.SMA20) dataRow.push(s20 || 0);
+      if (checkboxes.SMA50) dataRow.push(s50 || 0);
+      if (checkboxes.SMA200) dataRow.push(s200 || 0);
       
-      // Add support/resistance levels
-      if (checkboxes.RESISTANCE && resistance > 0) dataRow.push(resistance);
-      if (checkboxes.SUPPORT && support > 0) dataRow.push(support);
+      // Add support/resistance levels - ALWAYS add if checkbox is checked to maintain column alignment
+      if (checkboxes.RESISTANCE) {
+        dataRow.push(resistance || 0);
+        if (i < 7) console.log(`Row ${i}: Adding resistance=${resistance || 0}`);
+      }
+      if (checkboxes.SUPPORT) {
+        dataRow.push(support || 0);
+        if (i < 7) console.log(`Row ${i}: Adding support=${support || 0}`);
+      }
       
-      // Add ATR levels
-      if (checkboxes.ATR_STOP) dataRow.push(atrStop);
-      if (checkboxes.ATR_TARGET) dataRow.push(atrTarget);
+      // Add ATR levels - ALWAYS add if checkbox is checked to maintain column alignment
+      if (checkboxes.ATR_STOP) dataRow.push(atrStop || 0);
+      if (checkboxes.ATR_TARGET) dataRow.push(atrTarget || 0);
       
       // Add volume LAST to prevent series shifting issues - SIMPLIFIED LOGIC
       if (checkboxes.VOLUME) {
@@ -1432,18 +1470,18 @@ function createReportChartInternal_(REPORT, ticker) {
       // Always add price first if selected
       if (checkboxes.PRICE) liveDataRow.push(livePrice);
       
-      // Add SMAs next (before volume to prevent shifting)
-      if (checkboxes.SMA20 && liveS20) liveDataRow.push(liveS20);
-      if (checkboxes.SMA50 && liveS50) liveDataRow.push(liveS50);
-      if (checkboxes.SMA200 && liveS200) liveDataRow.push(liveS200);
+      // Add SMAs next - ALWAYS add if checkbox is checked to maintain column alignment
+      if (checkboxes.SMA20) liveDataRow.push(liveS20 || 0);
+      if (checkboxes.SMA50) liveDataRow.push(liveS50 || 0);
+      if (checkboxes.SMA200) liveDataRow.push(liveS200 || 0);
       
-      // Add support/resistance levels
-      if (checkboxes.RESISTANCE && resistance > 0) liveDataRow.push(resistance);
-      if (checkboxes.SUPPORT && support > 0) liveDataRow.push(support);
+      // Add support/resistance levels - ALWAYS add if checkbox is checked to maintain column alignment
+      if (checkboxes.RESISTANCE) liveDataRow.push(resistance || 0);
+      if (checkboxes.SUPPORT) liveDataRow.push(support || 0);
       
-      // Add ATR levels
-      if (checkboxes.ATR_STOP) liveDataRow.push(atrStop);
-      if (checkboxes.ATR_TARGET) liveDataRow.push(atrTarget);
+      // Add ATR levels - ALWAYS add if checkbox is checked to maintain column alignment
+      if (checkboxes.ATR_STOP) liveDataRow.push(atrStop || 0);
+      if (checkboxes.ATR_TARGET) liveDataRow.push(atrTarget || 0);
       
       // Add volume LAST - use proxy volume for today (same as updateDynamicChart)
       if (checkboxes.VOLUME) {
@@ -1604,8 +1642,8 @@ function createReportChartInternal_(REPORT, ticker) {
   if (checkboxes.RESISTANCE) {
     seriesConfig[seriesIndex] = { 
       type: "line", 
-      color: "#B71C1C", 
-      lineDashStyle: [4, 4], 
+      color: "#34D399", // GREEN (not red) per requirements
+      lineWidth: 2, // SOLID line (no lineDashStyle)
       labelInLegend: "Resistance",
       targetAxisIndex: 0 // Explicitly assign to primary axis
     };
@@ -1615,8 +1653,8 @@ function createReportChartInternal_(REPORT, ticker) {
   if (checkboxes.SUPPORT) {
     seriesConfig[seriesIndex] = { 
       type: "line", 
-      color: "#00FF41", 
-      lineDashStyle: [4, 4], 
+      color: "#F87171", // RED (not green) per requirements
+      lineWidth: 2, // SOLID line (no lineDashStyle)
       labelInLegend: "Support",
       targetAxisIndex: 0 // Explicitly assign to primary axis
     };
@@ -1626,9 +1664,9 @@ function createReportChartInternal_(REPORT, ticker) {
   if (checkboxes.ATR_STOP) {
     seriesConfig[seriesIndex] = { 
       type: "line", 
-      color: "#FF5722", 
+      color: "#F87171", // RED per requirements
       lineWidth: 2, 
-      lineDashStyle: [2, 2], 
+      lineDashStyle: [4, 4], // DOTTED line per requirements - NOTE: Google Sheets may not render this in combo charts
       labelInLegend: "ATR Stop",
       targetAxisIndex: 0 // Explicitly assign to primary axis
     };
@@ -1638,9 +1676,9 @@ function createReportChartInternal_(REPORT, ticker) {
   if (checkboxes.ATR_TARGET) {
     seriesConfig[seriesIndex] = { 
       type: "line", 
-      color: "#8BC34A", 
+      color: "#34D399", // GREEN per requirements
       lineWidth: 2, 
-      lineDashStyle: [2, 2], 
+      lineDashStyle: [4, 4], // DOTTED line per requirements - NOTE: Google Sheets may not render this in combo charts
       labelInLegend: "ATR Target",
       targetAxisIndex: 0 // Explicitly assign to primary axis
     };
@@ -1754,7 +1792,7 @@ function createReportChartInternal_(REPORT, ticker) {
   // Create floating chart exactly like updateDynamicChart - ENHANCED ERROR HANDLING
   // CRITICAL: Chart positioned at E3 with height 350px to fit E3:M17 only, NOT overwriting E18:M64 (AI analysis)
   try {
-    const chart = REPORT.newChart()
+    let chart = REPORT.newChart()
       .setChartType(Charts.ChartType.COMBO)
       .addRange(REPORT.getRange(startRow, startCol, sampleData.length + 1, headers.length))
       .setOption("useFirstRowAsHeaders", true)
@@ -1771,10 +1809,13 @@ function createReportChartInternal_(REPORT, ticker) {
         gridlines: { color: '#374151' },
         format: 'dd/MM/yy'
       })
-      .setPosition(3, 5, 0, 0) // Row 3, Column E - FLOATING CHART
-      .setOption("width", 720)  // Exact width to fit E3:M17 perfectly (9 columns * 80px)
-      .setOption("height", 350) // REDUCED height to fit E3:M17 only (15 rows * ~23px), NOT overwriting E18:M64
+      .setPosition(3, 4, 0, 0) // Row 3, Column D
+      .setOption("width", 720)  // Width to fit D3:N17
+      .setOption("height", 350) // Height to fit D3:N17 only, NOT overwriting D18:N42
       .build();
+    
+    // Position and resize chart to span D3:N17 (was E3:O17 before column D deletion)
+    chart = positionReportChart(chart);
     
     // Insert the floating chart
     REPORT.insertChart(chart);
@@ -1816,9 +1857,9 @@ function createReportChartInternal_(REPORT, ticker) {
           gridlines: { color: '#374151' },
           format: '$#,##0.00'
         })
-        .setPosition(3, 5, 0, 0)
+        .setPosition(3, 4, 0, 0)  // Row 3, Column D
         .setOption("width", 720)
-        .setOption("height", 350) // REDUCED height to fit E3:M17 only
+        .setOption("height", 350) // Height to fit D3:N17 only
         .build();
       
       REPORT.insertChart(fallbackChart);
@@ -1831,7 +1872,98 @@ function createReportChartInternal_(REPORT, ticker) {
 }
 
 /**
- * Update REPORT sheet chart - called from Code.js onEdit trigger
+ * Style chart series based on enabled checkboxes
+ * Applies colors and line styles to ATR STOP, ATR TARGET, SUPPORT, and RESISTANCE series
+ */
+function styleChartSeries(chart, checkboxes) {
+  // Get chart builder from existing chart
+  const chartBuilder = chart.modify();
+  
+  // Track series index based on enabled checkboxes
+  let seriesIndex = 0;
+  
+  // Price series (if enabled)
+  if (checkboxes.PRICE) {
+    seriesIndex++; // Price is series 0
+  }
+  
+  // SMA series (if enabled)
+  if (checkboxes.SMA20) seriesIndex++;
+  if (checkboxes.SMA50) seriesIndex++;
+  if (checkboxes.SMA200) seriesIndex++;
+  
+  // RESISTANCE series - GREEN color with SOLID line
+  if (checkboxes.RESISTANCE) {
+    chartBuilder.setOption(`series.${seriesIndex}.color`, '#34D399'); // Green
+    chartBuilder.setOption(`series.${seriesIndex}.lineWidth`, 2);
+    // Ensure solid line style (no dash style)
+    seriesIndex++;
+  }
+  
+  // SUPPORT series - RED color with SOLID line
+  if (checkboxes.SUPPORT) {
+    chartBuilder.setOption(`series.${seriesIndex}.color`, '#F87171'); // Red
+    chartBuilder.setOption(`series.${seriesIndex}.lineWidth`, 2);
+    // Ensure solid line style (no dash style)
+    seriesIndex++;
+  }
+  
+  // ATR STOP series - RED color with DOTTED line
+  if (checkboxes.ATR_STOP) {
+    chartBuilder.setOption(`series.${seriesIndex}.color`, '#F87171'); // Red
+    chartBuilder.setOption(`series.${seriesIndex}.lineDashStyle`, [4, 4]); // Dotted
+    chartBuilder.setOption(`series.${seriesIndex}.lineWidth`, 2);
+    seriesIndex++;
+  }
+  
+  // ATR TARGET series - GREEN color with DOTTED line
+  if (checkboxes.ATR_TARGET) {
+    chartBuilder.setOption(`series.${seriesIndex}.color`, '#34D399'); // Green
+    chartBuilder.setOption(`series.${seriesIndex}.lineDashStyle`, [4, 4]); // Dotted
+    chartBuilder.setOption(`series.${seriesIndex}.lineWidth`, 2);
+    seriesIndex++;
+  }
+  
+  return chartBuilder.build();
+}
+
+/**
+ * Handle REPORT sheet edit events - called from Code.js onEdit trigger
+ * This centralizes all REPORT sheet logic in one place
+ */
+function handleReportSheetEdit(e) {
+  const range = e.range;
+  const sheet = range.getSheet();
+  const a1 = range.getA1Notation();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const row = range.getRow();
+  const col = range.getColumn();
+  
+  // Handle chart controls: checkbox changes (row 2, columns E-M: 5-13), ticker change (A1), or date/interval change (A2:C2 and C3)
+  if ((row === 2 && col >= 5 && col <= 13) || a1 === "A1" || (row === 2 && col >= 1 && col <= 3) || a1 === "C3") {
+    try {
+      // Check if PRICE checkbox (D2, was E2 before column D deletion) is checked before updating chart
+      const priceChecked = sheet.getRange('D2').getValue();
+      if (priceChecked === true) {
+        ss.toast("🔄 Updating REPORT Chart...", "WORKING", 2);
+        updateReportChart();
+      } else {
+        // If PRICE is unchecked and user just checked it, create chart
+        if (a1 === "E2" && e.value === true) {
+          ss.toast("🔄 Creating REPORT Chart...", "WORKING", 2);
+          updateReportChart();
+        } else {
+          ss.toast("ℹ️ Check PRICE to generate chart", "INFO", 2);
+        }
+      }
+    } catch (err) {
+      ss.toast("REPORT Chart update error: " + err.toString(), "⚠️ FAIL", 6);
+    }
+  }
+}
+
+/**
+ * Update REPORT sheet chart - internal function
  */
 function updateReportChart() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1847,25 +1979,20 @@ function updateReportChart() {
 }
 
 /**
- * Set column widths - updated for new layout
+ * Set column widths - updated for new layout without D column
  */
 function setReportColumnWidthsAndWrap___(REPORT) {
   const pxPerChar = 8;
   
-  // Split column C into two parts while keeping A-D overall size same as original A-C
-  const originalTotalWidth = Math.max(70, Math.round(8 * pxPerChar + 15)) + Math.max(70, Math.round(8 * pxPerChar + 15)) + Math.max(170, Math.round(27 * pxPerChar + 20));
-  
-  // Redistribute: A (ticker/dropdown), B (values), C (split from original C), D (date)
-  const colA = Math.max(70, Math.round(8 * pxPerChar + 15)); // Keep A same
-  const colB = Math.max(70, Math.round(8 * pxPerChar + 15)); // Keep B same  
-  const colC = Math.max(120, Math.round(20 * pxPerChar + 15)); // Reduced from original C
-  const colD = Math.max(80, Math.round(10 * pxPerChar + 15)); // New D column
+  // A (ticker/dropdown), B (values), C (narratives)
+  const colA = Math.max(70, Math.round(8 * pxPerChar + 15)); // Ticker column
+  const colB = Math.max(70, Math.round(8 * pxPerChar + 15)); // Values column
+  const colC = Math.max(170, Math.round(27 * pxPerChar + 20)); // Narratives column (wider)
   
   // Set main columns
   REPORT.setColumnWidth(1, colA);
   REPORT.setColumnWidth(2, colB);
   REPORT.setColumnWidth(3, colC);
-  REPORT.setColumnWidth(4, colD);
   
   // Chart control columns (E-N) - handled in setupChartControls_
   
@@ -1878,22 +2005,38 @@ function setReportColumnWidthsAndWrap___(REPORT) {
  */
 function reportPalette___() {
   return {
-    BG_TOP: '#0B0F14',
-    PANEL:  '#111827',
-    BG_ROW_A: '#0F172A',
-    BG_ROW_B: '#111827',
-    GRID: '#374151',
-    TEXT: '#E5E7EB',
-    MUTED: '#9CA3AF',
-    POS_TXT:  '#34D399',
-    NEG_TXT:  '#F87171',
-    WARN_TXT: '#FBBF24',
-    CHIP_POS:  '#06281F',
-    CHIP_NEG:  '#2A0B0B',
-    CHIP_WARN: '#2A1E05',
-    CHIP_NEU:  '#0B1220',
-    YELLOW: '#FDE047',
-    BLACK:  '#111827'
+    // Main backgrounds - Dark professional theme
+    BG_TOP: '#1A1D29',        // Darker header background
+    PANEL:  '#242938',        // Panel background
+    BG_ROW_A: '#1E2230',      // Alternating row A (darker)
+    BG_ROW_B: '#242938',      // Alternating row B (lighter)
+    
+    // Borders and grid
+    GRID: '#3A3F51',          // Subtle grid lines
+    
+    // Text colors
+    TEXT: '#E8EAED',          // Primary text (light gray)
+    MUTED: '#9AA0A6',         // Muted/secondary text
+    
+    // Positive/Negative/Warning indicators
+    POS_TXT:  '#34D399',      // Green for positive
+    NEG_TXT:  '#F87171',      // Red for negative
+    WARN_TXT: '#FBBF24',      // Amber for warning
+    
+    // Chip/badge backgrounds
+    CHIP_POS:  '#064E3B',     // Dark green background
+    CHIP_NEG:  '#7F1D1D',     // Dark red background
+    CHIP_WARN: '#78350F',     // Dark amber background
+    CHIP_NEU:  '#1E293B',     // Neutral dark blue
+    
+    // Special colors
+    YELLOW: '#FDE047',        // Bright yellow for highlights
+    BLACK:  '#0F1419',        // True black for contrast
+    WHITE:  '#FFFFFF',        // Pure white
+    
+    // Chart control background
+    CONTROL_BG: '#2D3748',    // Chart controls background
+    CONTROL_LABEL: '#4A5568'  // Chart control labels
   };
 }/**
 
@@ -2203,7 +2346,7 @@ function applySMAColorCoding_(REPORT, row, label) {
   const valueCell = REPORT.getRange(row, 2);
   
   // Create a helper formula in a hidden column to compare price vs SMA
-  const helperCol = 4; // Column D (hidden)
+  const helperCol = 50; // Column AX (far beyond visible range, not column D)
   let helperFormula = '';
   
   switch (label) {
@@ -2218,22 +2361,22 @@ function applySMAColorCoding_(REPORT, row, label) {
       break;
   }
   
-  // Set helper formula in column D
+  // Set helper formula in column AX (column 50)
   REPORT.getRange(row, helperCol).setFormula(helperFormula);
   
-  // Hide column D
+  // Hide column AX
   REPORT.hideColumns(helperCol);
   
-  // Create conditional formatting rules based on helper column
+  // Create conditional formatting rules based on helper column - use $AX for column 50
   const rules = [
     SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied(`=$D${row}=1`)
+      .whenFormulaSatisfied(`=$AX${row}=1`)
       .setBackground(P.CHIP_POS)
       .setFontColor(P.POS_TXT)
       .setRanges([valueCell])
       .build(),
     SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied(`=$D${row}=0`)
+      .whenFormulaSatisfied(`=$AX${row}=0`)
       .setBackground(P.CHIP_NEG)
       .setFontColor(P.NEG_TXT)
       .setRanges([valueCell])
@@ -2253,7 +2396,7 @@ function applySupportResistanceColorCoding_(REPORT, row, label) {
   const valueCell = REPORT.getRange(row, 2);
   
   // Create a helper formula in a hidden column to compare price vs Support/Resistance
-  const helperCol = 4; // Column D (hidden)
+  const helperCol = 50; // Column AX (far beyond visible range, not column D)
   let helperFormula = '';
   
   switch (label) {
@@ -2267,20 +2410,20 @@ function applySupportResistanceColorCoding_(REPORT, row, label) {
       break;
   }
   
-  // Set helper formula in column D
+  // Set helper formula in column AX (column 50)
   REPORT.getRange(row, helperCol).setFormula(helperFormula);
   
-  // Hide column D
+  // Hide column AX
   REPORT.hideColumns(helperCol);
   
-  // Create conditional formatting rules based on helper column
+  // Create conditional formatting rules based on helper column - use $AX for column 50
   const rules = [];
   
   if (label === 'Support') {
     // Support: Red ONLY if below support, no color if above support
     rules.push(
       SpreadsheetApp.newConditionalFormatRule()
-        .whenFormulaSatisfied(`=$D${row}=0`)
+        .whenFormulaSatisfied(`=$AX${row}=0`)
         .setBackground(P.CHIP_NEG)
         .setFontColor(P.NEG_TXT)
         .setRanges([valueCell])
@@ -2291,7 +2434,7 @@ function applySupportResistanceColorCoding_(REPORT, row, label) {
     // Resistance: Green ONLY if above resistance, no color if below resistance
     rules.push(
       SpreadsheetApp.newConditionalFormatRule()
-        .whenFormulaSatisfied(`=$D${row}=1`)
+        .whenFormulaSatisfied(`=$AX${row}=1`)
         .setBackground(P.CHIP_POS)
         .setFontColor(P.POS_TXT)
         .setRanges([valueCell])
@@ -2304,4 +2447,48 @@ function applySupportResistanceColorCoding_(REPORT, row, label) {
   const sheet = valueCell.getSheet();
   const existingRules = sheet.getConditionalFormatRules();
   sheet.setConditionalFormatRules(existingRules.concat(rules));
+}
+
+/**
+ * Setup REPORT sheet layout with cell merging and formatting
+ * Requirements: 6.1, 6.2, 8.1, 8.2, 8.3, 9.1, 9.2
+ */
+function setupReportLayout(REPORT) {
+  const P = reportPalette___();
+  
+  // Set professional dark background and white font for cells M1:N1 (was N1:O1 before column D deletion)
+  REPORT.getRange('M1:N1')
+    .setBackground('#212121')
+    .setFontColor('#FFFFFF')
+    .setFontWeight('normal')
+    .setFontSize(9)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+  
+  // Merge cells A43:M65 with content preservation
+  // First, unmerge any existing merges in this range to avoid conflicts
+  try {
+    REPORT.getRange('A43:M65').breakApart();
+  } catch (e) {
+    // Range might not be merged, continue
+  }
+  
+  const mergeRange1 = REPORT.getRange('A43:M65');
+  const existingContent1 = REPORT.getRange('A43').getValue();
+  mergeRange1.merge();
+  if (existingContent1) {
+    REPORT.getRange('A43').setValue(existingContent1);
+  }
+}
+
+/**
+ * Position REPORT sheet chart at D3:N17 (AFTER column D deletion, was E3:O17 BEFORE)
+ * Requirements: 7.1, 7.2
+ */
+function positionReportChart(chart) {
+  return chart.modify()
+    .setPosition(3, 4, 0, 0)  // Row 3, Column D
+    .setOption('width', 880)   // Width to span D-N
+    .setOption('height', 420)  // Height to span rows 3-17
+    .build();
 }

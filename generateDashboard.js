@@ -119,7 +119,7 @@ function setupDashboardLayout(dashboard, SENTINEL) {
 
   dashboard.getRange("A2:AE2").clearContent();
   styleGroup("A2:A2", "IDENTITY", "#37474F");        // Dark Blue-Grey (A)
-  styleGroup("B2:D2", "SIGNALING", "#1565C0");       // Blue (B-D: SIGNAL, PATTERNS, DECISION)
+  styleGroup("B2:D2", "SIGNALING", "#1565C0");       // Blue (B-D: DECISION, SIGNAL, PATTERNS)
   styleGroup("E2:G2", "PRICE / VOLUME", "#D84315");  // Deep Orange (E-G: Price, Change%, Vol Trend)
   styleGroup("H2:K2", "PERFORMANCE", "#1976D2");     // Medium Blue (H-K: ATH TRUE, ATH Diff%, ATH ZONE, FUNDAMENTAL)
   styleGroup("L2:O2", "TREND", "#00838F");           // Cyan (L-O: Trend State, SMA 20/50/200)
@@ -131,9 +131,9 @@ function setupDashboardLayout(dashboard, SENTINEL) {
   // Row 3 column headers - MATCHES CALCULATIONS ORDER EXACTLY
   const headers = [[
     "Ticker",           // A
-    "SIGNAL",           // B - MATCHES CALCULATIONS
-    "PATTERNS",         // C - MATCHES CALCULATIONS
-    "DECISION",         // D - MATCHES CALCULATIONS
+    "DECISION",         // B - MATCHES CALCULATIONS (reordered)
+    "SIGNAL",           // C - MATCHES CALCULATIONS (reordered)
+    "PATTERNS",         // D - MATCHES CALCULATIONS (reordered)
     "Price",            // E
     "Change %",         // F
     "Vol Trend",        // G
@@ -271,6 +271,10 @@ function refreshDashboardData(dashboard, ss, DATA_START_ROW) {
   
   // Apply group colors AFTER Bloomberg formatting to ensure they're not overwritten
   applyDashboardGroupMapAndColors_(dashboard);
+  
+  // Apply market index conditional formatting LAST to ensure persistence
+  // Requirements: 10.4
+  applyMarketIndexConditionalFormatting(dashboard);
 }
 
 function applyDashboardBloombergFormatting_(sh, DATA_START_ROW) {
@@ -390,50 +394,6 @@ function applyDashboardBloombergFormatting_(sh, DATA_START_ROW) {
   sh.getRange(DATA_START_ROW, 29, numRows, 1).setNumberFormat("#,##0.00"); // AC: ATR STOP
   sh.getRange(DATA_START_ROW, 30, numRows, 1).setNumberFormat("#,##0.00"); // AD: ATR TARGET
   sh.getRange(DATA_START_ROW, 31, numRows, 1).setNumberFormat("@");        // AE: POSITION SIZE
-
-  // Conditional formatting for market indices in row 1
-  const indexRules = [];
-  
-  // NIFTY 50 % change (G1) - Green for positive, Red for negative
-  indexRules.push(
-    SpreadsheetApp.newConditionalFormatRule()
-      .whenNumberGreaterThan(0)
-      .setBackground(C_GREEN)
-      .setFontColor("#000000")
-      .setRanges([sh.getRange("G1")])
-      .build()
-  );
-  
-  indexRules.push(
-    SpreadsheetApp.newConditionalFormatRule()
-      .whenNumberLessThan(0)
-      .setBackground(C_RED)
-      .setFontColor("#000000")
-      .setRanges([sh.getRange("G1")])
-      .build()
-  );
-  
-  // S&P 500 % change (J1) - Green for positive, Red for negative
-  indexRules.push(
-    SpreadsheetApp.newConditionalFormatRule()
-      .whenNumberGreaterThan(0)
-      .setBackground(C_GREEN)
-      .setFontColor("#000000")
-      .setRanges([sh.getRange("J1")])
-      .build()
-  );
-  
-  indexRules.push(
-    SpreadsheetApp.newConditionalFormatRule()
-      .whenNumberLessThan(0)
-      .setBackground(C_RED)
-      .setFontColor("#000000")
-      .setRanges([sh.getRange("J1")])
-      .build()
-  );
-  
-  // Apply index rules
-  sh.setConditionalFormatRules(indexRules.concat(sh.getConditionalFormatRules()));
 
   // Apply conditional formatting rules
   applyConditionalFormatting(sh, DATA_START_ROW, numRows, C_GREEN, C_RED, C_BLUE);
@@ -560,6 +520,64 @@ function applyConditionalFormatting(sh, r0, numRows, C_GREEN, C_RED, C_BLUE) {
   sh.setConditionalFormatRules(rules);
 }
 
+/**
+ * Apply conditional formatting to market index cells (G1 and J1)
+ * Requirements: 10.1, 10.2, 10.3
+ * This function should be called AFTER all other formatting operations
+ */
+function applyMarketIndexConditionalFormatting(sh) {
+  if (!sh) return;
+  
+  // Define colors for positive/negative values
+  const C_GREEN = "#C8E6C9";  // Light green (positive)
+  const C_RED = "#FFCDD2";    // Light red (negative)
+  
+  const indexRules = [];
+  
+  // NIFTY 50 % change (G1) - Green for positive, Red for negative
+  indexRules.push(
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenNumberGreaterThan(0)
+      .setBackground(C_GREEN)
+      .setFontColor("#000000")
+      .setRanges([sh.getRange("G1")])
+      .build()
+  );
+  
+  indexRules.push(
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenNumberLessThan(0)
+      .setBackground(C_RED)
+      .setFontColor("#000000")
+      .setRanges([sh.getRange("G1")])
+      .build()
+  );
+  
+  // S&P 500 % change (J1) - Green for positive, Red for negative
+  indexRules.push(
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenNumberGreaterThan(0)
+      .setBackground(C_GREEN)
+      .setFontColor("#000000")
+      .setRanges([sh.getRange("J1")])
+      .build()
+  );
+  
+  indexRules.push(
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenNumberLessThan(0)
+      .setBackground(C_RED)
+      .setFontColor("#000000")
+      .setRanges([sh.getRange("J1")])
+      .build()
+  );
+  
+  // Apply index rules by prepending them to existing rules
+  // This ensures they take precedence over other formatting
+  const existingRules = sh.getConditionalFormatRules();
+  sh.setConditionalFormatRules(indexRules.concat(existingRules));
+}
+
 function applyDashboardGroupMapAndColors_(sh) {
   if (!sh) return;
 
@@ -579,7 +597,7 @@ function applyDashboardGroupMapAndColors_(sh) {
   // GROUPS array for 31 columns (A-AE) - Matches CALCULATIONS structure
   const GROUPS = [
     { name: "IDENTITY", c1: 1, c2: 1, color: COLORS.IDENTITY },           // A
-    { name: "SIGNALING", c1: 2, c2: 4, color: COLORS.SIGNALING },         // B-D (SIGNAL, PATTERNS, DECISION)
+    { name: "SIGNALING", c1: 2, c2: 4, color: COLORS.SIGNALING },         // B-D (DECISION, SIGNAL, PATTERNS)
     { name: "PRICE / VOLUME", c1: 5, c2: 7, color: COLORS.PRICE_VOLUME }, // E-G (Price, Change%, Vol Trend)
     { name: "PERFORMANCE", c1: 8, c2: 11, color: COLORS.PERFORMANCE },    // H-K (ATH TRUE, ATH Diff%, ATH ZONE, FUNDAMENTAL)
     { name: "TREND", c1: 12, c2: 15, color: COLORS.TREND },               // L-O (Trend State, SMA 20/50/200)
@@ -763,9 +781,9 @@ const DASH_GROUPS = {
 
 const CALC_HEADERS = [
   'Ticker',           // A
-  'SIGNAL',           // B
-  'PATTERNS',         // C
-  'DECISION',         // D
+  'DECISION',         // B (reordered)
+  'SIGNAL',           // C (reordered)
+  'PATTERNS',         // D (reordered)
   'Price',            // E
   'Change %',         // F
   'Vol Trend',        // G - RVOL (only volume indicator)
@@ -798,9 +816,9 @@ const CALC_HEADERS = [
 
 const DASH_HEADERS = [
   'Ticker',           // A
-  'SIGNAL',           // B
-  'PATTERNS',         // C
-  'DECISION',         // D
+  'DECISION',         // B (reordered)
+  'SIGNAL',           // C (reordered)
+  'PATTERNS',         // D (reordered)
   'Price',            // E
   'Change %',         // F
   'Vol Trend',        // G

@@ -224,10 +224,10 @@ function applyBloombergDataFormatting(calc, numRows) {
   // Apply formatting to all data rows
   const dataRange = calc.getRange(startRow, 1, numRows, numCols);
   
-  // Apply borders to all cells
+  // Apply borders to all cells - black borders for professional look
   dataRange.setBorder(
     true, true, true, true, true, true,  // top, left, bottom, right, vertical, horizontal
-    "#CCCCCC",  // Light gray borders
+    "#000000",  // Black borders
     SpreadsheetApp.BorderStyle.SOLID
   );
   
@@ -237,23 +237,11 @@ function applyBloombergDataFormatting(calc, numRows) {
     colRange.setBackground(columnColors[col]);
   }
   
-  // Set text alignment
-  // Text columns (left-aligned): A (Ticker), B (SIGNAL), C (PATTERNS), D (DECISION), 
-  //                               K (FUNDAMENTAL), L (Trend State), R (Divergence), 
-  //                               U (VOL REGIME), V (BBP SIGNAL), AF (LAST STATE)
-  const textColumns = [1, 2, 3, 4, 11, 12, 18, 21, 22, 32]; // A, B, C, D, K, L, R, U, V, AF
-  textColumns.forEach(col => {
-    calc.getRange(startRow, col, numRows, 1).setHorizontalAlignment("left");
-  });
+  // Set text alignment - ALL data cells to left alignment
+  dataRange.setHorizontalAlignment("left");
   
-  // Numeric columns (right-aligned): All others
-  const numericColumns = [5, 6, 7, 8, 9, 10, 13, 14, 15, 16, 17, 19, 20, 23, 24, 25, 26, 27, 28, 29, 30, 31];
-  numericColumns.forEach(col => {
-    calc.getRange(startRow, col, numRows, 1).setHorizontalAlignment("right");
-  });
-  
-  // Set font color to white for better contrast on dark backgrounds
-  dataRange.setFontColor("white");
+  // Set font color to black for better readability
+  dataRange.setFontColor("#000000");
   
   // Set font size
   dataRange.setFontSize(10);
