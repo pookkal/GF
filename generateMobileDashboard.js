@@ -1,14 +1,10 @@
 /**
- * ==============================================================================
- * STABLE_MASTER_ALL_CLEAN_v2.1.4_KIRO_FINAL
- * ==============================================================================
- * Run: setupFormulaBasedReport()
- */
+* ==============================================================================
+* STABLE_MASTER_ALL_CLEAN_v3.1_KIRO_OPTIMIZED
+* ==============================================================================
+*/
 
-/**
- * MAIN ENTRY POINT - Run this function
- */
-function setupFormulaBasedReport() {
+function generateMobileReport() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const REPORT = ss.getSheetByName('REPORT') || ss.insertSheet('REPORT');
   const INPUT = ss.getSheetByName('INPUT');
@@ -77,15 +73,20 @@ function safeClearSheet_(REPORT) {
 function createFormulaReport_(REPORT) {
   const P = reportPalette___();
   
+  // Get locale separator
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const locale = (ss.getSpreadsheetLocale() || "").toLowerCase();
+  const SEP = (/^(en|en_)/.test(locale)) ? "," : ";";
+  
   // Set professional font for entire sheet
   const maxRows = Math.max(50, REPORT.getLastRow());
   REPORT.getRange(1, 1, maxRows, 12).setFontFamily('Calibri');
   
   // Helper function for robust lookups
-  const lookup = (col) => `=IFERROR(INDEX(CALCULATIONS!${col}:${col},MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0)),"—")`;
+  const lookup = (col) => `=IFERROR(INDEX(CALCULATIONS!${col}:${col}${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0))${SEP}"—")`;
   
   // Numeric lookup for calculations
-  const numLookup = (col) => `IFERROR(VALUE(INDEX(CALCULATIONS!${col}:${col},MATCH(UPPER(TRIM($A$1)),ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A))),0))),0)`;
+  const numLookup = (col) => `IFERROR(VALUE(INDEX(CALCULATIONS!${col}:${col}${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
   
   // Row 1: Ticker name merged A1:C1, Date in D1
   REPORT.getRange('A1:C1').merge()
@@ -97,7 +98,6 @@ function createFormulaReport_(REPORT) {
     .setVerticalAlignment('middle');
   
   // Set ticker dropdown validation on the merged cell A1:C1
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
   const INPUT = ss.getSheetByName('INPUT');
   if (INPUT) {
     setupReportTickerDropdown_(REPORT, INPUT);
@@ -190,8 +190,8 @@ function createFormulaReport_(REPORT) {
   REPORT.getRange('B4').setFormula(lookup('B'));
   REPORT.getRange('B4:D4').merge();
   
-  REPORT.getRange('A5').setValue('FUNDAMENTAL');
-  REPORT.getRange('B5').setFormula(lookup('C')); // FUNDAMENTAL from CALCULATIONS column C
+  REPORT.getRange('A5').setValue('PATTERNS');
+  REPORT.getRange('B5').setFormula(lookup('C')); // PATTERNS from CALCULATIONS column C (NEW POSITION)
   REPORT.getRange('B5:D5').merge();
   
   REPORT.getRange('A6').setValue('DECISION');
@@ -221,64 +221,137 @@ function createFormulaReport_(REPORT) {
   // Chart section (E3:M30) - starts after controls
   setupChartSection_(REPORT);
   
-  // Data rows start at row 7 - organized to match Dashboard structure
+  // Data rows start at row 7 - organized to match CALCULATIONS column grouping
   let row = 7;
   
-  // SIGNALING Section - Signal, Fundamental, Decision (Dashboard columns B-D)
-  // NOTE: These are already displayed in rows 4-6, so we skip them here to avoid duplication
+  // Define section colors matching CALCULATIONS groups
+  const SECTION_COLORS = {
+    PRICE_VOLUME: '#D84315',    // Orange-red
+    PERFORMANCE: '#1976D2',     // Blue
+    TREND: '#00838F',           // Teal
+    MOMENTUM: '#F57C00',        // Orange
+    VOLATILITY: '#C62828',      // Red
+    TARGET: '#AD1457'           // Pink
+  };
   
-  // PRICE Section - Price & Change % (Dashboard columns E-F)
-  row = addSection_(REPORT, row, 'PRICE');
+  // SIGNALING Section (B-D) - Already displayed in rows 4-6, skip to avoid duplication
+  
+  // PRICE / VOLUME Section (E-G) - CORRECTED COLUMN REFERENCES
+  row = addSectionWithColor_(REPORT, row, 'PRICE / VOLUME', SECTION_COLORS.PRICE_VOLUME);
   row = addDataRow_(REPORT, row, 'PRICE', lookup('E'), '$#,##0.00');
   row = addDataRow_(REPORT, row, 'CHG%', lookup('F'), '0.00%');
+  row = addDataRow_(REPORT, row, 'Vol Trend', lookup('G'), '0.00"x"');
   row = addDataRow_(REPORT, row, 'P/E', '=IFERROR(GOOGLEFINANCE($A$1,"pe"),"")', '0.00');
   row = addDataRow_(REPORT, row, 'EPS', '=IFERROR(GOOGLEFINANCE($A$1,"eps"),"")', '0.00');
   row = addDataRow_(REPORT, row, 'Range %', `=IFERROR(IF(AND(ISNUMBER(VALUE(LEFT(A2,LEN(A2)-1))),ISNUMBER(VALUE(LEFT(B2,LEN(B2)-1))),ISNUMBER(VALUE(LEFT(C2,LEN(C2)-1)))),LET(currentPrice,GOOGLEFINANCE($A$1,"price"),historicalDate,A3,historicalPrice,INDEX(GOOGLEFINANCE($A$1,"price",historicalDate),2,2),(currentPrice/historicalPrice-1)),"Select Date"),"—")`, '0.00%');
   
-  // PERFORMANCE Section - ATH metrics & R:R Quality (Dashboard columns G-J)
-  row = addSection_(REPORT, row, 'PERFORMANCE');
+  // PERFORMANCE Section (H-K) - CORRECTED COLUMN REFERENCES
+  row = addSectionWithColor_(REPORT, row, 'PERFORMANCE', SECTION_COLORS.PERFORMANCE);
   row = addDataRow_(REPORT, row, 'ATH (TRUE)', lookup('H'), '$#,##0.00');
   row = addDataRow_(REPORT, row, 'ATH Diff %', lookup('I'), '0.00%');
-  row = addDataRow_(REPORT, row, 'ATH ZONE', lookup('AD'), '@');
-  row = addDataRow_(REPORT, row, 'R:R Quality', lookup('J'), '0.00"x"');
+  row = addDataRow_(REPORT, row, 'ATH ZONE', lookup('J'), '@');
+  row = addDataRow_(REPORT, row, 'FUNDAMENTAL', lookup('K'), '@');
   
-  // TREND Section - Trend Score, State & SMAs (Dashboard columns K-O)
-  row = addSection_(REPORT, row, 'TREND');
-  row = addDataRow_(REPORT, row, 'TREND SCORE', lookup('K'), '@');
+  // TREND Section (L-O) - CORRECTED COLUMN REFERENCES
+  row = addSectionWithColor_(REPORT, row, 'TREND', SECTION_COLORS.TREND);
   row = addDataRow_(REPORT, row, 'TREND STATE', lookup('L'), '@');
   row = addDataRow_(REPORT, row, 'SMA 20', lookup('M'), '$#,##0.00');
   row = addDataRow_(REPORT, row, 'SMA 50', lookup('N'), '$#,##0.00');
   row = addDataRow_(REPORT, row, 'SMA 200', lookup('O'), '$#,##0.00');
   
-  // MOMENTUM Section - RSI, MACD, Divergence, ADX, Stochastic (Dashboard columns P-T)
-  row = addSection_(REPORT, row, 'MOMENTUM');
+  // MOMENTUM Section (P-T) - CORRECTED COLUMN REFERENCES
+  row = addSectionWithColor_(REPORT, row, 'MOMENTUM', SECTION_COLORS.MOMENTUM);
   row = addDataRow_(REPORT, row, 'RSI', lookup('P'), '0.0');
   row = addDataRow_(REPORT, row, 'MACD Hist', lookup('Q'), '0.000');
   row = addDataRow_(REPORT, row, 'Divergence', lookup('R'), '@');
   row = addDataRow_(REPORT, row, 'ADX (14)', lookup('S'), '0.00');
   row = addDataRow_(REPORT, row, 'Stoch %K (14)', lookup('T'), '0.00%');
   
-  // VOLUME / VOLATILITY Section - Vol Trend, ATR, Bollinger, Vol Regime, Position Size, Event (CALC columns G, X, Y, AC, Z, AF)
-  row = addSection_(REPORT, row, 'VOLUME / VOLATILITY');
-  row = addDataRow_(REPORT, row, 'Vol Trend', lookup('G'), '0.00"x"');
-  row = addDataRow_(REPORT, row, 'ATR (14)', lookup('X'), '0.00');
-  row = addDataRow_(REPORT, row, 'Bollinger %B', lookup('Y'), '0.0%');
-  row = addDataRow_(REPORT, row, 'VOL REGIME', lookup('AC'), '@');
-  row = addDataRow_(REPORT, row, 'POSITION SIZE', lookup('Z'), '@');
-  row = addDataRow_(REPORT, row, 'EVENT', lookup('AF'), '@');
+  // VOLATILITY Section (U-X) - CORRECTED COLUMN REFERENCES
+  row = addSectionWithColor_(REPORT, row, 'VOLATILITY', SECTION_COLORS.VOLATILITY);
+  row = addDataRow_(REPORT, row, 'VOL REGIME', lookup('U'), '@');
+  row = addDataRow_(REPORT, row, 'BBP SIGNAL', lookup('V'), '@');
+  row = addDataRow_(REPORT, row, 'ATR (14)', lookup('W'), '0.00');
+  row = addDataRow_(REPORT, row, 'Bollinger %B', lookup('X'), '0.0%');
   
-  // TARGET Section - BBP Signal, Support, Resistance, Target, ATR Stop, ATR Target (CALC columns AE, U, V, W, AG, AH)
-  row = addSection_(REPORT, row, 'TARGET');
-  row = addDataRow_(REPORT, row, 'BBP SIGNAL', lookup('AE'), '@');
-  row = addDataRow_(REPORT, row, 'Support', lookup('U'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'Resistance', lookup('V'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'Target (3:1)', lookup('W'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'ATR STOP', lookup('AG'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'ATR TARGET', lookup('AH'), '$#,##0.00');
+  // TARGET Section (Y-AE) - CORRECTED COLUMN REFERENCES
+  row = addSectionWithColor_(REPORT, row, 'TARGET', SECTION_COLORS.TARGET);
+  row = addDataRow_(REPORT, row, 'Target (3:1)', lookup('Y'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'R:R Quality', lookup('Z'), '0.00"x"');
+  row = addDataRow_(REPORT, row, 'Support', lookup('AA'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'Resistance', lookup('AB'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'ATR STOP', lookup('AC'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'ATR TARGET', lookup('AD'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'POSITION SIZE', lookup('AE'), '@')
   
-  // FUND NOTES - Add as merged cell area at row 44 (A44:C55) with yellow font
-  REPORT.getRange('A44:C55').merge()
-    .setFormula(lookup('AB'))
+  // CORRECTED A43 FORMULA SECTION - Copy this to replace lines 287-360 in generateMobileDashboard.js
+
+  // NOTES - Signal explanation at row 43 (A43:C60)
+  // Explains which indicators triggered the SIGNAL and how DECISION was derived
+  // Build formula with direct INDEX/MATCH patterns (not using lookup/numLookup helper functions)
+  const signalLookup = `IFERROR(INDEX(CALCULATIONS!B:B${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0))${SEP}"—")`;
+  const decisionLookup = `IFERROR(INDEX(CALCULATIONS!D:D${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0))${SEP}"—")`;
+  const patternsLookup = `IFERROR(INDEX(CALCULATIONS!C:C${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0))${SEP}"—")`;
+  const priceNum = `IFERROR(VALUE(INDEX(CALCULATIONS!E:E${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
+  const rvolNum = `IFERROR(VALUE(INDEX(CALCULATIONS!G:G${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
+  const athDiffNum = `IFERROR(VALUE(INDEX(CALCULATIONS!J:J${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
+  const sma20Num = `IFERROR(VALUE(INDEX(CALCULATIONS!N:N${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
+  const sma50Num = `IFERROR(VALUE(INDEX(CALCULATIONS!O:O${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
+  const sma200Num = `IFERROR(VALUE(INDEX(CALCULATIONS!P:P${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
+  const rsiNum = `IFERROR(VALUE(INDEX(CALCULATIONS!Q:Q${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
+  const macdHistNum = `IFERROR(VALUE(INDEX(CALCULATIONS!R:R${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
+  const adxNum = `IFERROR(VALUE(INDEX(CALCULATIONS!T:T${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
+  const stochKNum = `IFERROR(VALUE(INDEX(CALCULATIONS!U:U${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
+  const bbPercentBNum = `IFERROR(VALUE(INDEX(CALCULATIONS!X:X${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
+  const supportNum = `IFERROR(VALUE(INDEX(CALCULATIONS!AA:AA${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
+  const resistanceNum = `IFERROR(VALUE(INDEX(CALCULATIONS!AB:AB${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
+  
+  const notesFormula = `=IF($A$1=""${SEP}""${SEP}IF(${priceNum}=0${SEP}"LOADING"${SEP}` +
+    `"SIGNAL ANALYSIS FOR "&$A$1&CHAR(10)&CHAR(10)&` +
+    `"═══════════════════════════════════"&CHAR(10)&` +
+    `"SIGNAL: "&${signalLookup}&CHAR(10)&` +
+    `"DECISION: "&${decisionLookup}&CHAR(10)&` +
+    `"PATTERNS: "&${patternsLookup}&CHAR(10)&` +
+    `"═══════════════════════════════════"&CHAR(10)&CHAR(10)&` +
+    `"WHY THIS SIGNAL FIRED:"&CHAR(10)&CHAR(10)&` +
+    `IF(${signalLookup}="STOP OUT"${SEP}"• Price ("&TEXT(${priceNum}${SEP}"$0.00")&") fell below Support ("&TEXT(${supportNum}${SEP}"$0.00")&")"&CHAR(10)&"• Risk management triggered - exit position immediately"${SEP}` +
+    `IF(${signalLookup}="RISK OFF"${SEP}"• Price ("&TEXT(${priceNum}${SEP}"$0.00")&") below SMA200 ("&TEXT(${sma200Num}${SEP}"$0.00")&")"&CHAR(10)&"• Bear market regime - avoid new positions"${SEP}` +
+    `IF(${signalLookup}="ATH BREAKOUT"${SEP}"• ATH Diff: "&TEXT(${athDiffNum}${SEP}"0.0%")&" (within 1% of all-time high)"&CHAR(10)&"• RVOL: "&TEXT(${rvolNum}${SEP}"0.00x")&" (≥1.5x confirms strong participation)"&CHAR(10)&"• ADX: "&TEXT(${adxNum}${SEP}"0.0")&" (≥20 confirms trend strength)"&CHAR(10)&"• Price above SMA200 (bull regime)"${SEP}` +
+    `IF(${signalLookup}="VOLATILITY BREAKOUT"${SEP}"• ATR spiked >1.5x its 20-day average"&CHAR(10)&"• RVOL: "&TEXT(${rvolNum}${SEP}"0.00x")&" (≥2.0x extreme volume)"&CHAR(10)&"• Price ("&TEXT(${priceNum}${SEP}"$0.00")&") broke above Resistance ("&TEXT(${resistanceNum}${SEP}"$0.00")&")"${SEP}` +
+    `IF(${signalLookup}="EXTREME OVERSOLD BUY"${SEP}"• Bollinger %B: "&TEXT(${bbPercentBNum}${SEP}"0.0%")&" (≤10% = lower band)"&CHAR(10)&"• RSI: "&TEXT(${rsiNum}${SEP}"0.0")&" (≤25 = deeply oversold)"&CHAR(10)&"• Stoch %K: "&TEXT(${stochKNum}${SEP}"0.0%")&" (≤20% = oversold timing)"&CHAR(10)&"• Price above SMA200 (bull regime)"${SEP}` +
+    `IF(${signalLookup}="STRONG BUY"${SEP}"• Price above SMA200 (bull regime)"&CHAR(10)&"• SMA50 ("&TEXT(${sma50Num}${SEP}"$0.00")&") > SMA200 (uptrend confirmed)"&CHAR(10)&"• RSI: "&TEXT(${rsiNum}${SEP}"0.0")&" (≤30 = oversold entry)"&CHAR(10)&"• MACD Hist: "&TEXT(${macdHistNum}${SEP}"0.000")&" (>0 = positive momentum)"&CHAR(10)&"• ADX: "&TEXT(${adxNum}${SEP}"0.0")&" (≥20 = strong trend)"&CHAR(10)&"• RVOL: "&TEXT(${rvolNum}${SEP}"0.00x")&" (≥1.5x = high participation)"${SEP}` +
+    `IF(${signalLookup}="BUY"${SEP}"• Price above SMA200 (bull regime)"&CHAR(10)&"• SMA50 ("&TEXT(${sma50Num}${SEP}"$0.00")&") > SMA200 (uptrend)"&CHAR(10)&"• RSI: "&TEXT(${rsiNum}${SEP}"0.0")&" (≤40 = pullback entry)"&CHAR(10)&"• MACD Hist: "&TEXT(${macdHistNum}${SEP}"0.000")&" (>0 = momentum)"&CHAR(10)&"• ADX: "&TEXT(${adxNum}${SEP}"0.0")&" (≥15 = developing trend)"${SEP}` +
+    `IF(${signalLookup}="ACCUMULATE"${SEP}"• Price above SMA200 (bull regime)"&CHAR(10)&"• RSI: "&TEXT(${rsiNum}${SEP}"0.0")&" (≤35 = dip opportunity)"&CHAR(10)&"• Price near SMA50 ("&TEXT(${sma50Num}${SEP}"$0.00")&") support"${SEP}` +
+    `IF(${signalLookup}="BREAKOUT"${SEP}"• RVOL: "&TEXT(${rvolNum}${SEP}"0.00x")&" (≥1.5x = strong volume)"&CHAR(10)&"• Price ("&TEXT(${priceNum}${SEP}"$0.00")&") near/above Resistance ("&TEXT(${resistanceNum}${SEP}"$0.00")&")"${SEP}` +
+    `IF(${signalLookup}="MOMENTUM"${SEP}"• Price above SMA200 (bull regime)"&CHAR(10)&"• MACD Hist: "&TEXT(${macdHistNum}${SEP}"0.000")&" (>0 = positive momentum)"&CHAR(10)&"• ADX: "&TEXT(${adxNum}${SEP}"0.0")&" (≥20 = strong trend)"${SEP}` +
+    `IF(${signalLookup}="UPTREND"${SEP}"• Price above SMA200 (bull regime)"&CHAR(10)&"• SMA50 ("&TEXT(${sma50Num}${SEP}"$0.00")&") > SMA200 (uptrend structure)"&CHAR(10)&"• ADX: "&TEXT(${adxNum}${SEP}"0.0")&" (≥15 = developing trend)"${SEP}` +
+    `IF(${signalLookup}="BULLISH"${SEP}"• Price above SMA50 ("&TEXT(${sma50Num}${SEP}"$0.00")&")"&CHAR(10)&"• Price above SMA20 ("&TEXT(${sma20Num}${SEP}"$0.00")&")"&CHAR(10)&"• Short-term bullish alignment"${SEP}` +
+    `IF(${signalLookup}="OVERSOLD"${SEP}"• Stoch %K: "&TEXT(${stochKNum}${SEP}"0.0%")&" (≤20% = oversold) OR"&CHAR(10)&"• Bollinger %B: "&TEXT(${bbPercentBNum}${SEP}"0.0%")&" (≤20% = lower band)"&CHAR(10)&"• Price above Support ("&TEXT(${supportNum}${SEP}"$0.00")&")"${SEP}` +
+    `IF(${signalLookup}="OVERBOUGHT"${SEP}"• RSI: "&TEXT(${rsiNum}${SEP}"0.0")&" (≥80 = overbought) OR"&CHAR(10)&"• Bollinger %B: "&TEXT(${bbPercentBNum}${SEP}"0.0%")&" (≥90% = upper band)"&CHAR(10)&"• Potential reversal zone"${SEP}` +
+    `IF(${signalLookup}="VOLATILITY SQUEEZE"${SEP}"• ATR <0.7x its 20-day average (low volatility)"&CHAR(10)&"• ADX: "&TEXT(${adxNum}${SEP}"0.0")&" (<15 = weak trend)"&CHAR(10)&"• Bollinger %B: "&TEXT(${bbPercentBNum}${SEP}"0.0%")&" (mid-band compression)"&CHAR(10)&"• Coiling for potential breakout"${SEP}` +
+    `IF(${signalLookup}="RANGE"${SEP}"• ADX: "&TEXT(${adxNum}${SEP}"0.0")&" (<15 = no clear trend)"&CHAR(10)&"• Price oscillating between support/resistance"${SEP}` +
+    `"• No specific signal criteria met"&CHAR(10)&"• Neutral market conditions"` +
+    `))))))))))))))))&CHAR(10)&CHAR(10)&` +
+    `"HOW DECISION WAS DERIVED:"&CHAR(10)&CHAR(10)&` +
+    `"1. SIGNAL provides the technical setup: "&${signalLookup}&CHAR(10)&CHAR(10)&` +
+    `"2. PATTERNS "&IF(${patternsLookup}="None"${SEP}"not detected"${SEP}"detected: "&${patternsLookup})&CHAR(10)&` +
+    `IF(${patternsLookup}<>"None"${SEP}"   • Bullish patterns (ASC_TRI${SEP} BRKOUT${SEP} DBL_BTM${SEP} INV_H&S${SEP} CUP_HDL) confirm long signals"&CHAR(10)&"   • Bearish patterns (DESC_TRI${SEP} H&S${SEP} DBL_TOP) create conflicts"&CHAR(10)${SEP}"")&CHAR(10)&` +
+    `"3. DECISION combines SIGNAL + PATTERNS:"&CHAR(10)&` +
+    `IF(OR(${decisionLookup}="🟢 STRONG BUY (PATTERN CONFIRMED)"${SEP}${decisionLookup}="🟢 STRONG TRADE LONG (PATTERN CONFIRMED)")${SEP}"   • Strong signal ("&${signalLookup}&") + bullish pattern = high-confidence entry"${SEP}` +
+    `IF(${decisionLookup}="⚠️ HOLD (PATTERN CONFLICT)"${SEP}"   • Strong signal ("&${signalLookup}&") BUT bearish pattern detected = wait for clarity"${SEP}` +
+    `IF(OR(${decisionLookup}="🟢 STRONG BUY"${SEP}${decisionLookup}="Strong Trade Long")${SEP}"   • Strong signal ("&${signalLookup}&") without pattern confirmation"${SEP}` +
+    `IF(OR(${decisionLookup}="🟢 BUY"${SEP}${decisionLookup}="Trade Long"${SEP}${decisionLookup}="🟢 ADD")${SEP}"   • Positive signal ("&${signalLookup}&") supports entry/add"${SEP}` +
+    `IF(${decisionLookup}="🔴 EXIT"${SEP}"   • STOP OUT or RISK OFF signal = immediate exit required"${SEP}` +
+    `IF(${decisionLookup}="🟠 TRIM"${SEP}"   • OVERBOUGHT signal = take partial profits"${SEP}` +
+    `IF(${decisionLookup}="⏳ WAIT (OVERBOUGHT)"${SEP}"   • OVERBOUGHT signal = wait for pullback before entry"${SEP}` +
+    `IF(${decisionLookup}="🟡 WATCH (OVERSOLD)"${SEP}"   • OVERSOLD signal = monitor for entry opportunity"${SEP}` +
+    `"   • Signal: "&${signalLookup}&" = hold current position or wait"` +
+    `))))))))&CHAR(10)&CHAR(10)&` +
+    `"NOTE: FUNDAMENTAL data is informational only and does NOT influence SIGNAL or DECISION logic."` +
+    `))`;
+  
+  REPORT.getRange('A43:C60').merge()
+    .setFormula(notesFormula)
     .setBackground(P.BG_ROW_A)
     .setFontColor('#FFFF00') // Yellow font
     .setFontWeight('normal')
@@ -289,8 +362,10 @@ function createFormulaReport_(REPORT) {
     .setHorizontalAlignment('left')
     .setBorder(true, true, true, true, false, false, P.GRID, SpreadsheetApp.BorderStyle.SOLID);
   
-  // Add margin: 4 columns × 4 rows below the report (starting at row 56)
-  const marginStartRow = 56;
+  // NOTE: E18:M64 AI analysis merge is created in setupChartSection_() - DO NOT duplicate here
+  
+  // Add margin: 4 columns × 4 rows below the report (starting at row 61)
+  const marginStartRow = 61;
   REPORT.getRange(marginStartRow, 1, 4, 4)
     .setBackground('#000000')
     .clearContent();
@@ -315,6 +390,24 @@ function addSection_(REPORT, row, title) {
     .setBackground('#1F2937') // Slightly lighter than PANEL for distinction
     .setFontColor(P.TEXT)
     .setFontWeight('bold') // Make section headers bold
+    .setFontSize(10)
+    .setFontFamily('Calibri')
+    .setBorder(true, true, true, true, false, false, P.GRID, SpreadsheetApp.BorderStyle.SOLID)
+    .setHorizontalAlignment('left');
+  REPORT.setRowHeight(row, 22);
+  return row + 1;
+}
+
+/**
+ * Add section header with custom color
+ */
+function addSectionWithColor_(REPORT, row, title, color) {
+  const P = reportPalette___();
+  REPORT.getRange(row, 1).setValue(title);
+  REPORT.getRange(row, 1, 1, 3).merge()
+    .setBackground(color)  // Use custom color instead of default
+    .setFontColor('#FFFFFF')  // White text for better contrast
+    .setFontWeight('bold')
     .setFontSize(10)
     .setFontFamily('Calibri')
     .setBorder(true, true, true, true, false, false, P.GRID, SpreadsheetApp.BorderStyle.SOLID)
@@ -421,7 +514,7 @@ function getNarrativeFormula_(label) {
     case 'SIGNAL':
       return '=""';
     
-    case 'FUNDAMENTAL':
+    case 'PATTERNS':
       return '=""';
     
     case 'DECISION':
@@ -441,36 +534,41 @@ function getNarrativeFormula_(label) {
       return '=IFERROR(IF(GOOGLEFINANCE($A$1,"eps")>=0.50,"profitable","unprofitable"),"—")';
     
     case 'Range %':
-      return '=IFERROR(TEXT((GOOGLEFINANCE($A$1,"price")/INDEX(GOOGLEFINANCE($A$1,"price",A3),2,2)-1),"+0.00%;-0.00%") & " from " & TEXT(A3,"yyyy-mm-dd"),"—")';
+      return '=IFERROR("since " & TEXT(A3,"yyyy-mm-dd"),"—")';
+    
+    // VOLUME Section
+    case 'Vol Trend':
+      return '=IFERROR(IF(' + lookup('G') + '>=1.5,"strong participation.",IF(' + lookup('G') + '>=1,"average participation.","low participation (drift risk).")),"—")';
+    
+    case 'VOL REGIME':
+      return '=IFERROR("volatility environment.","—")';
     
     // PERFORMANCE Section
     case 'ATH (TRUE)':
       return '=""';
     
     case 'ATH Diff %':
-      return '=IFERROR(TEXT(' + lookup('I') + ',"+0.00%;-0.00%") & IF(' + lookup('I') + '>=-0.02," at ATH zone",IF(' + lookup('I') + '>=-0.15," pullback zone"," correction territory")),"—")';
+      return '=IFERROR(IF(' + lookup('I') + '>=-0.02,"at ATH zone",IF(' + lookup('I') + '>=-0.15,"pullback zone","correction territory")),"—")';
     
     case 'ATH ZONE':
-      return '=IFERROR(' + lookup('AD') + ' & " distance from all-time highs.","—")';
-    
-    case 'R:R Quality':
-      return '=IFERROR(IF(' + lookup('J') + '>=3," elite asymmetry.",IF(' + lookup('J') + '>=1.5," acceptable asymmetry."," poor asymmetry.")),"—")';
-    
-    // TREND Section
-    case 'TREND SCORE':
       return '=""';
     
+    // FUNDAMENTAL Section
+    case 'FUNDAMENTAL':
+      return '=IFERROR(' + lookup('K') + ' & " valuation assessment.","—")';
+    
+    // TREND Section
     case 'TREND STATE':
       return '=IFERROR(' + lookup('L') + ' & " market regime based on SMA200 position.","—")';
     
     case 'SMA 20':
-      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('M') + '-1),"+0.0%;-0.0%") & IF(' + numLookup('E') + '>=' + numLookup('M') + '," - short-term bullish."," - short-term bearish."),"—")';
+      return '=IFERROR(TEXT((' + numLookup('M') + '-' + numLookup('E') + ')/' + numLookup('E') + ',"+0%;-0%") & IF(' + numLookup('E') + '>=' + numLookup('M') + '," below price - short-term bullish."," above price - short-term bearish."),"—")';
     
     case 'SMA 50':
-      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('N') + '-1),"+0.0%;-0.0%") & IF(' + numLookup('E') + '>=' + numLookup('N') + '," - medium-term bullish."," - medium-term bearish."),"—")';
+      return '=IFERROR(TEXT((' + numLookup('N') + '-' + numLookup('E') + ')/' + numLookup('E') + ',"+0%;-0%") & IF(' + numLookup('E') + '>=' + numLookup('N') + '," below price - medium-term bullish."," above price - medium-term bearish."),"—")';
     
     case 'SMA 200':
-      return '=IFERROR(TEXT((' + numLookup('E') + '/' + numLookup('O') + '-1),"+0.0%;-0.0%") & IF(' + numLookup('E') + '>=' + numLookup('O') + '," - RISK-ON regime."," - RISK-OFF regime."),"—")';
+      return '=IFERROR(TEXT((' + numLookup('O') + '-' + numLookup('E') + ')/' + numLookup('E') + ',"+0%;-0%") & IF(' + numLookup('E') + '>=' + numLookup('O') + '," below price - RISK-ON regime."," above price - RISK-OFF regime."),"—")';
     
     // MOMENTUM Section
     case 'RSI':
@@ -480,7 +578,7 @@ function getNarrativeFormula_(label) {
       return '=IFERROR(IF(' + lookup('Q') + '>0,"positive momentum impulse.",IF(' + lookup('Q') + '<0,"negative momentum impulse.","flat momentum.")),"—")';
     
     case 'Divergence':
-      return '=IFERROR(IF(' + lookup('R') + '="BULL DIV","Bullish divergence detected.",IF(' + lookup('R') + '="BEAR DIV","Bearish divergence detected.","— No momentum divergence detected.")),"—")';
+      return '=IFERROR(IF(' + lookup('R') + '="BULL DIV","Bullish divergence detected.",IF(' + lookup('R') + '="BEAR DIV","Bearish divergence detected.","No divergence detected.")),"—")';
     
     case 'ADX (14)':
       return '=IFERROR("Trend strength: " & IF(' + lookup('S') + '>=25," strong ",IF(' + lookup('S') + '>=20," developing ",IF(' + lookup('S') + '>=15," weak "," range-bound "))),"—")';
@@ -488,43 +586,38 @@ function getNarrativeFormula_(label) {
     case 'Stoch %K (14)':
       return '=IFERROR(IF(' + lookup('T') + '>=0.8,"overbought timing.",IF(' + lookup('T') + '<=0.2,"oversold timing.","neutral timing.")),"—")';
     
-    // VOLUME / VOLATILITY Section
-    case 'Vol Trend':
-      return '=IFERROR(IF(' + lookup('G') + '>=1.5,"strong participation.",IF(' + lookup('G') + '>=1,"average participation.","low participation (drift risk).")),"—")';
+    case 'BBP SIGNAL':
+      return '=IFERROR("Signal for mean reversion opportunities.","—")';
     
+    // VOLATILITY Section
     case 'ATR (14)':
-      return '=IFERROR(TEXT(' + lookup('X') + '/' + lookup('E') + ',"0.0%") & " of price - volatility measure.","—")';
+      return '=IFERROR(TEXT(' + lookup('W') + '/' + lookup('E') + ',"0.0%") & " of price - volatility measure.","—")';
     
     case 'Bollinger %B':
-      return '=IFERROR(IF(' + lookup('Y') + '>1," above upper band.",IF(' + lookup('Y') + '>=0.8," upper band zone.",IF(' + lookup('Y') + '<0," below lower band.",IF(' + lookup('Y') + '<=0.2," lower band zone."," mid-band zone.")))),"—")';
-    
-    case 'VOL REGIME':
-      return '=""';
-    
-    case 'POSITION SIZE':
-      return '=IFERROR(' + lookup('Z') + ' & " - volatility and ATH-adjusted institutional position sizing.","—")';
-    
-    case 'EVENT':
-      return '=""';
+      return '=IFERROR(IF(' + lookup('X') + '>1," above upper band.",IF(' + lookup('X') + '>=0.8," upper band zone.",IF(' + lookup('X') + '<0," below lower band.",IF(' + lookup('X') + '<=0.2," lower band zone."," mid-band zone.")))),"—")';
     
     // TARGET Section
-    case 'BBP SIGNAL':
-      return '=IFERROR(' + lookup('AE') + ' & " Bollinger Band position signal for mean reversion opportunities.","—")';
+    case 'Target (3:1)':
+      return '=IFERROR(TEXT((' + numLookup('Y') + '/' + numLookup('E') + '-1),"+0.00%;-0.00%") & " upside potential","—")';
     
+    case 'R:R Quality':
+      return '=IFERROR(IF(' + lookup('Z') + '>=3," elite asymmetry.",IF(' + lookup('Z') + '>=1.5," acceptable asymmetry."," poor asymmetry.")),"—")';
+    
+    // LEVELS Section
     case 'Support':
-      return '=IFERROR(IF(' + numLookup('U') + '<' + numLookup('E') + ',TEXT(' + numLookup('E') + ',"$#,##0.00") & " > " & TEXT((' + numLookup('E') + '/' + numLookup('U') + '-1),"+0.0%") & " support",TEXT(' + numLookup('E') + ',"$#,##0.00") & " < " & TEXT((' + numLookup('U') + '/' + numLookup('E') + '-1),"+0.0%") & " support"),"—")';
+      return '=IFERROR(IF(' + numLookup('AA') + '<' + numLookup('E') + ',TEXT((' + numLookup('E') + '/' + numLookup('AA') + '-1),"+0.0%") & " support",TEXT((' + numLookup('AA') + '/' + numLookup('E') + '-1),"+0.0%") & " support"),"—")';
     
     case 'Resistance':
-      return '=IFERROR(IF(' + numLookup('V') + '>' + numLookup('E') + ',TEXT(' + numLookup('E') + ',"$#,##0.00") & " " & TEXT((' + numLookup('E') + '/' + numLookup('V') + '-1),"0.0%") & " below Resistance",TEXT(' + numLookup('E') + ',"$#,##0.00") & " " & TEXT((' + numLookup('E') + '/' + numLookup('V') + '-1),"+0.0%") & " above Resistance"),"—")';
-    
-    case 'Target (3:1)':
-      return '=IFERROR(TEXT((' + numLookup('W') + '/' + numLookup('E') + '-1),"+0.00%;-0.00%") & " upside potential","—")';
+      return '=IFERROR(IF(' + numLookup('AB') + '>' + numLookup('E') + ',TEXT((' + numLookup('E') + '/' + numLookup('AB') + '-1),"0.0%") & " below Resistance",TEXT((' + numLookup('E') + '/' + numLookup('AB') + '-1),"+0.0%") & " above Resistance"),"—")';
     
     case 'ATR STOP':
-      return '=IFERROR(TEXT(ABS((' + numLookup('E') + '/' + numLookup('AG') + '-1)),"+0.0%;-0.0%") & " risk from current price","—")';
+      return '=IFERROR(TEXT(ABS((' + numLookup('E') + '/' + numLookup('AC') + '-1)),"+0.0%;-0.0%") & " risk from current price","—")';
     
     case 'ATR TARGET':
-      return '=IFERROR(TEXT((' + numLookup('AH') + '/' + numLookup('E') + '-1),"+0.0%;-0.0%") & " reward potential","—")';
+      return '=IFERROR(TEXT((' + numLookup('AD') + '/' + numLookup('E') + '-1),"+0.0%;-0.0%") & " reward potential","—")';
+    
+    case 'POSITION SIZE':
+      return '=""';
     
     default:
       return '"No explanation available."';
@@ -955,11 +1048,11 @@ function setupReportTickerDropdown_(reportSheet, inputSheet) {
     
     const rule = SpreadsheetApp.newDataValidation()
       .requireValueInRange(rng, true)
-      .setAllowInvalid(false)
+      .setAllowInvalid(true)
       .build();
     
     const a1 = reportSheet.getRange('A1');
-    a1.setDataValidation(rule);
+    a1.setDataValidation(rule);a
     
     if (!a1.getValue()) {
       a1.setValue('AAPL');
@@ -978,7 +1071,7 @@ function setupReportTickerDropdown_(reportSheet, inputSheet) {
 
   const rule = SpreadsheetApp.newDataValidation()
     .requireValueInRange(dashboardRng, true)
-    .setAllowInvalid(false)
+    .setAllowInvalid(true)
     .build();
 
   // Set validation on merged A1:C1 - use A1 as the reference cell
@@ -1053,24 +1146,28 @@ function setupChartControls_(REPORT) {
 
 /**
  * Setup chart section placeholder - NO MERGE, prepare for floating chart (E3:M22)
+ * CRITICAL: E18:M64 contains AI analysis and must NOT be overwritten
  */
 function setupChartSection_(REPORT) {
-  // Clear the chart area completely - no merging, let chart float (E3:M30)
-  REPORT.getRange('E3:M30').clearContent().clearFormat();
+  // Clear only the chart display area E3:M17 - DO NOT touch E18:M64 (AI analysis area)
+  REPORT.getRange('E3:M17').clearContent().clearFormat();
   
-  // Just set a simple background color for the chart area
-  REPORT.getRange('E3:M30')
+  // Set background for chart display area only
+  REPORT.getRange('E3:M17')
     .setBackground('#0F172A')
     .setBorder(true, true, true, true, false, false, '#374151', SpreadsheetApp.BorderStyle.SOLID);
   
-  // Add AI fundamental analysis in E18:M30 merged area with yellow font
-  REPORT.getRange('E18:M30').merge()
-    .setFormula('=AI("Analyze " & A1 & " fundamentals for investment decision: analyst consensus rating and price target, forward P/E vs industry, revenue/earnings growth estimates, debt levels, profitability metrics, dividend sustainability, and any red flags or catalysts. Summarize investment thesis in 3-4 sentences.", A1)')
+  // Add comprehensive AI investment analysis in E18:M64 merged area with yellow font
+  // This area is PROTECTED and should not be cleared by chart creation
+  REPORT.getRange('E18:M64').merge()
+    .setFormula('=AI("Perform a comprehensive, professional investment analysis for " & A1 & " as of Jan 2026. 1. FUNDAMENTAL PROFILE: Analyst consensus and 12-month price target. Compare forward P/E to industry peers. Detail 3-year revenue/earnings CAGR estimates. 2. FINANCIAL HEALTH: Assess debt-to-equity, gross/operating margins, and dividend payout ratio sustainability. 3. TECHNICAL ANALYSIS: Identify the current primary trend, status of key moving averages (50-day and 200-day), and momentum indicators (RSI/MACD). 4. CHART PATTERNS & LEVELS: Identify specific patterns (e.g., Head & Shoulders, Ascending Triangle) and provide exact Support and Resistance levels. 5. RISKS & CATALYSTS: Outline specific bearish red flags and upcoming bullish catalysts. 6. INVESTMENT THESIS: Conclude with a 3-4 sentence summary of the investment decision rationale.", A1)')
     .setFontColor('#FFFF00')
     .setBackground('#0F172A')
     .setWrap(true)
     .setVerticalAlignment('top')
     .setHorizontalAlignment('left')
+    .setFontSize(9)
+    .setFontFamily('Calibri')
     .setFontSize(10)
     .setFontFamily('Calibri');
 }
@@ -1186,12 +1283,20 @@ function createReportChartInternal_(REPORT, ticker) {
     const tickerRow = calcData.findIndex(row => String(row[0]).toUpperCase().trim() === ticker.toUpperCase());
     if (tickerRow !== -1) {
       const calcRow = calcData[tickerRow];
-      currentPrice = Number(calcRow[4]) || 0; // Column E - Current Price
-      support = Number(calcRow[20]) || 0; // Column U - Support (index 20)
-      resistance = Number(calcRow[21]) || 0; // Column V - Resistance (index 21)
-      atr = Number(calcRow[23]) || 0; // Column X - ATR (14) (index 23)
-      currentRSI = Number(calcRow[15]) || 50; // Column P - RSI
+      // Column indices are 0-based: A=0, B=1, C=2, ..., Z=25, AA=26, AB=27, etc.
+      currentPrice = Number(calcRow[4]) || 0; // Column E (index 4) - Price
+      support = Number(calcRow[26]) || 0; // Column AA (index 26) - Support
+      resistance = Number(calcRow[27]) || 0; // Column AB (index 27) - Resistance
+      atr = Number(calcRow[22]) || 0; // Column W (index 22) - ATR (14)
+      currentRSI = Number(calcRow[16]) || 0; // Column Q (index 16) - RSI
+      
+      // Debug log to verify data is being read correctly
+      console.log(`Chart data for ${ticker}: Price=${currentPrice}, Support=${support}, Resistance=${resistance}, ATR=${atr}, RSI=${currentRSI}`);
+    } else {
+      console.log(`Ticker ${ticker} not found in CALCULATIONS sheet`);
     }
+  } else {
+    console.log('CALCULATIONS sheet not found');
   }
   
   // Get live price from Google Finance API for today's data - ENHANCED ERROR HANDLING
@@ -1547,7 +1652,7 @@ function createReportChartInternal_(REPORT, ticker) {
     // Bull volume series (green) - assign to secondary axis with proper opacity
     seriesConfig[seriesIndex] = { 
       type: "bars", 
-      color: "#2E7D32", // Darker green like updateDynamicChart()
+      color: "#1976D2", // Medium Blue (not green)
       opacity: 0.6, // Reduced opacity for better visibility
       labelInLegend: "Bull Volume",
       targetAxisIndex: 1 // Secondary axis for volume
@@ -1647,6 +1752,7 @@ function createReportChartInternal_(REPORT, ticker) {
   console.log(`VAxes config:`, JSON.stringify(vAxes));
   
   // Create floating chart exactly like updateDynamicChart - ENHANCED ERROR HANDLING
+  // CRITICAL: Chart positioned at E3 with height 350px to fit E3:M17 only, NOT overwriting E18:M64 (AI analysis)
   try {
     const chart = REPORT.newChart()
       .setChartType(Charts.ChartType.COMBO)
@@ -1666,8 +1772,8 @@ function createReportChartInternal_(REPORT, ticker) {
         format: 'dd/MM/yy'
       })
       .setPosition(3, 5, 0, 0) // Row 3, Column E - FLOATING CHART
-      .setOption("width", 720)  // Exact width to fit E3:M22 perfectly (9 columns * 80px)
-      .setOption("height", 420) // Height to fit the area properly
+      .setOption("width", 720)  // Exact width to fit E3:M17 perfectly (9 columns * 80px)
+      .setOption("height", 350) // REDUCED height to fit E3:M17 only (15 rows * ~23px), NOT overwriting E18:M64
       .build();
     
     // Insert the floating chart
@@ -1712,7 +1818,7 @@ function createReportChartInternal_(REPORT, ticker) {
         })
         .setPosition(3, 5, 0, 0)
         .setOption("width", 720)
-        .setOption("height", 420)
+        .setOption("height", 350) // REDUCED height to fit E3:M17 only
         .build();
       
       REPORT.insertChart(fallbackChart);

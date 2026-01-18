@@ -1,9 +1,8 @@
 /**
 * ==============================================================================
-* STABLE_MASTER_ALL_CLEAN_v3_KIRO_OPTIMIZED
+* STABLE_MASTER_ALL_CLEAN_v3.1_KIRO_OPTIMIZED
 * ==============================================================================
 */
-
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('📈 Institutional Terminal')
@@ -12,7 +11,7 @@ function onOpen() {
     .addSeparator()
     .addItem('3. Build Calculations', 'generateCalculationsSheet')
     .addItem('4. Build Dashboard ', 'generateDashboardSheet')
-    .addItem('4. Build Mobile Dashbaord ', 'setupFormulaBasedReport') //generateMobileReport
+    .addItem('4. Build Mobile Dashbaord ', 'generateMobileReport') 
     .addSeparator()
     .addItem('🤖 Generate  Narratives', 'runMasterAnalysis')
     .addSeparator()
@@ -23,7 +22,6 @@ function onOpen() {
     .addItem('📩 Test Alert Now', 'checkSignalsAndSendAlerts')
     .addToUi();
 }
-
 
 function onEdit(e) {
   const range = e.range;
@@ -130,6 +128,7 @@ function onEdit(e) {
   }
 }
 
+//Not used now, This is triggred when CAHR A1 is changed , to call runMasterAnalysis(). This needs setup in triggeres in appscript
 function onEditInstall(e) {
   if (!e || !e.range) return;
 
@@ -144,7 +143,7 @@ function onEditInstall(e) {
 
 function FlushAllSheetsAndBuild() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetsToDelete = ["CALCULATIONS", "DASHBOARD", "CHART", "REPORT"];
+  const sheetsToDelete = ["CALCULATIONS", "DASHBOARD", "REPORT"];
   const ui = SpreadsheetApp.getUi();
 
   if (ui.alert('🚨 Full Rebuild', 'Rebuild the sheets?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
@@ -154,21 +153,18 @@ function FlushAllSheetsAndBuild() {
     if (sh) ss.deleteSheet(sh);
   });
 
-  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>1/4:</b> Integrating Indicators..."), "Status");
+  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>1/3:</b> Integrating Indicators..."), "Status");
   generateCalculationsSheet();
   SpreadsheetApp.flush();
 
-  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>2/4:</b> Building Dashboard..."), "Status");
+  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>2/3:</b> Building Dashboard..."), "Status");
   generateDashboardSheet();
   SpreadsheetApp.flush();
 
-  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>3/4:</b> Constructing Report..."), "Status");
-  setupFormulaBasedReport();
+  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>3/3:</b> Building Mobile Report..."), "Status");
+  generateMobileReport();
 
-  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>4/4:</b> Constructing Chart..."), "Status");
-  setupChartSheet();
-
-  ui.alert('✅ Rebuild Complete', 'Terminal Online. Data links restored.', ui.ButtonSet.OK);
+  ui.showModelessDialog(HtmlService.createHtmlOutput("<b>3/3:</b>✅ Rebuild Complete..."), "Status");
 }
 
 function FlushDataSheetAndBuild() {
@@ -176,7 +172,7 @@ function FlushDataSheetAndBuild() {
   const sheetsToDelete = ["DATA"];
   const ui = SpreadsheetApp.getUi();
 
-  if (ui.alert('🚨 Full Rebuild', 'Rebuild Data?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
+  //if (ui.alert('🚨 Full Rebuild', 'Rebuild Data?', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
 
   sheetsToDelete.forEach(name => {
     let sh = ss.getSheetByName(name);

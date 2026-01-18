@@ -1,13 +1,8 @@
 /**
- * ==============================================================================
- * OPTIMIZED DATA SHEET GENERATION
- * ==============================================================================
- * Faster, more reliable data fetching with better error handling
- * - Progressive loading with user feedback
- * - Better error handling and recovery
- * - Optimized formula generation
- * ==============================================================================
- */
+* ==============================================================================
+* STABLE_MASTER_ALL_CLEAN_v3.1_KIRO_OPTIMIZED
+* ==============================================================================
+*/
 
 function generateDataSheet() {
   const startTime = new Date().getTime();
@@ -199,14 +194,4 @@ function generateDataSheet() {
     ss.toast(`Error: ${error.message}`, "❌ Failed", 5);
     throw error;
   }
-}
-
-function getCleanTickers(sheet) {
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 3) return [];
-  return sheet.getRange(3, 1, lastRow - 2, 1)
-    .getValues()
-    .flat()
-    .filter(t => t && t.toString().trim() !== "")
-    .map(t => t.toString().toUpperCase().trim());
 }
