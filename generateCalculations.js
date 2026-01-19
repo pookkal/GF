@@ -9,6 +9,44 @@
 const DELAY_AFTER_MAIN_FORMULAS = 12500;  // 12.5 seconds - allows calculation engine to process bulk formulas (columns E-AF)
 const DELAY_AFTER_CD_FORMULAS = 2000;     // 2 seconds - shorter delay for smaller formula set (columns C-D)
 
+// Column headers for CALCULATIONS sheet (34 columns: A-AH)
+const CALC_HEADERS = [
+  'Ticker',           // A
+  'MARKET RATING',    // B (NEW - references INPUT D)
+  'DECISION',         // C (old B formula)
+  'SIGNAL',           // D (old C formula)
+  'PATTERNS',         // E (old D formula - GETPATTERNS)
+  'CONSENSUS PRICE',  // F (NEW - references INPUT E)
+  'Price',            // G (old E formula)
+  'Change %',         // H (shifted from F)
+  'Vol Trend',        // I (shifted from G)
+  'ATH (TRUE)',       // J (shifted from H)
+  'ATH Diff %',       // K (shifted from I)
+  'ATH ZONE',         // L (shifted from J)
+  'FUNDAMENTAL',      // M (shifted from K)
+  'Trend State',      // N (shifted from L)
+  'SMA 20',           // O (shifted from M)
+  'SMA 50',           // P (shifted from N)
+  'SMA 200',          // Q (shifted from O)
+  'RSI',              // R (shifted from P)
+  'MACD Hist',        // S (shifted from Q)
+  'Divergence',       // T (shifted from R)
+  'ADX (14)',         // U (shifted from S)
+  'Stoch %K (14)',    // V (shifted from T)
+  'VOL REGIME',       // W (shifted from U)
+  'BBP SIGNAL',       // X (shifted from V)
+  'ATR (14)',         // Y (shifted from W)
+  'Bollinger %B',     // Z (shifted from X)
+  'Target (3:1)',     // AA (shifted from Y)
+  'R:R Quality',      // AB (shifted from Z)
+  'Support',          // AC (shifted from AA)
+  'Resistance',       // AD (shifted from AB)
+  'ATR STOP',         // AE (shifted from AC)
+  'ATR TARGET',       // AF (shifted from AD)
+  'POSITION SIZE',    // AG (shifted from AE)
+  'LAST STATE'        // AH (shifted from AF)
+];
+
 function generateCalculationsSheet() {
   const startTime = new Date();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -38,10 +76,10 @@ function generateCalculationsSheet() {
     // Clear existing content
     calc.clear().clearFormats();
 
-    // Ensure sheet has enough columns (32 total: A-AF)
+    // Ensure sheet has enough columns (34 total: A-AH)
     const maxCols = calc.getMaxColumns();
-    if (maxCols < 32) {
-      calc.insertColumnsAfter(maxCols, 32 - maxCols);
+    if (maxCols < 34) {
+      calc.insertColumnsAfter(maxCols, 34 - maxCols);
     }
 
     // PHASE 1: Setup headers
@@ -98,17 +136,17 @@ function setupHeaders(calc, ss, SEP) {
 
   // ROW 1: Group headers with CORRECT merges
   styleGroup("A1:A1", "IDENTITY", COLORS.IDENTITY);
-  styleGroup("B1:D1", "SIGNALING", COLORS.SIGNALING);
-  styleGroup("E1:G1", "PRICE / VOLUME", COLORS.PRICE_VOLUME);
-  styleGroup("H1:K1", "PERFORMANCE", COLORS.PERFORMANCE);  // H-K includes FUNDAMENTAL
-  styleGroup("L1:O1", "TREND", COLORS.TREND);
-  styleGroup("P1:T1", "MOMENTUM", COLORS.MOMENTUM);
-  styleGroup("U1:X1", "VOLATILITY", COLORS.VOLATILITY);
-  styleGroup("Y1:AE1", "TARGET", COLORS.TARGET);  // Y-AE all TARGET (no LEVELS)
-  styleGroup("AF1:AF1", "NOTES", COLORS.NOTES);
+  styleGroup("B1:F1", "SIGNALING", COLORS.SIGNALING);  // B-F: MARKET RATING (INPUT D), DECISION, SIGNAL, PATTERNS (GETPATTERNS), CONSENSUS PRICE (INPUT E)
+  styleGroup("G1:I1", "PRICE / VOLUME", COLORS.PRICE_VOLUME);  // G-I: Price, Change%, Vol Trend
+  styleGroup("J1:M1", "PERFORMANCE", COLORS.PERFORMANCE);  // Shifted from H1:K1, includes FUNDAMENTAL
+  styleGroup("N1:Q1", "TREND", COLORS.TREND);  // Shifted from L1:O1
+  styleGroup("R1:V1", "MOMENTUM", COLORS.MOMENTUM);  // Shifted from P1:T1
+  styleGroup("W1:Z1", "VOLATILITY", COLORS.VOLATILITY);  // Shifted from U1:X1
+  styleGroup("AA1:AG1", "TARGET", COLORS.TARGET);  // Shifted from Y1:AE1
+  styleGroup("AH1:AH1", "NOTES", COLORS.NOTES);  // Shifted from AF1
 
-  // Timestamp in AF1
-  calc.getRange("AF1")
+  // Timestamp in AH1
+  calc.getRange("AH1")
     .setValue(syncTime)
     .setBackground("#000000")
     .setFontColor("#00FF00")
@@ -120,19 +158,19 @@ function setupHeaders(calc, ss, SEP) {
   // ROW 2: COLUMN HEADERS with matching group colors
   const headerColors = [
     COLORS.IDENTITY,      // A: Ticker
-    COLORS.SIGNALING, COLORS.SIGNALING, COLORS.SIGNALING,  // B-D: SIGNAL, PATTERNS, DECISION
-    COLORS.PRICE_VOLUME, COLORS.PRICE_VOLUME, COLORS.PRICE_VOLUME,  // E-G: Price, Change%, Vol Trend
-    COLORS.PERFORMANCE, COLORS.PERFORMANCE, COLORS.PERFORMANCE, COLORS.PERFORMANCE,  // H-K: ATH TRUE, ATH Diff%, ATH ZONE, FUNDAMENTAL
-    COLORS.TREND, COLORS.TREND, COLORS.TREND, COLORS.TREND,  // L-O: Trend State, SMA 20/50/200
-    COLORS.MOMENTUM, COLORS.MOMENTUM, COLORS.MOMENTUM, COLORS.MOMENTUM, COLORS.MOMENTUM,  // P-T: RSI, MACD, Div, ADX, Stoch
-    COLORS.VOLATILITY, COLORS.VOLATILITY, COLORS.VOLATILITY, COLORS.VOLATILITY,  // U-X: VOL REGIME, BBP SIGNAL, ATR, Bollinger %B
-    COLORS.TARGET, COLORS.TARGET,  // Y-Z: Target, R:R Quality
-    COLORS.TARGET, COLORS.TARGET, COLORS.TARGET, COLORS.TARGET, COLORS.TARGET,  // AA-AE: Support, Resistance, ATR STOP/TARGET, Position Size
-    COLORS.NOTES  // AF: LAST STATE
+    COLORS.SIGNALING, COLORS.SIGNALING, COLORS.SIGNALING, COLORS.SIGNALING, COLORS.SIGNALING,  // B-F: MARKET RATING (INPUT D), DECISION, SIGNAL, PATTERNS (GETPATTERNS), CONSENSUS PRICE (INPUT E)
+    COLORS.PRICE_VOLUME, COLORS.PRICE_VOLUME, COLORS.PRICE_VOLUME,  // G-I: Price, Change%, Vol Trend
+    COLORS.PERFORMANCE, COLORS.PERFORMANCE, COLORS.PERFORMANCE, COLORS.PERFORMANCE,  // J-M: ATH TRUE, ATH Diff%, ATH ZONE, FUNDAMENTAL
+    COLORS.TREND, COLORS.TREND, COLORS.TREND, COLORS.TREND,  // N-Q: Trend State, SMA 20/50/200
+    COLORS.MOMENTUM, COLORS.MOMENTUM, COLORS.MOMENTUM, COLORS.MOMENTUM, COLORS.MOMENTUM,  // R-V: RSI, MACD, Div, ADX, Stoch
+    COLORS.VOLATILITY, COLORS.VOLATILITY, COLORS.VOLATILITY, COLORS.VOLATILITY,  // W-Z: VOL REGIME, BBP SIGNAL, ATR, Bollinger %B
+    COLORS.TARGET, COLORS.TARGET,  // AA-AB: Target, R:R Quality
+    COLORS.TARGET, COLORS.TARGET, COLORS.TARGET, COLORS.TARGET, COLORS.TARGET,  // AC-AG: Support, Resistance, ATR STOP/TARGET, Position Size
+    COLORS.NOTES  // AH: LAST STATE
   ];
 
   // Set Row 2 headers with group colors
-  calc.getRange(2, 1, 1, 32)
+  calc.getRange(2, 1, 1, 34)
     .setValues([CALC_HEADERS])
     .setFontColor("white")
     .setFontWeight("bold")
@@ -148,37 +186,39 @@ function setupHeaders(calc, ss, SEP) {
 
   // Set column widths (Bloomberg style)
   calc.setColumnWidth(1, 80);   // A: Ticker
-  calc.setColumnWidth(2, 140);  // B: SIGNAL
-  calc.setColumnWidth(3, 120);  // C: PATTERNS
-  calc.setColumnWidth(4, 180);  // D: DECISION
-  calc.setColumnWidth(5, 80);   // E: Price
-  calc.setColumnWidth(6, 80);   // F: Change %
-  calc.setColumnWidth(7, 80);   // G: Vol Trend
-  calc.setColumnWidth(8, 90);   // H: ATH (TRUE)
-  calc.setColumnWidth(9, 80);   // I: ATH Diff %
-  calc.setColumnWidth(10, 120); // J: ATH ZONE
-  calc.setColumnWidth(11, 140); // K: FUNDAMENTAL
-  calc.setColumnWidth(12, 100); // L: Trend State
-  calc.setColumnWidth(13, 80);  // M: SMA 20
-  calc.setColumnWidth(14, 80);  // N: SMA 50
-  calc.setColumnWidth(15, 80);  // O: SMA 200
-  calc.setColumnWidth(16, 70);  // P: RSI
-  calc.setColumnWidth(17, 80);  // Q: MACD Hist
-  calc.setColumnWidth(18, 100); // R: Divergence
-  calc.setColumnWidth(19, 70);  // S: ADX
-  calc.setColumnWidth(20, 90);  // T: Stoch %K
-  calc.setColumnWidth(21, 110); // U: VOL REGIME
-  calc.setColumnWidth(22, 130); // V: BBP SIGNAL
-  calc.setColumnWidth(23, 70);  // W: ATR
-  calc.setColumnWidth(24, 100); // X: Bollinger %B
-  calc.setColumnWidth(25, 80);  // Y: Target
-  calc.setColumnWidth(26, 90);  // Z: R:R Quality
-  calc.setColumnWidth(27, 80);  // AA: Support
-  calc.setColumnWidth(28, 90);  // AB: Resistance
-  calc.setColumnWidth(29, 90);  // AC: ATR STOP
-  calc.setColumnWidth(30, 100); // AD: ATR TARGET
-  calc.setColumnWidth(31, 120); // AE: POSITION SIZE
-  calc.setColumnWidth(32, 120); // AF: LAST STATE
+  calc.setColumnWidth(2, 120);  // B: MARKET RATING (NEW - from INPUT D)
+  calc.setColumnWidth(3, 100);  // C: DECISION (old B formula)
+  calc.setColumnWidth(4, 80);   // D: SIGNAL (old C formula)
+  calc.setColumnWidth(5, 150);  // E: PATTERNS (old D formula - GETPATTERNS)
+  calc.setColumnWidth(6, 110);  // F: CONSENSUS PRICE (NEW - from INPUT E)
+  calc.setColumnWidth(7, 80);   // G: Price (old E formula)
+  calc.setColumnWidth(8, 80);   // H: Change % (shifted from F)
+  calc.setColumnWidth(9, 80);   // I: Vol Trend (shifted from G)
+  calc.setColumnWidth(10, 90);  // J: ATH (TRUE) (shifted from H)
+  calc.setColumnWidth(11, 80);  // K: ATH Diff % (shifted from I)
+  calc.setColumnWidth(12, 120); // L: ATH ZONE (shifted from J)
+  calc.setColumnWidth(13, 140); // M: FUNDAMENTAL (shifted from K)
+  calc.setColumnWidth(14, 100); // N: Trend State (shifted from L)
+  calc.setColumnWidth(15, 80);  // O: SMA 20 (shifted from M)
+  calc.setColumnWidth(16, 80);  // P: SMA 50 (shifted from N)
+  calc.setColumnWidth(17, 80);  // Q: SMA 200 (shifted from O)
+  calc.setColumnWidth(18, 70);  // R: RSI (shifted from P)
+  calc.setColumnWidth(19, 80);  // S: MACD Hist (shifted from Q)
+  calc.setColumnWidth(20, 100); // T: Divergence (shifted from R)
+  calc.setColumnWidth(21, 70);  // U: ADX (shifted from S)
+  calc.setColumnWidth(22, 90);  // V: Stoch %K (shifted from T)
+  calc.setColumnWidth(23, 110); // W: VOL REGIME (shifted from U)
+  calc.setColumnWidth(24, 130); // X: BBP SIGNAL (shifted from V)
+  calc.setColumnWidth(25, 70);  // Y: ATR (shifted from W)
+  calc.setColumnWidth(26, 100); // Z: Bollinger %B (shifted from X)
+  calc.setColumnWidth(27, 80);  // AA: Target (shifted from Y)
+  calc.setColumnWidth(28, 90);  // AB: R:R Quality (shifted from Z)
+  calc.setColumnWidth(29, 80);  // AC: Support (shifted from AA)
+  calc.setColumnWidth(30, 90);  // AD: Resistance (shifted from AB)
+  calc.setColumnWidth(31, 90);  // AE: ATR STOP (shifted from AC)
+  calc.setColumnWidth(32, 100); // AF: ATR TARGET (shifted from AD)
+  calc.setColumnWidth(33, 120); // AG: POSITION SIZE (shifted from AE)
+  calc.setColumnWidth(34, 120); // AH: LAST STATE (shifted from AF)
 
   // Set row heights
   calc.setRowHeight(1, 30);  // Row 1: Group headers
@@ -197,7 +237,7 @@ function applyBloombergDataFormatting(calc, numRows) {
   if (numRows === 0) return;
   
   const startRow = 3; // Data starts at row 3
-  const numCols = 32; // A-AF
+  const numCols = 34; // A-AH
   
   // Define lighter versions of group colors (30% lighter)
   const LIGHT_COLORS = {
@@ -215,15 +255,15 @@ function applyBloombergDataFormatting(calc, numRows) {
   // Column background colors (matching group colors)
   const columnColors = [
     LIGHT_COLORS.IDENTITY,      // A: Ticker
-    LIGHT_COLORS.SIGNALING, LIGHT_COLORS.SIGNALING, LIGHT_COLORS.SIGNALING,  // B-D
-    LIGHT_COLORS.PRICE_VOLUME, LIGHT_COLORS.PRICE_VOLUME, LIGHT_COLORS.PRICE_VOLUME,  // E-G
-    LIGHT_COLORS.PERFORMANCE, LIGHT_COLORS.PERFORMANCE, LIGHT_COLORS.PERFORMANCE, LIGHT_COLORS.PERFORMANCE,  // H-K
-    LIGHT_COLORS.TREND, LIGHT_COLORS.TREND, LIGHT_COLORS.TREND, LIGHT_COLORS.TREND,  // L-O
-    LIGHT_COLORS.MOMENTUM, LIGHT_COLORS.MOMENTUM, LIGHT_COLORS.MOMENTUM, LIGHT_COLORS.MOMENTUM, LIGHT_COLORS.MOMENTUM,  // P-T
-    LIGHT_COLORS.VOLATILITY, LIGHT_COLORS.VOLATILITY, LIGHT_COLORS.VOLATILITY, LIGHT_COLORS.VOLATILITY,  // U-X
-    LIGHT_COLORS.TARGET, LIGHT_COLORS.TARGET,  // Y-Z
-    LIGHT_COLORS.TARGET, LIGHT_COLORS.TARGET, LIGHT_COLORS.TARGET, LIGHT_COLORS.TARGET, LIGHT_COLORS.TARGET,  // AA-AE
-    LIGHT_COLORS.NOTES  // AF
+    LIGHT_COLORS.SIGNALING, LIGHT_COLORS.SIGNALING, LIGHT_COLORS.SIGNALING, LIGHT_COLORS.SIGNALING, LIGHT_COLORS.SIGNALING,  // B-F
+    LIGHT_COLORS.PRICE_VOLUME, LIGHT_COLORS.PRICE_VOLUME, LIGHT_COLORS.PRICE_VOLUME,  // G-I
+    LIGHT_COLORS.PERFORMANCE, LIGHT_COLORS.PERFORMANCE, LIGHT_COLORS.PERFORMANCE, LIGHT_COLORS.PERFORMANCE,  // J-M
+    LIGHT_COLORS.TREND, LIGHT_COLORS.TREND, LIGHT_COLORS.TREND, LIGHT_COLORS.TREND,  // N-Q
+    LIGHT_COLORS.MOMENTUM, LIGHT_COLORS.MOMENTUM, LIGHT_COLORS.MOMENTUM, LIGHT_COLORS.MOMENTUM, LIGHT_COLORS.MOMENTUM,  // R-V
+    LIGHT_COLORS.VOLATILITY, LIGHT_COLORS.VOLATILITY, LIGHT_COLORS.VOLATILITY, LIGHT_COLORS.VOLATILITY,  // W-Z
+    LIGHT_COLORS.TARGET, LIGHT_COLORS.TARGET,  // AA-AB
+    LIGHT_COLORS.TARGET, LIGHT_COLORS.TARGET, LIGHT_COLORS.TARGET, LIGHT_COLORS.TARGET, LIGHT_COLORS.TARGET,  // AC-AG
+    LIGHT_COLORS.NOTES  // AH
   ];
   
   // Apply formatting to all data rows
@@ -267,7 +307,7 @@ function writeFormulas(calc, tickers, SEP) {
   // Check if long-term signal mode is enabled
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const inputSheet = ss.getSheetByName('INPUT');
-  const useLongTermSignal = inputSheet.getRange('E2').getValue() === true;
+  const useLongTermSignal = inputSheet.getRange('G1').getValue() === true;
   
   // Get DATA sheet reference for pattern detection
   const dataSheet = ss.getSheetByName('DATA');
@@ -326,14 +366,24 @@ function writeFormulas(calc, tickers, SEP) {
     }
   }
   
-  // STEP 2: Write Phase 1 formulas (columns E-AF) for ALL tickers at once
-  Logger.log('Step 2: Writing Phase 1 formulas (columns E-AF) for all tickers...');
-  ss.toast('Writing main formulas (E-AF)...', '⏳ Phase 1', 3);
+  // STEP 2: Write Phase 1 formulas (columns G-AH) for ALL tickers at once
+  Logger.log('Step 2: Writing Phase 1 formulas (columns G-AH) for all tickers...');
+  ss.toast('Writing main formulas (G-AH)...', '⏳ Phase 1', 3);
   
   const phase1Data = [];
   for (let i = 0; i < allFormulas.length; i++) {
     if (allFormulas[i] && allFormulas[i].formulas) {
-      phase1Data.push(allFormulas[i].formulas.slice(3)); // Indices 3-30 (28 columns)
+      const sliced = allFormulas[i].formulas.slice(5); // Indices 5-32 (28 columns: G-AH)
+      
+      // Validate slice length
+      if (sliced.length !== 28) {
+        Logger.log(`WARNING: ${allFormulas[i].ticker} Phase 1 has ${sliced.length} elements, expected 28. Formula array length: ${allFormulas[i].formulas.length}`);
+        // Pad or trim to exactly 28 elements
+        while (sliced.length < 28) sliced.push('');
+        if (sliced.length > 28) sliced.length = 28;
+      }
+      
+      phase1Data.push(sliced);
     } else {
       phase1Data.push(new Array(28).fill('')); // Empty row for failed formulas
     }
@@ -341,8 +391,15 @@ function writeFormulas(calc, tickers, SEP) {
   
   try {
     if (phase1Data.length > 0) {
-      calc.getRange(3, 5, phase1Data.length, 28).setFormulas(phase1Data);
-      Logger.log(`Phase 1 complete: Wrote formulas for columns E-AF (${phase1Data.length} tickers)`);
+      // Final validation before writing
+      for (let i = 0; i < phase1Data.length; i++) {
+        if (phase1Data[i].length !== 28) {
+          throw new Error(`Row ${i} has ${phase1Data[i].length} columns, expected 28`);
+        }
+      }
+      
+      calc.getRange(3, 7, phase1Data.length, 28).setFormulas(phase1Data);
+      Logger.log(`Phase 1 complete: Wrote formulas for columns G-AH (${phase1Data.length} tickers)`);
     }
   } catch (writeError) {
     Logger.log(`Error writing Phase 1 formulas: ${writeError.message}`);
@@ -356,23 +413,40 @@ function writeFormulas(calc, tickers, SEP) {
   ss.toast('Waiting for calculations to complete...', '⏳ Delay', 3);
   Utilities.sleep(DELAY_AFTER_MAIN_FORMULAS);
   
-  // STEP 3: Write Phase 2 formulas (columns C-D) for ALL tickers at once
-  Logger.log('Step 3: Writing Phase 2 formulas (columns C-D) for all tickers...');
-  ss.toast('Writing pattern formulas (C-D)...', '⏳ Phase 2', 3);
+  // STEP 3: Write Phase 2 formulas (columns C-F) for ALL tickers at once
+  Logger.log('Step 3: Writing Phase 2 formulas (columns C-F) for all tickers...');
+  ss.toast('Writing signal and pattern formulas (C-F)...', '⏳ Phase 2', 3);
   
   const phase2Data = [];
   for (let i = 0; i < allFormulas.length; i++) {
     if (allFormulas[i] && allFormulas[i].formulas) {
-      phase2Data.push(allFormulas[i].formulas.slice(1, 3)); // Indices 1-2 (2 columns)
+      const sliced = allFormulas[i].formulas.slice(1, 5); // Indices 1-4 (4 columns: C-F)
+      
+      // Validate slice length
+      if (sliced.length !== 4) {
+        Logger.log(`WARNING: ${allFormulas[i].ticker} Phase 2 has ${sliced.length} elements, expected 4. Formula array length: ${allFormulas[i].formulas.length}`);
+        // Pad or trim to exactly 4 elements
+        while (sliced.length < 4) sliced.push('');
+        if (sliced.length > 4) sliced.length = 4;
+      }
+      
+      phase2Data.push(sliced);
     } else {
-      phase2Data.push(['', '']); // Empty row for failed formulas
+      phase2Data.push(new Array(4).fill('')); // Empty row for failed formulas
     }
   }
   
   try {
     if (phase2Data.length > 0) {
-      calc.getRange(3, 3, phase2Data.length, 2).setFormulas(phase2Data);
-      Logger.log(`Phase 2 complete: Wrote formulas for columns C-D (${phase2Data.length} tickers)`);
+      // Final validation before writing
+      for (let i = 0; i < phase2Data.length; i++) {
+        if (phase2Data[i].length !== 4) {
+          throw new Error(`Row ${i} has ${phase2Data[i].length} columns, expected 4`);
+        }
+      }
+      
+      calc.getRange(3, 3, phase2Data.length, 4).setFormulas(phase2Data);
+      Logger.log(`Phase 2 complete: Wrote formulas for columns C-F (${phase2Data.length} tickers)`);
     }
   } catch (writeError) {
     Logger.log(`Error writing Phase 2 formulas: ${writeError.message}`);
@@ -387,12 +461,20 @@ function writeFormulas(calc, tickers, SEP) {
   
   // STEP 4: Write Phase 3 formulas (column B) for ALL tickers at once
   Logger.log('Step 4: Writing Phase 3 formulas (column B) for all tickers...');
-  ss.toast('Writing signal formulas (B)...', '⏳ Phase 3', 3);
+  ss.toast('Writing market rating formulas (B)...', '⏳ Phase 3', 3);
   
   const phase3Data = [];
   for (let i = 0; i < allFormulas.length; i++) {
     if (allFormulas[i] && allFormulas[i].formulas) {
-      phase3Data.push([allFormulas[i].formulas[0]]); // Index 0 (1 column)
+      const formula = allFormulas[i].formulas[0]; // Index 0 (MARKET RATING)
+      
+      // Validate formula exists
+      if (typeof formula !== 'string') {
+        Logger.log(`WARNING: ${allFormulas[i].ticker} Phase 3 formula is not a string: ${typeof formula}`);
+        phase3Data.push(['']);
+      } else {
+        phase3Data.push([formula]);
+      }
     } else {
       phase3Data.push(['']); // Empty row for failed formulas
     }
@@ -400,6 +482,13 @@ function writeFormulas(calc, tickers, SEP) {
   
   try {
     if (phase3Data.length > 0) {
+      // Final validation before writing
+      for (let i = 0; i < phase3Data.length; i++) {
+        if (phase3Data[i].length !== 1) {
+          throw new Error(`Row ${i} has ${phase3Data[i].length} columns, expected 1`);
+        }
+      }
+      
       calc.getRange(3, 2, phase3Data.length, 1).setFormulas(phase3Data);
       Logger.log(`Phase 3 complete: Wrote formulas for column B (${phase3Data.length} tickers)`);
     }
@@ -413,12 +502,12 @@ function writeFormulas(calc, tickers, SEP) {
   // STEP 5: Apply formatting to all tickers at once
   Logger.log('Step 5: Applying formatting...');
   try {
-    // Apply percentage formatting to columns F, I, T, X for all data rows
+    // Apply percentage formatting to columns H, K, V, Z for all data rows
     const numRows = tickers.length;
-    calc.getRange(3, 6, numRows, 1).setNumberFormat('0.00%');  // F: Change %
-    calc.getRange(3, 9, numRows, 1).setNumberFormat('0.00%');  // I: ATH Diff %
-    calc.getRange(3, 20, numRows, 1).setNumberFormat('0.00%'); // T: Stoch %K
-    calc.getRange(3, 24, numRows, 1).setNumberFormat('0.00%'); // X: Bollinger %B
+    calc.getRange(3, 8, numRows, 1).setNumberFormat('0.00%');  // H: Change %
+    calc.getRange(3, 11, numRows, 1).setNumberFormat('0.00%'); // K: ATH Diff %
+    calc.getRange(3, 22, numRows, 1).setNumberFormat('0.00%'); // V: Stoch %K
+    calc.getRange(3, 26, numRows, 1).setNumberFormat('0.00%'); // Z: Bollinger %B
     Logger.log('Percentage formatting applied to all tickers');
   } catch (formatError) {
     Logger.log(`Error applying formatting: ${formatError.message}`);
@@ -467,53 +556,55 @@ function generateTickerFormulas(ticker, row, index, BLOCK, SEP, useLongTermSigna
     const lastRowCount = `COUNTA(DATA!${closeCol}$5:${closeCol})`;
     const lastAbsRow = `(4+${lastRowCount})`;
     
-    // Build all formulas for this ticker (31 formulas: B-AF)
-    // CORRECT COLUMN ORDER per ColumnMapping.js CALC_COLUMNS:
-    // B=SIGNAL, C=PATTERNS, D=DECISION, E=Price, F=Change%, G=Vol Trend,
-    // H=ATH TRUE, I=ATH Diff%, J=ATH ZONE, K=FUNDAMENTAL,
-    // L=Trend State, M=SMA 20, N=SMA 50, O=SMA 200,
-    // P=RSI, Q=MACD Hist, R=Divergence, S=ADX, T=Stoch %K,
-    // U=VOL REGIME, V=BBP SIGNAL, W=ATR, X=Bollinger %B,
-    // Y=Target, Z=R:R Quality, AA=Support, AB=Resistance, AC=ATR STOP, AD=ATR TARGET,
-    // AE=POSITION SIZE, AF=LAST STATE
+    // Build all formulas for this ticker (33 formulas: B-AH)
+    // CORRECT COLUMN ORDER per headers:
+    // B=MARKET RATING, C=DECISION, D=SIGNAL, E=PATTERNS, F=CONSENSUS PRICE, G=Price, H=Change%, I=Vol Trend,
+    // J=ATH TRUE, K=ATH Diff%, L=ATH ZONE, M=FUNDAMENTAL,
+    // N=Trend State, O=SMA 20, P=SMA 50, Q=SMA 200,
+    // R=RSI, S=MACD Hist, T=Divergence, U=ADX, V=Stoch %K,
+    // W=VOL REGIME, X=BBP SIGNAL, Y=ATR, Z=Bollinger %B,
+    // AA=Target, AB=R:R Quality, AC=Support, AD=Resistance, AE=ATR STOP, AF=ATR TARGET,
+    // AG=POSITION SIZE, AH=LAST STATE
     
     const formulas = [
-      buildSignalFormula(row, SEP, useLongTermSignal),                    // B: SIGNAL
-      `=IF($A${row}=""${SEP}""${SEP}GETPATTERNS($A${row}${SEP}$E${row}))`, // C: PATTERNS
-      buildDecisionFormula(row, SEP, useLongTermSignal),                  // D: DECISION (uses B+C only)
-      `=ROUND(IFERROR(GOOGLEFINANCE("${t}"${SEP}"price")${SEP}0)${SEP}2)`, // E: Price
-      `=IFERROR(GOOGLEFINANCE("${t}"${SEP}"changepct")/100${SEP}0)`,      // F: Change %
-      buildRVOLFormula(row, volCol, lastRowCount, SEP),                   // G: Vol Trend
-      `=IFERROR(${athCell}${SEP}0)`,                                      // H: ATH (TRUE) - reads from DATA sheet
-      `=IFERROR(($E${row}-$H${row})/MAX(0.01${SEP}$H${row})${SEP}0)`,    // I: ATH Diff % - uses H not I!
-      buildATHZoneFormula(row, SEP),                                      // J: ATH ZONE - uses I not J!
-      buildFundamentalFormula(row, peCell, epsCell, SEP),                 // K: FUNDAMENTAL - uses I not J!
-      `=IF($E${row}>$O${row}${SEP}"BULL"${SEP}"BEAR")`,                   // L: Trend State - uses O (SMA 200) not P!
-      buildSMAFormula(closeCol, lastRowCount, 20, SEP),                   // M: SMA 20
-      buildSMAFormula(closeCol, lastRowCount, 50, SEP),                   // N: SMA 50
-      buildSMAFormula(closeCol, lastRowCount, 200, SEP),                  // O: SMA 200
-      `=LIVERSI(DATA!${closeCol}$5:${closeCol}${SEP}$E${row})`,          // P: RSI
-      `=LIVEMACD(DATA!${closeCol}$5:${closeCol}${SEP}$E${row})`,         // Q: MACD Hist
-      buildDivergenceFormula(row, closeCol, lastAbsRow, SEP),             // R: Divergence - uses Q not R!
-      `=IFERROR(LIVEADX(DATA!${highCol}$5:${highCol}${SEP}DATA!${lowCol}$5:${lowCol}${SEP}DATA!${closeCol}$5:${closeCol}${SEP}$E${row})${SEP}0)`, // S: ADX
-      `=LIVESTOCHK(DATA!${highCol}$5:${highCol}${SEP}DATA!${lowCol}$5:${lowCol}${SEP}DATA!${closeCol}$5:${closeCol}${SEP}$E${row})`, // T: Stoch %K
-      buildVolRegimeFormula(row, SEP),                                    // U: VOL REGIME - moved from H!
-      buildBBPSignalFormula(row, SEP),                                    // V: BBP SIGNAL - uses P and W not Q and X!
-      `=IFERROR(LIVEATR(DATA!${highCol}$5:${highCol}${SEP}DATA!${lowCol}$5:${lowCol}${SEP}DATA!${closeCol}$5:${closeCol}${SEP}$E${row})${SEP}0)`, // W: ATR
-      buildBBPFormula(row, closeCol, lastRowCount, SEP),                  // X: Bollinger %B - uses N (SMA 20) not O!
-      `=ROUND(MAX($AB${row}${SEP}$E${row}+(($E${row}-$AA${row})*3))${SEP}2)`, // Y: Target
-      buildRRFormula(row, SEP),                                           // Z: R:R Quality
-      buildSupportFormula(row, lowCol, lastRowCount, SEP),                // AA: Support - uses S (ADX) not U!
-      buildResistanceFormula(row, highCol, lastRowCount, SEP),            // AB: Resistance - uses S (ADX) not U!
-      `=ROUND(MAX($AA${row}${SEP}$E${row}-($W${row}*2))${SEP}2)`,        // AC: ATR STOP
-      `=ROUND($E${row}+($W${row}*3)${SEP}2)`,                             // AD: ATR TARGET
-      buildPositionSizeFormula(row, SEP),                                 // AE: POSITION SIZE - uses I and Z not J and AA!
-      `=IF($A${row}=""${SEP}""${SEP}$D${row})`                            // AF: LAST STATE
+      buildMarketRatingFormula(row, SEP),                                 // B: MARKET RATING (from INPUT D)
+      buildDecisionFormula(row, SEP, useLongTermSignal),                  // C: DECISION (old B formula)
+      buildSignalFormula(row, SEP, useLongTermSignal),                    // D: SIGNAL (old C formula)
+      `=GETPATTERNS($A${row})`,                                           // E: PATTERNS (old D formula - pattern detection)
+      buildConsensusPriceFormula(row, SEP),                               // F: CONSENSUS PRICE (from INPUT E)
+      `=ROUND(IFERROR(GOOGLEFINANCE("${t}"${SEP}"price")${SEP}0)${SEP}2)`, // G: Price (old E formula)
+      `=IFERROR(GOOGLEFINANCE("${t}"${SEP}"changepct")/100${SEP}0)`,      // H: Change % (shifted from F)
+      buildRVOLFormula(row, volCol, lastRowCount, SEP),                   // I: Vol Trend (shifted from G)
+      `=IFERROR(${athCell}${SEP}0)`,                                      // J: ATH (TRUE) (shifted from H) - reads from DATA sheet
+      `=IFERROR(($G${row}-$J${row})/MAX(0.01${SEP}$J${row})${SEP}0)`,    // K: ATH Diff % (shifted from I) - uses J not K!
+      buildATHZoneFormula(row, SEP),                                      // L: ATH ZONE (shifted from J) - uses K not L!
+      buildFundamentalFormula(row, peCell, epsCell, SEP),                 // M: FUNDAMENTAL (shifted from K) - uses K not M!
+      `=IF($G${row}>$Q${row}${SEP}"BULL"${SEP}"BEAR")`,                   // N: Trend State (shifted from L) - uses Q (SMA 200) not R!
+      buildSMAFormula(closeCol, lastRowCount, 20, SEP),                   // O: SMA 20 (shifted from M)
+      buildSMAFormula(closeCol, lastRowCount, 50, SEP),                   // P: SMA 50 (shifted from N)
+      buildSMAFormula(closeCol, lastRowCount, 200, SEP),                  // Q: SMA 200 (shifted from O)
+      `=LIVERSI(DATA!${closeCol}$5:${closeCol}${SEP}$G${row})`,          // R: RSI (shifted from P)
+      `=LIVEMACD(DATA!${closeCol}$5:${closeCol}${SEP}$G${row})`,         // S: MACD Hist (shifted from Q)
+      buildDivergenceFormula(row, closeCol, lastAbsRow, SEP),             // T: Divergence (shifted from R) - uses S not T!
+      `=IFERROR(LIVEADX(DATA!${highCol}$5:${highCol}${SEP}DATA!${lowCol}$5:${lowCol}${SEP}DATA!${closeCol}$5:${closeCol}${SEP}$G${row})${SEP}0)`, // U: ADX (shifted from S)
+      `=LIVESTOCHK(DATA!${highCol}$5:${highCol}${SEP}DATA!${lowCol}$5:${lowCol}${SEP}DATA!${closeCol}$5:${closeCol}${SEP}$G${row})`, // V: Stoch %K (shifted from T)
+      buildVolRegimeFormula(row, SEP),                                    // W: VOL REGIME (shifted from U)
+      buildBBPSignalFormula(row, SEP),                                    // X: BBP SIGNAL (shifted from V) - uses R and Z not S and AA!
+      `=IFERROR(LIVEATR(DATA!${highCol}$5:${highCol}${SEP}DATA!${lowCol}$5:${lowCol}${SEP}DATA!${closeCol}$5:${closeCol}${SEP}$G${row})${SEP}0)`, // Y: ATR (shifted from W)
+      buildBBPFormula(row, closeCol, lastRowCount, SEP),                  // Z: Bollinger %B (shifted from X) - uses O (SMA 20) not P!
+      `=ROUND(MAX($AD${row}${SEP}$G${row}+(($G${row}-$AC${row})*3))${SEP}2)`, // AA: Target (shifted from Y)
+      buildRRFormula(row, SEP),                                           // AB: R:R Quality (shifted from Z)
+      buildSupportFormula(row, lowCol, lastRowCount, SEP),                // AC: Support (shifted from AA) - uses U (ADX) not W!
+      buildResistanceFormula(row, highCol, lastRowCount, SEP),            // AD: Resistance (shifted from AB) - uses U (ADX) not W!
+      `=ROUND(MAX($AC${row}${SEP}$G${row}-($Y${row}*2))${SEP}2)`,        // AE: ATR STOP (shifted from AC)
+      `=ROUND($G${row}+($Y${row}*3)${SEP}2)`,                             // AF: ATR TARGET (shifted from AD)
+      buildPositionSizeFormula(row, SEP),                                 // AG: POSITION SIZE (shifted from AE) - uses K and AB not L and AC!
+      `=IF($A${row}=""${SEP}""${SEP}$C${row})`                            // AH: LAST STATE (shifted from AF) (references DECISION)
     ];
     
-    // Validate that we have exactly 31 formulas
-    if (formulas.length !== 31) {
-      throw new Error(`Formula count mismatch: expected 31, got ${formulas.length}`);
+    // Validate that we have exactly 33 formulas
+    if (formulas.length !== 33) {
+      throw new Error(`Formula count mismatch: expected 33, got ${formulas.length}`);
     }
     
     // Validate that all formulas are strings
@@ -534,62 +625,62 @@ function generateTickerFormulas(ticker, row, index, BLOCK, SEP, useLongTermSigna
 
 // Helper formula builders
 function buildSignalFormula(row, SEP, useLongTermSignal) {
-  // CORRECT Column references per ColumnMapping.js CALC_COLUMNS:
-  // E=Price, G=Vol Trend, H=ATH TRUE, I=ATH Diff%, M=SMA 20, N=SMA 50, O=SMA 200,
-  // P=RSI, Q=MACD Hist, S=ADX, T=Stoch %K, W=ATR, X=Bollinger %B, AA=Support, AB=Resistance
+  // CORRECT Column references per new column order:
+  // G=Price, I=Vol Trend, J=ATH TRUE, K=ATH Diff%, O=SMA 20, P=SMA 50, Q=SMA 200,
+  // R=RSI, S=MACD Hist, U=ADX, V=Stoch %K, Y=ATR, Z=Bollinger %B, AC=Support, AD=Resistance
   
   if (useLongTermSignal) {
-    return `=IF(OR(ISBLANK($E${row})${SEP}$E${row}=0)${SEP}"LOADING"${SEP}IFS($E${row}<$AA${row}${SEP}"STOP OUT"${SEP}$E${row}<$O${row}${SEP}"RISK OFF"${SEP}AND($I${row}>=-0.01${SEP}$G${row}>=1.5${SEP}$S${row}>=20${SEP}$E${row}>$O${row})${SEP}"ATH BREAKOUT"${SEP}AND($W${row}>IFERROR(AVERAGE(OFFSET($W${row}${SEP}-MIN(20${SEP}ROW($W${row})-1)${SEP}0${SEP}MIN(20${SEP}ROW($W${row})-1)))${SEP}$W${row})*1.5${SEP}$G${row}>=2.0${SEP}$E${row}>$AB${row})${SEP}"VOLATILITY BREAKOUT"${SEP}AND($X${row}<=0.1${SEP}$P${row}<=25${SEP}$T${row}<=0.20${SEP}$E${row}>$O${row})${SEP}"EXTREME OVERSOLD BUY"${SEP}AND($E${row}>$O${row}${SEP}$N${row}>$O${row}${SEP}$P${row}<=30${SEP}$Q${row}>0${SEP}$S${row}>=20${SEP}$G${row}>=1.5)${SEP}"STRONG BUY"${SEP}AND($E${row}>$O${row}${SEP}$N${row}>$O${row}${SEP}$P${row}<=40${SEP}$Q${row}>0${SEP}$S${row}>=15)${SEP}"BUY"${SEP}AND($E${row}>$O${row}${SEP}$P${row}<=35${SEP}$E${row}>=$N${row}*0.95)${SEP}"ACCUMULATE"${SEP}$P${row}<=20${SEP}"OVERSOLD"${SEP}OR($P${row}>=80${SEP}$X${row}>=0.9)${SEP}"OVERBOUGHT"${SEP}AND($E${row}>$O${row}${SEP}$P${row}>40${SEP}$P${row}<70)${SEP}"HOLD"${SEP}TRUE${SEP}"NEUTRAL"))`;
+    return `=IF(OR(ISBLANK($G${row})${SEP}$G${row}=0)${SEP}"LOADING"${SEP}IFS($G${row}<$AC${row}${SEP}"STOP OUT"${SEP}$G${row}<$Q${row}${SEP}"RISK OFF"${SEP}AND($K${row}>=-0.01${SEP}$I${row}>=1.5${SEP}$U${row}>=20${SEP}$G${row}>$Q${row})${SEP}"ATH BREAKOUT"${SEP}AND($Y${row}>IFERROR(AVERAGE(OFFSET($Y${row}${SEP}-MIN(20${SEP}ROW($Y${row})-1)${SEP}0${SEP}MIN(20${SEP}ROW($Y${row})-1)))${SEP}$Y${row})*1.5${SEP}$I${row}>=2.0${SEP}$G${row}>$AD${row})${SEP}"VOLATILITY BREAKOUT"${SEP}AND($Z${row}<=0.1${SEP}$R${row}<=25${SEP}$V${row}<=0.20${SEP}$G${row}>$Q${row})${SEP}"EXTREME OVERSOLD BUY"${SEP}AND($G${row}>$Q${row}${SEP}$P${row}>$Q${row}${SEP}$R${row}<=30${SEP}$S${row}>0${SEP}$U${row}>=20${SEP}$I${row}>=1.5)${SEP}"STRONG BUY"${SEP}AND($G${row}>$Q${row}${SEP}$P${row}>$Q${row}${SEP}$R${row}<=40${SEP}$S${row}>0${SEP}$U${row}>=15)${SEP}"BUY"${SEP}AND($G${row}>$Q${row}${SEP}$R${row}<=35${SEP}$G${row}>=$P${row}*0.95)${SEP}"ACCUMULATE"${SEP}$R${row}<=20${SEP}"OVERSOLD"${SEP}OR($R${row}>=80${SEP}$Z${row}>=0.9)${SEP}"OVERBOUGHT"${SEP}AND($G${row}>$Q${row}${SEP}$R${row}>40${SEP}$R${row}<70)${SEP}"HOLD"${SEP}TRUE${SEP}"NEUTRAL"))`;
   } else {
-    return `=IF(OR(ISBLANK($E${row})${SEP}$E${row}=0)${SEP}"LOADING"${SEP}IFS($E${row}<$AA${row}${SEP}"STOP OUT"${SEP}$E${row}<$O${row}${SEP}"RISK OFF"${SEP}AND($W${row}>IFERROR(AVERAGE(OFFSET($W${row}${SEP}-MIN(20${SEP}ROW($W${row})-1)${SEP}0${SEP}MIN(20${SEP}ROW($W${row})-1)))${SEP}$W${row})*1.5${SEP}$G${row}>=2.0${SEP}$E${row}>$AB${row})${SEP}"VOLATILITY BREAKOUT"${SEP}AND($I${row}>=-0.01${SEP}$G${row}>=1.5${SEP}$S${row}>=20)${SEP}"ATH BREAKOUT"${SEP}AND($G${row}>=1.5${SEP}$E${row}>=$AB${row}*0.995)${SEP}"BREAKOUT"${SEP}AND($E${row}>$O${row}${SEP}$Q${row}>0${SEP}$S${row}>=20)${SEP}"MOMENTUM"${SEP}AND($E${row}>$O${row}${SEP}$N${row}>$O${row}${SEP}$S${row}>=15)${SEP}"UPTREND"${SEP}AND($E${row}>$N${row}${SEP}$E${row}>$M${row})${SEP}"BULLISH"${SEP}AND(OR($T${row}<=0.20${SEP}$X${row}<=0.2)${SEP}$E${row}>$AA${row})${SEP}"OVERSOLD"${SEP}OR($P${row}>=80${SEP}$X${row}>=0.9)${SEP}"OVERBOUGHT"${SEP}AND($W${row}<IFERROR(AVERAGE(OFFSET($W${row}${SEP}-MIN(20${SEP}ROW($W${row})-1)${SEP}0${SEP}MIN(20${SEP}ROW($W${row})-1)))${SEP}$W${row})*0.7${SEP}$S${row}<15${SEP}ABS($X${row}-0.5)<0.2)${SEP}"VOLATILITY SQUEEZE"${SEP}$S${row}<15${SEP}"RANGE"${SEP}TRUE${SEP}"NEUTRAL"))`;
+    return `=IF(OR(ISBLANK($G${row})${SEP}$G${row}=0)${SEP}"LOADING"${SEP}IFS($G${row}<$AC${row}${SEP}"STOP OUT"${SEP}$G${row}<$Q${row}${SEP}"RISK OFF"${SEP}AND($Y${row}>IFERROR(AVERAGE(OFFSET($Y${row}${SEP}-MIN(20${SEP}ROW($Y${row})-1)${SEP}0${SEP}MIN(20${SEP}ROW($Y${row})-1)))${SEP}$Y${row})*1.5${SEP}$I${row}>=2.0${SEP}$G${row}>$AD${row})${SEP}"VOLATILITY BREAKOUT"${SEP}AND($K${row}>=-0.01${SEP}$I${row}>=1.5${SEP}$U${row}>=20)${SEP}"ATH BREAKOUT"${SEP}AND($I${row}>=1.5${SEP}$G${row}>=$AD${row}*0.995)${SEP}"BREAKOUT"${SEP}AND($G${row}>$Q${row}${SEP}$S${row}>0${SEP}$U${row}>=20)${SEP}"MOMENTUM"${SEP}AND($G${row}>$Q${row}${SEP}$P${row}>$Q${row}${SEP}$U${row}>=15)${SEP}"UPTREND"${SEP}AND($G${row}>$P${row}${SEP}$G${row}>$O${row})${SEP}"BULLISH"${SEP}AND(OR($V${row}<=0.20${SEP}$Z${row}<=0.2)${SEP}$G${row}>$AC${row})${SEP}"OVERSOLD"${SEP}OR($R${row}>=80${SEP}$Z${row}>=0.9)${SEP}"OVERBOUGHT"${SEP}AND($Y${row}<IFERROR(AVERAGE(OFFSET($Y${row}${SEP}-MIN(20${SEP}ROW($Y${row})-1)${SEP}0${SEP}MIN(20${SEP}ROW($Y${row})-1)))${SEP}$Y${row})*0.7${SEP}$U${row}<15${SEP}ABS($Z${row}-0.5)<0.2)${SEP}"VOLATILITY SQUEEZE"${SEP}$U${row}<15${SEP}"RANGE"${SEP}TRUE${SEP}"NEUTRAL"))`;
   }
 }
 
 function buildFundamentalFormula(row, peCell, epsCell, SEP) {
-  // ATH Diff % is in column I (not J!)
-  return `=IFERROR(LET(peRaw${SEP}${peCell}${SEP}epsRaw${SEP}${epsCell}${SEP}athDiffRaw${SEP}$I${row}${SEP}pe${SEP}IFERROR(VALUE(REGEXREPLACE(TO_TEXT(peRaw)${SEP}"[^0-9\\.\\-]"${SEP}""))${SEP}"")${SEP}eps${SEP}IFERROR(VALUE(REGEXREPLACE(TO_TEXT(epsRaw)${SEP}"[^0-9\\.\\-]"${SEP}""))${SEP}"")${SEP}athDiff${SEP}IFERROR(VALUE(REGEXREPLACE(TO_TEXT(athDiffRaw)${SEP}"[^0-9\\.\\-]"${SEP}""))/100${SEP}"")${SEP}IFS(OR(pe=""${SEP}eps="")${SEP}"FAIR"${SEP}eps<=0${SEP}"ZOMBIE"${SEP}AND(pe>=60${SEP}athDiff<>""${SEP}athDiff>=-0.08)${SEP}"PRICED FOR PERFECTION"${SEP}pe>=35${SEP}"EXPENSIVE"${SEP}AND(pe>0${SEP}pe<=25${SEP}eps>=0.5)${SEP}"VALUE"${SEP}AND(pe>25${SEP}pe<35${SEP}eps>=0.5)${SEP}"FAIR"${SEP}TRUE${SEP}"FAIR"))${SEP}"FAIR")`;
+  // ATH Diff % is in column K (not M!)
+  return `=IFERROR(LET(peRaw${SEP}${peCell}${SEP}epsRaw${SEP}${epsCell}${SEP}athDiffRaw${SEP}$K${row}${SEP}pe${SEP}IFERROR(VALUE(REGEXREPLACE(TO_TEXT(peRaw)${SEP}"[^0-9\\.\\-]"${SEP}""))${SEP}"")${SEP}eps${SEP}IFERROR(VALUE(REGEXREPLACE(TO_TEXT(epsRaw)${SEP}"[^0-9\\.\\-]"${SEP}""))${SEP}"")${SEP}athDiff${SEP}IFERROR(VALUE(REGEXREPLACE(TO_TEXT(athDiffRaw)${SEP}"[^0-9\\.\\-]"${SEP}""))/100${SEP}"")${SEP}IFS(OR(pe=""${SEP}eps="")${SEP}"FAIR"${SEP}eps<=0${SEP}"ZOMBIE"${SEP}AND(pe>=60${SEP}athDiff<>""${SEP}athDiff>=-0.08)${SEP}"PRICED FOR PERFECTION"${SEP}pe>=35${SEP}"EXPENSIVE"${SEP}AND(pe>0${SEP}pe<=25${SEP}eps>=0.5)${SEP}"VALUE"${SEP}AND(pe>25${SEP}pe<35${SEP}eps>=0.5)${SEP}"FAIR"${SEP}TRUE${SEP}"FAIR"))${SEP}"FAIR")`;
 }
 
 function buildDecisionFormula(row, SEP, useLongTermSignal) {
-  // CRITICAL: DECISION uses SIGNAL (B) + PATTERNS (C) only
-  // FUNDAMENTAL (L) is informational but does NOT drive DECISION logic
+  // CRITICAL: DECISION (C) uses SIGNAL (D) + PATTERNS (E)
+  // FUNDAMENTAL (M) is informational but does NOT drive DECISION logic
   
   const tagExpr = `UPPER(IFERROR(INDEX(INPUT!$C$3:$C${SEP}MATCH($A${row}${SEP}INPUT!$A$3:$A${SEP}0))${SEP}""))`;
   const purchasedExpr = `ISNUMBER(SEARCH("PURCHASED"${SEP}${tagExpr}))`;
   
-  // Pattern analysis helpers - Updated to use short forms
-  const hasBullishPattern = `OR(ISNUMBER(SEARCH("ASC_TRI"${SEP}$C${row}))${SEP}ISNUMBER(SEARCH("BRKOUT"${SEP}$C${row}))${SEP}ISNUMBER(SEARCH("DBL_BTM"${SEP}$C${row}))${SEP}ISNUMBER(SEARCH("INV_H&S"${SEP}$C${row}))${SEP}ISNUMBER(SEARCH("CUP_HDL"${SEP}$C${row})))`;
-  const hasBearishPattern = `OR(ISNUMBER(SEARCH("DESC_TRI"${SEP}$C${row}))${SEP}ISNUMBER(SEARCH("H&S"${SEP}$C${row}))${SEP}ISNUMBER(SEARCH("DBL_TOP"${SEP}$C${row})))`;
-  const hasPattern = `NOT(OR($C${row}=""${SEP}$C${row}="—"))`;
+  // Pattern analysis helpers - Updated to use short forms - NOW REFERENCES COLUMN E (PATTERNS)
+  const hasBullishPattern = `OR(ISNUMBER(SEARCH("ASC_TRI"${SEP}$E${row}))${SEP}ISNUMBER(SEARCH("BRKOUT"${SEP}$E${row}))${SEP}ISNUMBER(SEARCH("DBL_BTM"${SEP}$E${row}))${SEP}ISNUMBER(SEARCH("INV_H&S"${SEP}$E${row}))${SEP}ISNUMBER(SEARCH("CUP_HDL"${SEP}$E${row})))`;
+  const hasBearishPattern = `OR(ISNUMBER(SEARCH("DESC_TRI"${SEP}$E${row}))${SEP}ISNUMBER(SEARCH("H&S"${SEP}$E${row}))${SEP}ISNUMBER(SEARCH("DBL_TOP"${SEP}$E${row})))`;
+  const hasPattern = `NOT(OR($E${row}=""${SEP}$E${row}="—"))`;
   
   if (useLongTermSignal) {
-    // Long-term investment mode: SIGNAL + PATTERNS (no FUNDAMENTAL in logic)
-    return `=IF($A${row}=""${SEP}""${SEP}IF($B${row}="LOADING"${SEP}"LOADING"${SEP}IF(${purchasedExpr}${SEP}` +
+    // Long-term investment mode: SIGNAL (D) + PATTERNS (E) (no FUNDAMENTAL in logic)
+    return `=IF($A${row}=""${SEP}""${SEP}IF($D${row}="LOADING"${SEP}"LOADING"${SEP}IF(${purchasedExpr}${SEP}` +
       // For PURCHASED positions
       `IFS(` +
-      `OR($B${row}="STOP OUT"${SEP}$B${row}="RISK OFF")${SEP}"🔴 EXIT"${SEP}` +
-      `AND(OR($B${row}="STRONG BUY"${SEP}$B${row}="BUY"${SEP}$B${row}="ACCUMULATE")${SEP}${hasPattern}${SEP}${hasBullishPattern})${SEP}"🟢 ADD (PATTERN CONFIRMED)"${SEP}` +
-      `AND(OR($B${row}="STRONG BUY"${SEP}$B${row}="BUY"${SEP}$B${row}="ACCUMULATE")${SEP}${hasPattern}${SEP}${hasBearishPattern})${SEP}"⚠️ HOLD (PATTERN CONFLICT)"${SEP}` +
-      `OR($B${row}="STRONG BUY"${SEP}$B${row}="BUY"${SEP}$B${row}="ACCUMULATE")${SEP}"🟢 ADD"${SEP}` +
-      `$B${row}="OVERBOUGHT"${SEP}"🟠 TRIM"${SEP}` +
-      `$B${row}="HOLD"${SEP}"⚖️ HOLD"${SEP}` +
+      `OR($D${row}="STOP OUT"${SEP}$D${row}="RISK OFF")${SEP}"🔴 EXIT"${SEP}` +
+      `AND(OR($D${row}="STRONG BUY"${SEP}$D${row}="BUY"${SEP}$D${row}="ACCUMULATE")${SEP}${hasPattern}${SEP}${hasBullishPattern})${SEP}"🟢 ADD (PATTERN CONFIRMED)"${SEP}` +
+      `AND(OR($D${row}="STRONG BUY"${SEP}$D${row}="BUY"${SEP}$D${row}="ACCUMULATE")${SEP}${hasPattern}${SEP}${hasBearishPattern})${SEP}"⚠️ HOLD (PATTERN CONFLICT)"${SEP}` +
+      `OR($D${row}="STRONG BUY"${SEP}$D${row}="BUY"${SEP}$D${row}="ACCUMULATE")${SEP}"🟢 ADD"${SEP}` +
+      `$D${row}="OVERBOUGHT"${SEP}"🟠 TRIM"${SEP}` +
+      `$D${row}="HOLD"${SEP}"⚖️ HOLD"${SEP}` +
       `TRUE${SEP}"⚖️ HOLD"` +
       `)${SEP}` +
       // For NON-PURCHASED positions
       `IFS(` +
-      `OR($B${row}="STOP OUT"${SEP}$B${row}="RISK OFF")${SEP}"🔴 AVOID"${SEP}` +
-      `AND($B${row}="STRONG BUY"${SEP}${hasPattern}${SEP}${hasBullishPattern})${SEP}"🟢 STRONG BUY (PATTERN CONFIRMED)"${SEP}` +
-      `AND(OR($B${row}="STRONG BUY"${SEP}$B${row}="BUY")${SEP}${hasPattern}${SEP}${hasBearishPattern})${SEP}"⚠️ HOLD (PATTERN CONFLICT)"${SEP}` +
-      `$B${row}="STRONG BUY"${SEP}"🟢 STRONG BUY"${SEP}` +
-      `OR($B${row}="BUY"${SEP}$B${row}="ACCUMULATE")${SEP}"🟢 BUY"${SEP}` +
-      `$B${row}="OVERSOLD"${SEP}"🟡 WATCH (OVERSOLD)"${SEP}` +
-      `$B${row}="OVERBOUGHT"${SEP}"⏳ WAIT (OVERBOUGHT)"${SEP}` +
-      `$B${row}="HOLD"${SEP}"⚖️ WATCH"${SEP}` +
+      `OR($D${row}="STOP OUT"${SEP}$D${row}="RISK OFF")${SEP}"🔴 AVOID"${SEP}` +
+      `AND($D${row}="STRONG BUY"${SEP}${hasPattern}${SEP}${hasBullishPattern})${SEP}"🟢 STRONG BUY (PATTERN CONFIRMED)"${SEP}` +
+      `AND(OR($D${row}="STRONG BUY"${SEP}$D${row}="BUY")${SEP}${hasPattern}${SEP}${hasBearishPattern})${SEP}"⚠️ HOLD (PATTERN CONFLICT)"${SEP}` +
+      `$D${row}="STRONG BUY"${SEP}"🟢 STRONG BUY"${SEP}` +
+      `OR($D${row}="BUY"${SEP}$D${row}="ACCUMULATE")${SEP}"🟢 BUY"${SEP}` +
+      `$D${row}="OVERSOLD"${SEP}"🟡 WATCH (OVERSOLD)"${SEP}` +
+      `$D${row}="OVERBOUGHT"${SEP}"⏳ WAIT (OVERBOUGHT)"${SEP}` +
+      `$D${row}="HOLD"${SEP}"⚖️ WATCH"${SEP}` +
       `TRUE${SEP}"⚪ NEUTRAL"` +
       `)` +
       `)))`;
   } else {
-    // Trade mode: SIGNAL + PATTERNS (no FUNDAMENTAL in logic)
+    // Trade mode: SIGNAL (D) + PATTERNS (E) (no FUNDAMENTAL in logic)
     return `=IF($A${row}=""${SEP}""${SEP}LET(` +
       `tag${SEP}UPPER(IFERROR(INDEX(INPUT!$C$3:$C${SEP}MATCH($A${row}${SEP}INPUT!$A$3:$A${SEP}0))${SEP}""))${SEP}` +
       `purchased${SEP}REGEXMATCH(tag${SEP}"(^|,|\\\\s)PURCHASED(\\\\s|,|$)")${SEP}` +
@@ -597,27 +688,27 @@ function buildDecisionFormula(row, SEP, useLongTermSignal) {
       `bearishPat${SEP}${hasBearishPattern}${SEP}` +
       `hasPat${SEP}${hasPattern}${SEP}` +
       `IFS(` +
-      // Stop-out check - Price below Support (AA not AB)
-      `AND(IFERROR(VALUE($E${row})${SEP}0)>0${SEP}IFERROR(VALUE($AA${row})${SEP}0)>0${SEP}IFERROR(VALUE($E${row})${SEP}0)<IFERROR(VALUE($AA${row})${SEP}0))${SEP}"Stop-Out"${SEP}` +
+      // Stop-out check - Price below Support (AC not AE)
+      `AND(IFERROR(VALUE($G${row})${SEP}0)>0${SEP}IFERROR(VALUE($AC${row})${SEP}0)>0${SEP}IFERROR(VALUE($G${row})${SEP}0)<IFERROR(VALUE($AC${row})${SEP}0))${SEP}"Stop-Out"${SEP}` +
       // Pattern-confirmed strong signals
-      `AND(NOT(purchased)${SEP}OR($B${row}="VOLATILITY BREAKOUT"${SEP}$B${row}="ATH BREAKOUT")${SEP}hasPat${SEP}bullishPat)${SEP}"🟢 STRONG TRADE LONG (PATTERN CONFIRMED)"${SEP}` +
-      `AND(NOT(purchased)${SEP}$B${row}="BREAKOUT"${SEP}hasPat${SEP}bullishPat)${SEP}"🟢 TRADE LONG (PATTERN CONFIRMED)"${SEP}` +
+      `AND(NOT(purchased)${SEP}OR($D${row}="VOLATILITY BREAKOUT"${SEP}$D${row}="ATH BREAKOUT")${SEP}hasPat${SEP}bullishPat)${SEP}"🟢 STRONG TRADE LONG (PATTERN CONFIRMED)"${SEP}` +
+      `AND(NOT(purchased)${SEP}$D${row}="BREAKOUT"${SEP}hasPat${SEP}bullishPat)${SEP}"🟢 TRADE LONG (PATTERN CONFIRMED)"${SEP}` +
       // Pattern conflicts
-      `AND(NOT(purchased)${SEP}OR($B${row}="VOLATILITY BREAKOUT"${SEP}$B${row}="ATH BREAKOUT"${SEP}$B${row}="BREAKOUT"${SEP}$B${row}="MOMENTUM")${SEP}hasPat${SEP}bearishPat)${SEP}"⚠️ HOLD (PATTERN CONFLICT)"${SEP}` +
+      `AND(NOT(purchased)${SEP}OR($D${row}="VOLATILITY BREAKOUT"${SEP}$D${row}="ATH BREAKOUT"${SEP}$D${row}="BREAKOUT"${SEP}$D${row}="MOMENTUM")${SEP}hasPat${SEP}bearishPat)${SEP}"⚠️ HOLD (PATTERN CONFLICT)"${SEP}` +
       // Standard signals without pattern consideration
-      `AND(NOT(purchased)${SEP}OR($B${row}="VOLATILITY BREAKOUT"${SEP}$B${row}="ATH BREAKOUT"))${SEP}"Strong Trade Long"${SEP}` +
-      `AND(NOT(purchased)${SEP}$B${row}="BREAKOUT")${SEP}"Trade Long"${SEP}` +
-      `AND(NOT(purchased)${SEP}$B${row}="MOMENTUM")${SEP}"Accumulate"${SEP}` +
-      `AND(NOT(purchased)${SEP}$B${row}="OVERSOLD")${SEP}"Add in Dip"${SEP}` +
-      `AND(NOT(purchased)${SEP}$B${row}="VOLATILITY SQUEEZE")${SEP}"Wait for Breakout"${SEP}` +
+      `AND(NOT(purchased)${SEP}OR($D${row}="VOLATILITY BREAKOUT"${SEP}$D${row}="ATH BREAKOUT"))${SEP}"Strong Trade Long"${SEP}` +
+      `AND(NOT(purchased)${SEP}$D${row}="BREAKOUT")${SEP}"Trade Long"${SEP}` +
+      `AND(NOT(purchased)${SEP}$D${row}="MOMENTUM")${SEP}"Accumulate"${SEP}` +
+      `AND(NOT(purchased)${SEP}$D${row}="OVERSOLD")${SEP}"Add in Dip"${SEP}` +
+      `AND(NOT(purchased)${SEP}$D${row}="VOLATILITY SQUEEZE")${SEP}"Wait for Breakout"${SEP}` +
       // Purchased position management
-      `AND(purchased${SEP}OR($B${row}="OVERBOUGHT"${SEP}IFERROR(VALUE($E${row})${SEP}0)>=IFERROR(VALUE($AD${row})${SEP}0)))${SEP}"Take Profit"${SEP}` +
-      `AND(purchased${SEP}$B${row}="RISK OFF")${SEP}"Risk-Off"${SEP}` +
-      `AND(NOT(purchased)${SEP}$B${row}="RISK OFF")${SEP}"Avoid"${SEP}` +
+      `AND(purchased${SEP}OR($D${row}="OVERBOUGHT"${SEP}IFERROR(VALUE($G${row})${SEP}0)>=IFERROR(VALUE($AF${row})${SEP}0)))${SEP}"Take Profit"${SEP}` +
+      `AND(purchased${SEP}$D${row}="RISK OFF")${SEP}"Risk-Off"${SEP}` +
+      `AND(NOT(purchased)${SEP}$D${row}="RISK OFF")${SEP}"Avoid"${SEP}` +
       // Default holds
-      `$B${row}="MOMENTUM"${SEP}"Hold"${SEP}` +
-      `$B${row}="UPTREND"${SEP}"Hold"${SEP}` +
-      `$B${row}="BULLISH"${SEP}"Hold"${SEP}` +
+      `$D${row}="MOMENTUM"${SEP}"Hold"${SEP}` +
+      `$D${row}="UPTREND"${SEP}"Hold"${SEP}` +
+      `$D${row}="BULLISH"${SEP}"Hold"${SEP}` +
       `TRUE${SEP}"Hold"` +
       `)))`;
   }
@@ -628,8 +719,8 @@ function buildRVOLFormula(row, volCol, lastRowCount, SEP) {
 }
 
 function buildRRFormula(row, SEP) {
-  // E=Price, W=ATR, AA=Support, AB=Resistance
-  return `=IF(OR($E${row}<=$AA${row}${SEP}$E${row}=0)${SEP}0${SEP}ROUND(MAX(0${SEP}$AB${row}-$E${row})/MAX($W${row}*0.5${SEP}$E${row}-$AA${row})${SEP}2))`;
+  // G=Price, Y=ATR, AC=Support, AD=Resistance
+  return `=IF(OR($G${row}<=$AC${row}${SEP}$G${row}=0)${SEP}0${SEP}ROUND(MAX(0${SEP}$AD${row}-$G${row})/MAX($Y${row}*0.5${SEP}$G${row}-$AC${row})${SEP}2))`;
 }
 
 function buildSMAFormula(closeCol, lastRowCount, period, SEP) {
@@ -637,43 +728,53 @@ function buildSMAFormula(closeCol, lastRowCount, period, SEP) {
 }
 
 function buildDivergenceFormula(row, closeCol, lastAbsRow, SEP) {
-  // E=Price, P=RSI (not R!)
-  return `=IFERROR(IFS(AND($E${row}<INDEX(DATA!${closeCol}:${closeCol}${SEP}${lastAbsRow}-14)${SEP}$P${row}>50)${SEP}"BULL DIV"${SEP}AND($E${row}>INDEX(DATA!${closeCol}:${closeCol}${SEP}${lastAbsRow}-14)${SEP}$P${row}<50)${SEP}"BEAR DIV"${SEP}TRUE${SEP}"—")${SEP}"—")`;
+  // G=Price, R=RSI
+  return `=IFERROR(IFS(AND($G${row}<INDEX(DATA!${closeCol}:${closeCol}${SEP}${lastAbsRow}-14)${SEP}$R${row}>50)${SEP}"BULL DIV"${SEP}AND($G${row}>INDEX(DATA!${closeCol}:${closeCol}${SEP}${lastAbsRow}-14)${SEP}$R${row}<50)${SEP}"BEAR DIV"${SEP}TRUE${SEP}"—")${SEP}"—")`;
 }
 
 function buildSupportFormula(row, lowCol, lastRowCount, SEP) {
-  // S=ADX (not U!)
-  return `=ROUND(IFERROR(LET(win${SEP}IFS($S${row}<20${SEP}10${SEP}$S${row}<35${SEP}22${SEP}TRUE${SEP}40)${SEP}n${SEP}${lastRowCount}${SEP}start${SEP}MAX(0${SEP}n-win)${SEP}len${SEP}MIN(win${SEP}n)${SEP}rng${SEP}IF(len<=0${SEP}OFFSET(DATA!${lowCol}$5${SEP}0${SEP}0)${SEP}OFFSET(DATA!${lowCol}$5${SEP}start${SEP}0${SEP}len))${SEP}out${SEP}IF(COUNTA(rng)<3${SEP}IFERROR(MIN(rng)${SEP}0)${SEP}PERCENTILE.INC(rng${SEP}0.15))${SEP}out)${SEP}0)${SEP}2)`;
+  // U=ADX
+  return `=ROUND(IFERROR(LET(win${SEP}IFS($U${row}<20${SEP}10${SEP}$U${row}<35${SEP}22${SEP}TRUE${SEP}40)${SEP}n${SEP}${lastRowCount}${SEP}start${SEP}MAX(0${SEP}n-win)${SEP}len${SEP}MIN(win${SEP}n)${SEP}rng${SEP}IF(len<=0${SEP}OFFSET(DATA!${lowCol}$5${SEP}0${SEP}0)${SEP}OFFSET(DATA!${lowCol}$5${SEP}start${SEP}0${SEP}len))${SEP}out${SEP}IF(COUNTA(rng)<3${SEP}IFERROR(MIN(rng)${SEP}0)${SEP}PERCENTILE.INC(rng${SEP}0.15))${SEP}out)${SEP}0)${SEP}2)`;
 }
 
 function buildResistanceFormula(row, highCol, lastRowCount, SEP) {
-  // S=ADX (not U!)
-  return `=ROUND(IFERROR(LET(win${SEP}IFS($S${row}<20${SEP}10${SEP}$S${row}<35${SEP}22${SEP}TRUE${SEP}40)${SEP}n${SEP}${lastRowCount}${SEP}start${SEP}MAX(0${SEP}n-win)${SEP}len${SEP}MIN(win${SEP}n)${SEP}rng${SEP}IF(len<=0${SEP}OFFSET(DATA!${highCol}$5${SEP}0${SEP}0)${SEP}OFFSET(DATA!${highCol}$5${SEP}start${SEP}0${SEP}len))${SEP}out${SEP}IF(COUNTA(rng)<3${SEP}IFERROR(MAX(rng)${SEP}0)${SEP}PERCENTILE.INC(rng${SEP}0.85))${SEP}out)${SEP}0)${SEP}2)`;
+  // U=ADX
+  return `=ROUND(IFERROR(LET(win${SEP}IFS($U${row}<20${SEP}10${SEP}$U${row}<35${SEP}22${SEP}TRUE${SEP}40)${SEP}n${SEP}${lastRowCount}${SEP}start${SEP}MAX(0${SEP}n-win)${SEP}len${SEP}MIN(win${SEP}n)${SEP}rng${SEP}IF(len<=0${SEP}OFFSET(DATA!${highCol}$5${SEP}0${SEP}0)${SEP}OFFSET(DATA!${highCol}$5${SEP}start${SEP}0${SEP}len))${SEP}out${SEP}IF(COUNTA(rng)<3${SEP}IFERROR(MAX(rng)${SEP}0)${SEP}PERCENTILE.INC(rng${SEP}0.85))${SEP}out)${SEP}0)${SEP}2)`;
 }
 
 function buildBBPFormula(row, closeCol, lastRowCount, SEP) {
-  // E=Price, M=SMA 20 (not O!)
-  return `=ROUND(IFERROR((($E${row}-$M${row})/(4*STDEV(OFFSET(DATA!${closeCol}$5${SEP}${lastRowCount}-20${SEP}0${SEP}20))))+0.5${SEP}0.5)${SEP}2)`;
+  // G=Price, O=SMA 20
+  return `=ROUND(IFERROR((($G${row}-$O${row})/(4*STDEV(OFFSET(DATA!${closeCol}$5${SEP}${lastRowCount}-20${SEP}0${SEP}20))))+0.5${SEP}0.5)${SEP}2)`;
 }
 
 function buildPositionSizeFormula(row, SEP) {
-  // E=Price, I=ATH Diff% (not J!), W=ATR, Z=R:R Quality
-  return `=IF($A${row}=""${SEP}""${SEP}LET(riskReward${SEP}$Z${row}${SEP}atrRisk${SEP}$W${row}/$E${row}${SEP}athRisk${SEP}IF($I${row}>=-0.05${SEP}0.8${SEP}1.0)${SEP}volRegimeRisk${SEP}IFS(atrRisk<=0.02${SEP}1.2${SEP}atrRisk<=0.05${SEP}1.0${SEP}atrRisk<=0.08${SEP}0.7${SEP}TRUE${SEP}0.5)${SEP}baseSize${SEP}0.02${SEP}rrMultiplier${SEP}IF(riskReward>=3${SEP}1.5${SEP}IF(riskReward>=2${SEP}1.0${SEP}0.5))${SEP}finalSize${SEP}MIN(0.08${SEP}baseSize*rrMultiplier*volRegimeRisk*athRisk)${SEP}TEXT(finalSize${SEP}"0.0%")&" (Vol: "&IFS(atrRisk<=0.02${SEP}"LOW"${SEP}atrRisk<=0.05${SEP}"NORM"${SEP}atrRisk<=0.08${SEP}"HIGH"${SEP}TRUE${SEP}"EXTR")&")"))`;
+  // G=Price, K=ATH Diff%, Y=ATR, AB=R:R Quality
+  return `=IF($A${row}=""${SEP}""${SEP}LET(riskReward${SEP}$AB${row}${SEP}atrRisk${SEP}$Y${row}/$G${row}${SEP}athRisk${SEP}IF($K${row}>=-0.05${SEP}0.8${SEP}1.0)${SEP}volRegimeRisk${SEP}IFS(atrRisk<=0.02${SEP}1.2${SEP}atrRisk<=0.05${SEP}1.0${SEP}atrRisk<=0.08${SEP}0.7${SEP}TRUE${SEP}0.5)${SEP}baseSize${SEP}0.02${SEP}rrMultiplier${SEP}IF(riskReward>=3${SEP}1.5${SEP}IF(riskReward>=2${SEP}1.0${SEP}0.5))${SEP}finalSize${SEP}MIN(0.08${SEP}baseSize*rrMultiplier*volRegimeRisk*athRisk)${SEP}TEXT(finalSize${SEP}"0.0%")&" (Vol: "&IFS(atrRisk<=0.02${SEP}"LOW"${SEP}atrRisk<=0.05${SEP}"NORM"${SEP}atrRisk<=0.08${SEP}"HIGH"${SEP}TRUE${SEP}"EXTR")&")"))`;
 }
 
 function buildVolRegimeFormula(row, SEP) {
-  // W=ATR, E=Price
-  return `=IFS($W${row}/$E${row}<=0.02${SEP}"LOW VOL"${SEP}$W${row}/$E${row}<=0.05${SEP}"NORMAL VOL"${SEP}$W${row}/$E${row}<=0.08${SEP}"HIGH VOL"${SEP}TRUE${SEP}"EXTREME VOL")`;
+  // Y=ATR, G=Price
+  return `=IFS($Y${row}/$G${row}<=0.02${SEP}"LOW VOL"${SEP}$Y${row}/$G${row}<=0.05${SEP}"NORMAL VOL"${SEP}$Y${row}/$G${row}<=0.08${SEP}"HIGH VOL"${SEP}TRUE${SEP}"EXTREME VOL")`;
 }
 
 function buildATHZoneFormula(row, SEP) {
-  // I=ATH Diff % (not J!)
-  return `=IFS($I${row}>=-0.02${SEP}"AT ATH"${SEP}$I${row}>=-0.05${SEP}"NEAR ATH"${SEP}$I${row}>=-0.15${SEP}"RESISTANCE ZONE"${SEP}$I${row}>=-0.30${SEP}"PULLBACK ZONE"${SEP}$I${row}>=-0.50${SEP}"CORRECTION ZONE"${SEP}TRUE${SEP}"DEEP VALUE ZONE")`;
+  // K=ATH Diff %
+  return `=IFS($K${row}>=-0.02${SEP}"AT ATH"${SEP}$K${row}>=-0.05${SEP}"NEAR ATH"${SEP}$K${row}>=-0.15${SEP}"RESISTANCE ZONE"${SEP}$K${row}>=-0.30${SEP}"PULLBACK ZONE"${SEP}$K${row}>=-0.50${SEP}"CORRECTION ZONE"${SEP}TRUE${SEP}"DEEP VALUE ZONE")`;
 }
 
 function buildBBPSignalFormula(row, SEP) {
-  // P=RSI (not Q!), X=Bollinger %B, E=Price, O=SMA 200 (not P!), AA=Support
-  return `=IFS(AND($X${row}>=0.9${SEP}$P${row}>=70)${SEP}"EXTREME OVERBOUGHT"${SEP}AND($X${row}<=0.1${SEP}$P${row}<=30)${SEP}"EXTREME OVERSOLD"${SEP}AND($X${row}>=0.8${SEP}$E${row}>$O${row})${SEP}"MOMENTUM STRONG"${SEP}AND($X${row}<=0.2${SEP}$E${row}>$AA${row})${SEP}"MEAN REVERSION"${SEP}TRUE${SEP}"NEUTRAL")`;
+  // R=RSI, Z=Bollinger %B, G=Price, Q=SMA 200, AC=Support
+  return `=IFS(AND($Z${row}>=0.9${SEP}$R${row}>=70)${SEP}"EXTREME OVERBOUGHT"${SEP}AND($Z${row}<=0.1${SEP}$R${row}<=30)${SEP}"EXTREME OVERSOLD"${SEP}AND($Z${row}>=0.8${SEP}$G${row}>$Q${row})${SEP}"MOMENTUM STRONG"${SEP}AND($Z${row}<=0.2${SEP}$G${row}>$AC${row})${SEP}"MEAN REVERSION"${SEP}TRUE${SEP}"NEUTRAL")`;
+}
+
+function buildMarketRatingFormula(row, SEP) {
+  // Reference MARKET RATING from INPUT sheet column D
+  return `=IFERROR(INDEX(INPUT!$D$3:$D${SEP}MATCH($A${row}${SEP}INPUT!$A$3:$A${SEP}0))${SEP}"—")`;
+}
+
+function buildConsensusPriceFormula(row, SEP) {
+  // Reference CONSENSUS PRICE from INPUT sheet column E
+  return `=IFERROR(INDEX(INPUT!$E$3:$E${SEP}MATCH($A${row}${SEP}INPUT!$A$3:$A${SEP}0))${SEP}0)`;
 }
 
 /**
@@ -939,6 +1040,8 @@ if (typeof module !== 'undefined' && module.exports) {
     buildPositionSizeFormula,
     buildVolRegimeFormula,
     buildATHZoneFormula,
-    buildBBPSignalFormula
+    buildBBPSignalFormula,
+    buildMarketRatingFormula,
+    buildConsensusPriceFormula
   };
 }

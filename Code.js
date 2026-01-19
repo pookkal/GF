@@ -57,8 +57,8 @@ function onEdit(e) {
       return;
     }
 
-    // Calculations refresh trigger (E2)
-    if (a1 === "E2") {
+    // Calculations refresh trigger (G1) to swithc Invest / Trade mode
+    if (a1 === "G1") {
       try {
         ss.toast("Calculations refreshing...", "⚙️ REFRESH", 6);
         generateCalculationsSheet();

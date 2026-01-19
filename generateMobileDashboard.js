@@ -175,26 +175,26 @@ function createFormulaReport_(REPORT) {
   // Decision section starts at row 4 (moved down to accommodate new row 3)
   // Order: DECISION, SIGNAL, PATTERNS
   REPORT.getRange('A4').setValue('DECISION');
-  REPORT.getRange('B4').setFormula(lookup('D')); // DECISION from CALCULATIONS column D
+  REPORT.getRange('B4').setFormula(lookup('C')); // DECISION from CALCULATIONS column C
   REPORT.getRange('B4:C4').merge();
   
   REPORT.getRange('A5').setValue('SIGNAL');
-  REPORT.getRange('B5').setFormula(lookup('B'));
+  REPORT.getRange('B5').setFormula(lookup('D')); // SIGNAL from CALCULATIONS column D
   REPORT.getRange('B5:C5').merge();
   
   REPORT.getRange('A6').setValue('PATTERNS');
-  REPORT.getRange('B6').setFormula(lookup('C')); // PATTERNS from CALCULATIONS column C
+  REPORT.getRange('B6').setFormula(lookup('E')); // PATTERNS from CALCULATIONS column E
   REPORT.getRange('B6:C6').merge();
   
-  // Row 7: MARKET RATING - Analyst consensus rating (STRONG BUY/BUY/HOLD/SELL)
-  REPORT.getRange('A7').setValue('MARKET RATING');
+  // Row 7: Direct reference to INPUT column D
+  REPORT.getRange('A7').setValue('INPUT D');
   REPORT.getRange('B7:C7').merge();
-  REPORT.getRange('B7').setFormula('=AI("Give consensus analysts rating in just STRONG BUY/BUY/SELL/HOLD/etc form for the stock " & A1 & ". If no rating is available, show —. Return ONLY the rating, nothing else.", A1)');
+  REPORT.getRange('B7').setFormula(`=IFERROR(INDEX(INPUT!D:D${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(INPUT!A:A)))${SEP}0))${SEP}"—")`);
   
-  // Row 8: CONSENSUS PRICE - 12-month consensus price target from analysts
-  REPORT.getRange('A8').setValue('CONSENSUS PRICE');
+  // Row 8: Direct reference to INPUT column E
+  REPORT.getRange('A8').setValue('INPUT E');
   REPORT.getRange('B8:C8').merge();
-  REPORT.getRange('B8').setFormula('=AI("What is the 12-month consensus price target from analysts for " & A1 & "? Return ONLY the price target as a number with dollar sign (e.g., $150.00). If no consensus price target is available, return —. Do not include any explanation or additional text.", A1)');
+  REPORT.getRange('B8').setFormula(`=IFERROR(INDEX(INPUT!E:E${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(INPUT!A:A)))${SEP}0))${SEP}"—")`);
   
   // Style decision section (updated to include rows 7-8) - Professional styling with minimal borders
   REPORT.getRange('A4:C8')
@@ -243,50 +243,50 @@ function createFormulaReport_(REPORT) {
   
   // SIGNALING Section (B-D) - Already displayed in rows 4-6, skip to avoid duplication
   
-  // PRICE / VOLUME Section (E-G) - CORRECTED COLUMN REFERENCES
+  // PRICE / VOLUME Section (G-I) - CORRECTED COLUMN REFERENCES
   row = addSectionWithColor_(REPORT, row, 'PRICE / VOLUME', SECTION_COLORS.PRICE_VOLUME);
-  row = addDataRow_(REPORT, row, 'PRICE', lookup('E'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'CHG%', lookup('F'), '0.00%');
-  row = addDataRow_(REPORT, row, 'Vol Trend', lookup('G'), '0.00"x"');
+  row = addDataRow_(REPORT, row, 'PRICE', lookup('G'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'CHG%', lookup('H'), '0.00%');
+  row = addDataRow_(REPORT, row, 'Vol Trend', lookup('I'), '0.00"x"');
   row = addDataRow_(REPORT, row, 'P/E', '=IFERROR(GOOGLEFINANCE($A$1,"pe"),"")', '0.00');
   row = addDataRow_(REPORT, row, 'EPS', '=IFERROR(GOOGLEFINANCE($A$1,"eps"),"")', '0.00');
   row = addDataRow_(REPORT, row, 'Range %', `=IFERROR(IF(AND(ISNUMBER(VALUE(LEFT(A2,LEN(A2)-1))),ISNUMBER(VALUE(LEFT(B2,LEN(B2)-1))),ISNUMBER(VALUE(LEFT(C2,LEN(C2)-1)))),LET(currentPrice,GOOGLEFINANCE($A$1,"price"),historicalDate,A3,historicalPrice,INDEX(GOOGLEFINANCE($A$1,"price",historicalDate),2,2),(currentPrice/historicalPrice-1)),"Select Date"),"—")`, '0.00%');
   
-  // PERFORMANCE Section (H-K) - CORRECTED COLUMN REFERENCES
+  // PERFORMANCE Section (J-M) - CORRECTED COLUMN REFERENCES
   row = addSectionWithColor_(REPORT, row, 'PERFORMANCE', SECTION_COLORS.PERFORMANCE);
-  row = addDataRow_(REPORT, row, 'ATH (TRUE)', lookup('H'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'ATH Diff %', lookup('I'), '0.00%');
-  row = addDataRow_(REPORT, row, 'ATH ZONE', lookup('J'), '@');
-  row = addDataRow_(REPORT, row, 'FUNDAMENTAL', lookup('K'), '@');
+  row = addDataRow_(REPORT, row, 'ATH (TRUE)', lookup('J'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'ATH Diff %', lookup('K'), '0.00%');
+  row = addDataRow_(REPORT, row, 'ATH ZONE', lookup('L'), '@');
+  row = addDataRow_(REPORT, row, 'FUNDAMENTAL', lookup('M'), '@');
   
-  // TREND Section (L-O) - CORRECTED COLUMN REFERENCES
+  // TREND Section (N-Q) - CORRECTED COLUMN REFERENCES
   row = addSectionWithColor_(REPORT, row, 'TREND', SECTION_COLORS.TREND);
-  row = addDataRow_(REPORT, row, 'TREND STATE', lookup('L'), '@');
-  row = addDataRow_(REPORT, row, 'SMA 20', lookup('M'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'SMA 50', lookup('N'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'SMA 200', lookup('O'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'TREND STATE', lookup('N'), '@');
+  row = addDataRow_(REPORT, row, 'SMA 20', lookup('O'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'SMA 50', lookup('P'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'SMA 200', lookup('Q'), '$#,##0.00');
   
-  // MOMENTUM Section (P-T) - CORRECTED COLUMN REFERENCES
+  // MOMENTUM Section (R-V) - CORRECTED COLUMN REFERENCES
   row = addSectionWithColor_(REPORT, row, 'MOMENTUM', SECTION_COLORS.MOMENTUM);
-  row = addDataRow_(REPORT, row, 'RSI', lookup('P'), '0.0');
-  row = addDataRow_(REPORT, row, 'MACD Hist', lookup('Q'), '0.000');
-  row = addDataRow_(REPORT, row, 'Divergence', lookup('R'), '@');
-  row = addDataRow_(REPORT, row, 'ADX (14)', lookup('S'), '0.00');
-  row = addDataRow_(REPORT, row, 'Stoch %K (14)', lookup('T'), '0.00%');
+  row = addDataRow_(REPORT, row, 'RSI', lookup('R'), '0.0');
+  row = addDataRow_(REPORT, row, 'MACD Hist', lookup('S'), '0.000');
+  row = addDataRow_(REPORT, row, 'Divergence', lookup('T'), '@');
+  row = addDataRow_(REPORT, row, 'ADX (14)', lookup('U'), '0.00');
+  row = addDataRow_(REPORT, row, 'Stoch %K (14)', lookup('V'), '0.00%');
   
-  // VOLATILITY Section (U-X) - CORRECTED COLUMN REFERENCES
+  // VOLATILITY Section (W-Z) - CORRECTED COLUMN REFERENCES
   row = addSectionWithColor_(REPORT, row, 'VOLATILITY', SECTION_COLORS.VOLATILITY);
-  row = addDataRow_(REPORT, row, 'VOL REGIME', lookup('U'), '@');
-  row = addDataRow_(REPORT, row, 'BBP SIGNAL', lookup('V'), '@');
-  row = addDataRow_(REPORT, row, 'ATR (14)', lookup('W'), '0.00');
-  row = addDataRow_(REPORT, row, 'Bollinger %B', lookup('X'), '0.0%');
+  row = addDataRow_(REPORT, row, 'VOL REGIME', lookup('W'), '@');
+  row = addDataRow_(REPORT, row, 'BBP SIGNAL', lookup('X'), '@');
+  row = addDataRow_(REPORT, row, 'ATR (14)', lookup('Y'), '0.00');
+  row = addDataRow_(REPORT, row, 'Bollinger %B', lookup('Z'), '0.0%');
   
-  // TARGET Section (Y-AE) - CORRECTED COLUMN REFERENCES
+  // TARGET Section (AA-AG) - CORRECTED COLUMN REFERENCES
   row = addSectionWithColor_(REPORT, row, 'TARGET', SECTION_COLORS.TARGET);
-  row = addDataRow_(REPORT, row, 'Target (3:1)', lookup('Y'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'R:R Quality', lookup('Z'), '0.00"x"');
-  row = addDataRow_(REPORT, row, 'Support', lookup('AA'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'Resistance', lookup('AB'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'Target (3:1)', lookup('AA'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'R:R Quality', lookup('AB'), '0.00"x"');
+  row = addDataRow_(REPORT, row, 'Support', lookup('AC'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'Resistance', lookup('AD'), '$#,##0.00');
   row = addDataRow_(REPORT, row, 'ATR STOP', lookup('AC'), '$#,##0.00');
   row = addDataRow_(REPORT, row, 'ATR TARGET', lookup('AD'), '$#,##0.00');
   row = addDataRow_(REPORT, row, 'POSITION SIZE', lookup('AE'), '@')
@@ -296,9 +296,9 @@ function createFormulaReport_(REPORT) {
   // NOTES - Signal explanation at row 43 (A43:C60)
   // Explains which indicators triggered the SIGNAL and how DECISION was derived
   // Build formula with direct INDEX/MATCH patterns (not using lookup/numLookup helper functions)
-  const signalLookup = `IFERROR(INDEX(CALCULATIONS!B:B${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0))${SEP}"—")`;
-  const decisionLookup = `IFERROR(INDEX(CALCULATIONS!D:D${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0))${SEP}"—")`;
-  const patternsLookup = `IFERROR(INDEX(CALCULATIONS!C:C${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0))${SEP}"—")`;
+  const decisionLookup = `IFERROR(INDEX(CALCULATIONS!B:B${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0))${SEP}"—")`;
+  const signalLookup = `IFERROR(INDEX(CALCULATIONS!C:C${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0))${SEP}"—")`;
+  const patternsLookup = `IFERROR(INDEX(CALCULATIONS!D:D${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0))${SEP}"—")`;
   const priceNum = `IFERROR(VALUE(INDEX(CALCULATIONS!E:E${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
   const rvolNum = `IFERROR(VALUE(INDEX(CALCULATIONS!G:G${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
   const athDiffNum = `IFERROR(VALUE(INDEX(CALCULATIONS!J:J${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
@@ -316,8 +316,8 @@ function createFormulaReport_(REPORT) {
   const notesFormula = `=IF($A$1=""${SEP}""${SEP}IF(${priceNum}=0${SEP}"LOADING"${SEP}` +
     `"SIGNAL ANALYSIS FOR "&$A$1&CHAR(10)&CHAR(10)&` +
     `"═══════════════════════════════════"&CHAR(10)&` +
-    `"SIGNAL: "&${signalLookup}&CHAR(10)&` +
     `"DECISION: "&${decisionLookup}&CHAR(10)&` +
+    `"SIGNAL: "&${signalLookup}&CHAR(10)&` +
     `"PATTERNS: "&${patternsLookup}&CHAR(10)&` +
     `"═══════════════════════════════════"&CHAR(10)&CHAR(10)&` +
     `"WHY THIS SIGNAL FIRED:"&CHAR(10)&CHAR(10)&` +
@@ -557,7 +557,7 @@ function getNarrativeFormula_(label) {
     
     // VOLUME Section
     case 'Vol Trend':
-      return '=IFERROR(IF(' + lookup('G') + '>=1.5,"strong participation.",IF(' + lookup('G') + '>=1,"average participation.","low participation (drift risk).")),"—")';
+      return '=IFERROR(IF(' + lookup('I') + '>=1.5,"strong participation.",IF(' + lookup('I') + '>=1,"average participation.","low participation (drift risk).")),"—")';
     
     case 'VOL REGIME':
       return '=IFERROR("volatility environment.","—")';
@@ -567,37 +567,37 @@ function getNarrativeFormula_(label) {
       return '=""';
     
     case 'ATH Diff %':
-      return '=IFERROR(IF(' + lookup('I') + '>=-0.02,"at ATH zone",IF(' + lookup('I') + '>=-0.15,"pullback zone","correction territory")),"—")';
+      return '=IFERROR(IF(' + lookup('K') + '>=-0.02,"at ATH zone",IF(' + lookup('K') + '>=-0.15,"pullback zone","correction territory")),"—")';
     
     case 'ATH ZONE':
       return '=""';
     
     // FUNDAMENTAL Section
     case 'FUNDAMENTAL':
-      return '=IFERROR(' + lookup('K') + ' & " valuation assessment.","—")';
+      return '=IFERROR(' + lookup('M') + ' & " valuation assessment.","—")';
     
     // TREND Section
     case 'TREND STATE':
-      return '=IFERROR(' + lookup('L') + ' & " market regime based on SMA200 position.","—")';
+      return '=IFERROR(' + lookup('N') + ' & " market regime based on SMA200 position.","—")';
     
     case 'SMA 20':
-      return '=IFERROR(TEXT((' + numLookup('M') + '-' + numLookup('E') + ')/' + numLookup('E') + ',"+0%;-0%") & IF(' + numLookup('E') + '>=' + numLookup('M') + '," below price - short-term bullish."," above price - short-term bearish."),"—")';
+      return '=IFERROR(TEXT((' + numLookup('O') + '-' + numLookup('G') + ')/' + numLookup('G') + ',"+0%;-0%") & IF(' + numLookup('G') + '>=' + numLookup('O') + '," below price - short-term bullish."," above price - short-term bearish."),"—")';
     
     case 'SMA 50':
-      return '=IFERROR(TEXT((' + numLookup('N') + '-' + numLookup('E') + ')/' + numLookup('E') + ',"+0%;-0%") & IF(' + numLookup('E') + '>=' + numLookup('N') + '," below price - medium-term bullish."," above price - medium-term bearish."),"—")';
+      return '=IFERROR(TEXT((' + numLookup('P') + '-' + numLookup('G') + ')/' + numLookup('G') + ',"+0%;-0%") & IF(' + numLookup('G') + '>=' + numLookup('P') + '," below price - medium-term bullish."," above price - medium-term bearish."),"—")';
     
     case 'SMA 200':
-      return '=IFERROR(TEXT((' + numLookup('O') + '-' + numLookup('E') + ')/' + numLookup('E') + ',"+0%;-0%") & IF(' + numLookup('E') + '>=' + numLookup('O') + '," below price - RISK-ON regime."," above price - RISK-OFF regime."),"—")';
+      return '=IFERROR(TEXT((' + numLookup('Q') + '-' + numLookup('G') + ')/' + numLookup('G') + ',"+0%;-0%") & IF(' + numLookup('G') + '>=' + numLookup('Q') + '," below price - RISK-ON regime."," above price - RISK-OFF regime."),"—")';
     
     // MOMENTUM Section
     case 'RSI':
-      return '=IFERROR(IF(' + lookup('P') + '>=70,"overbought zone.",IF(' + lookup('P') + '<=30,"oversold zone.",IF(' + lookup('P') + '>=55,"positive momentum.",IF(' + lookup('P') + '<=45,"weak momentum.","neutral range.")))),"—")';
+      return '=IFERROR(IF(' + lookup('R') + '>=70,"overbought zone.",IF(' + lookup('R') + '<=30,"oversold zone.",IF(' + lookup('R') + '>=55,"positive momentum.",IF(' + lookup('R') + '<=45,"weak momentum.","neutral range.")))),"—")';
     
     case 'MACD Hist':
-      return '=IFERROR(IF(' + lookup('Q') + '>0,"positive momentum impulse.",IF(' + lookup('Q') + '<0,"negative momentum impulse.","flat momentum.")),"—")';
+      return '=IFERROR(IF(' + lookup('S') + '>0,"positive momentum impulse.",IF(' + lookup('S') + '<0,"negative momentum impulse.","flat momentum.")),"—")';
     
     case 'Divergence':
-      return '=IFERROR(IF(' + lookup('R') + '="BULL DIV","Bullish divergence detected.",IF(' + lookup('R') + '="BEAR DIV","Bearish divergence detected.","No divergence detected.")),"—")';
+      return '=IFERROR(IF(' + lookup('T') + '="BULL DIV","Bullish divergence detected.",IF(' + lookup('T') + '="BEAR DIV","Bearish divergence detected.","No divergence detected.")),"—")';
     
     case 'ADX (14)':
       return '=IFERROR("Trend strength: " & IF(' + lookup('S') + '>=25," strong ",IF(' + lookup('S') + '>=20," developing ",IF(' + lookup('S') + '>=15," weak "," range-bound "))),"—")';
@@ -1171,6 +1171,7 @@ function setupChartControls_(REPORT) {
  */
 function setupChartSection_(REPORT) {
   const P = reportPalette___();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
   
   // Clear ONLY the chart display area D3:N17 - NEVER touch D18 or below
   REPORT.getRange('D3:N17').clearContent().clearFormat();
@@ -1179,16 +1180,19 @@ function setupChartSection_(REPORT) {
   REPORT.getRange('D3:N17')
     .setBackground('#0F1419');  // Deep black for chart area
   
-  // Add AI investment analysis in D18:N42 merged area with professional styling
-  // Set AI formula for analysis (works in both web and Android)
-  // ONLY set if formula doesn't already exist (check for =AI formula)
+  // Add INPUT column F reference in D18:N42 merged area
+  // Set formula for INPUT column F reference
+  // ONLY set if formula doesn't already exist
   const d18 = REPORT.getRange('D18');
   const existingFormula = d18.getFormula();
   
-  if (!existingFormula || !existingFormula.includes('=AI(')) {
+  const locale = (ss.getSpreadsheetLocale() || "").toLowerCase();
+  const SEP = (/^(en|en_)/.test(locale)) ? "," : ";";
+  
+  if (!existingFormula || !existingFormula.includes('=IFERROR')) {
     REPORT.getRange('D18:N42').merge()
-      .setFormula('=AI("Perform a comprehensive, professional investment analysis for " & A1 & " as of Jan 2026. 1. FUNDAMENTAL PROFILE: Analyst consensus and 12-month price target. Compare forward P/E to industry peers. Detail 3-year revenue/earnings CAGR estimates. 2. FINANCIAL HEALTH: Assess debt-to-equity, gross/operating margins, and dividend payout ratio sustainability. 3. TECHNICAL ANALYSIS: Identify the current primary trend, status of key moving averages (50-day and 200-day), and momentum indicators (RSI/MACD). 4. CHART PATTERNS & LEVELS: Identify specific patterns (e.g., Head & Shoulders, Ascending Triangle) and provide exact Support and Resistance levels. 5. RISKS & CATALYSTS: Outline specific bearish red flags and upcoming bullish catalysts. 6. INVESTMENT THESIS: Conclude with a 3-4 sentence summary of the investment decision rationale.", A1)')
-      .setFontColor('#FDE047')  // Bright yellow for AI text
+      .setFormula(`=IFERROR(INDEX(INPUT!F:F${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(INPUT!A:A)))${SEP}0))${SEP}"—")`)
+      .setFontColor('#FDE047')  // Bright yellow for text
       .setBackground('#1A1D29')  // Dark background
       .setWrap(true)
       .setVerticalAlignment('top')
