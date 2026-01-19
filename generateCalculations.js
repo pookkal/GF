@@ -4,6 +4,11 @@
 * ==============================================================================
 */
 
+// Delay constants for staggered formula writing (in milliseconds)
+// These delays prevent calculation engine overload, especially on Android app
+const DELAY_AFTER_MAIN_FORMULAS = 12500;  // 12.5 seconds - allows calculation engine to process bulk formulas (columns E-AF)
+const DELAY_AFTER_CD_FORMULAS = 2000;     // 2 seconds - shorter delay for smaller formula set (columns C-D)
+
 function generateCalculationsSheet() {
   const startTime = new Date();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -273,45 +278,152 @@ function writeFormulas(calc, tickers, SEP) {
   // Track start time for performance measurement
   const startTime = new Date();
   
-  Logger.log(`Starting formula generation for ${tickers.length} tickers (sequential processing)`);
+  Logger.log(`Starting optimized formula generation for ${tickers.length} tickers (batch processing)`);
   
   // Display start notification
   ss.toast(`Processing ${tickers.length} tickers...`, '⏳ Starting', 3);
   
-  // Initialize flush counter for periodic flushing
-  let flushCounter = 0;
+  // STEP 1: Generate all formulas and detect patterns for all tickers
+  Logger.log('Step 1: Generating formulas for all tickers...');
+  const allFormulas = [];
   
-  // Process tickers sequentially
   for (let i = 0; i < tickers.length; i++) {
     const ticker = tickers[i];
     const row = i + 3;
     
-    // Process this ticker using the helper function
-    const result = processTickerFormulas(ticker, row, i, BLOCK, SEP, useLongTermSignal, dataSheet, calc);
-    
-    // Track errors
-    if (!result.success) {
-      errors.push({
-        ticker: ticker,
-        error: result.error,
-        phase: result.phase
-      });
-    } else {
-      // Increment flush counter only on success
-      flushCounter++;
+    // Pattern detection (non-fatal)
+    try {
+      const priceData = getPriceDataForTicker(dataSheet, ticker, i, BLOCK);
       
-      // Flush after every 5 successful writes
-      if (flushCounter >= 5) {
-        SpreadsheetApp.flush();
-        flushCounter = 0;
+      if (!priceData || priceData.length === 0) {
+        Logger.log(`${ticker}: No price data available`);
+        setCachedPattern(ticker, '');
+      } else {
+        const patterns = detectPatterns(priceData, {minBars: 100, minConfidence: 60});
+        const patternString = formatPatternsForSheet(patterns);
+        setCachedPattern(ticker, patternString);
+        Logger.log(`${ticker}: Cached ${patterns.length} patterns`);
       }
+    } catch (patternError) {
+      Logger.log(`${ticker}: Error detecting patterns - ${patternError.message}`);
+      setCachedPattern(ticker, '');
     }
     
-    // Display progress for each ticker
-    displayProgress(i, tickers.length, ticker);
+    // Generate formulas
+    try {
+      const formulas = generateTickerFormulas(ticker, row, i, BLOCK, SEP, useLongTermSignal);
+      allFormulas.push({ticker, row, formulas});
+    } catch (formulaError) {
+      Logger.log(`${ticker}: Error generating formulas - ${formulaError.message}`);
+      errors.push({ticker, error: formulaError.message, phase: 'formula'});
+      allFormulas.push(null); // Placeholder to maintain array alignment
+    }
+    
+    // Display progress
+    if ((i + 1) % 10 === 0 || i === tickers.length - 1) {
+      const percentage = Math.round(((i + 1) / tickers.length) * 100);
+      Logger.log(`Formula generation: ${i + 1}/${tickers.length} (${percentage}%)`);
+    }
   }
   
-  // Final flush to ensure all changes are persisted
+  // STEP 2: Write Phase 1 formulas (columns E-AF) for ALL tickers at once
+  Logger.log('Step 2: Writing Phase 1 formulas (columns E-AF) for all tickers...');
+  ss.toast('Writing main formulas (E-AF)...', '⏳ Phase 1', 3);
+  
+  const phase1Data = [];
+  for (let i = 0; i < allFormulas.length; i++) {
+    if (allFormulas[i] && allFormulas[i].formulas) {
+      phase1Data.push(allFormulas[i].formulas.slice(3)); // Indices 3-30 (28 columns)
+    } else {
+      phase1Data.push(new Array(28).fill('')); // Empty row for failed formulas
+    }
+  }
+  
+  try {
+    if (phase1Data.length > 0) {
+      calc.getRange(3, 5, phase1Data.length, 28).setFormulas(phase1Data);
+      Logger.log(`Phase 1 complete: Wrote formulas for columns E-AF (${phase1Data.length} tickers)`);
+    }
+  } catch (writeError) {
+    Logger.log(`Error writing Phase 1 formulas: ${writeError.message}`);
+    errors.push({ticker: 'ALL', error: writeError.message, phase: 'write-phase1'});
+  }
+  
+  SpreadsheetApp.flush();
+  
+  // DELAY 1: Allow calculation engine to process main formulas
+  Logger.log(`Applying ${DELAY_AFTER_MAIN_FORMULAS}ms delay after Phase 1...`);
+  ss.toast('Waiting for calculations to complete...', '⏳ Delay', 3);
+  Utilities.sleep(DELAY_AFTER_MAIN_FORMULAS);
+  
+  // STEP 3: Write Phase 2 formulas (columns C-D) for ALL tickers at once
+  Logger.log('Step 3: Writing Phase 2 formulas (columns C-D) for all tickers...');
+  ss.toast('Writing pattern formulas (C-D)...', '⏳ Phase 2', 3);
+  
+  const phase2Data = [];
+  for (let i = 0; i < allFormulas.length; i++) {
+    if (allFormulas[i] && allFormulas[i].formulas) {
+      phase2Data.push(allFormulas[i].formulas.slice(1, 3)); // Indices 1-2 (2 columns)
+    } else {
+      phase2Data.push(['', '']); // Empty row for failed formulas
+    }
+  }
+  
+  try {
+    if (phase2Data.length > 0) {
+      calc.getRange(3, 3, phase2Data.length, 2).setFormulas(phase2Data);
+      Logger.log(`Phase 2 complete: Wrote formulas for columns C-D (${phase2Data.length} tickers)`);
+    }
+  } catch (writeError) {
+    Logger.log(`Error writing Phase 2 formulas: ${writeError.message}`);
+    errors.push({ticker: 'ALL', error: writeError.message, phase: 'write-phase2'});
+  }
+  
+  SpreadsheetApp.flush();
+  
+  // DELAY 2: Allow calculation engine to process C-D formulas
+  Logger.log(`Applying ${DELAY_AFTER_CD_FORMULAS}ms delay after Phase 2...`);
+  Utilities.sleep(DELAY_AFTER_CD_FORMULAS);
+  
+  // STEP 4: Write Phase 3 formulas (column B) for ALL tickers at once
+  Logger.log('Step 4: Writing Phase 3 formulas (column B) for all tickers...');
+  ss.toast('Writing signal formulas (B)...', '⏳ Phase 3', 3);
+  
+  const phase3Data = [];
+  for (let i = 0; i < allFormulas.length; i++) {
+    if (allFormulas[i] && allFormulas[i].formulas) {
+      phase3Data.push([allFormulas[i].formulas[0]]); // Index 0 (1 column)
+    } else {
+      phase3Data.push(['']); // Empty row for failed formulas
+    }
+  }
+  
+  try {
+    if (phase3Data.length > 0) {
+      calc.getRange(3, 2, phase3Data.length, 1).setFormulas(phase3Data);
+      Logger.log(`Phase 3 complete: Wrote formulas for column B (${phase3Data.length} tickers)`);
+    }
+  } catch (writeError) {
+    Logger.log(`Error writing Phase 3 formulas: ${writeError.message}`);
+    errors.push({ticker: 'ALL', error: writeError.message, phase: 'write-phase3'});
+  }
+  
+  SpreadsheetApp.flush();
+  
+  // STEP 5: Apply formatting to all tickers at once
+  Logger.log('Step 5: Applying formatting...');
+  try {
+    // Apply percentage formatting to columns F, I, T, X for all data rows
+    const numRows = tickers.length;
+    calc.getRange(3, 6, numRows, 1).setNumberFormat('0.00%');  // F: Change %
+    calc.getRange(3, 9, numRows, 1).setNumberFormat('0.00%');  // I: ATH Diff %
+    calc.getRange(3, 20, numRows, 1).setNumberFormat('0.00%'); // T: Stoch %K
+    calc.getRange(3, 24, numRows, 1).setNumberFormat('0.00%'); // X: Bollinger %B
+    Logger.log('Percentage formatting applied to all tickers');
+  } catch (formatError) {
+    Logger.log(`Error applying formatting: ${formatError.message}`);
+  }
+  
   SpreadsheetApp.flush();
   
   // Apply Bloomberg-style formatting to data rows
@@ -600,11 +712,7 @@ function processTickerFormulas(ticker, row, index, BLOCK, SEP, useLongTermSignal
       Logger.log(`${ticker}: Error detecting patterns - ${patternError.message}`);
       setCachedPattern(ticker, '');
       // Continue processing - pattern detection failure is not fatal
-      return {
-        success: false,
-        error: patternError.message,
-        phase: 'pattern'
-      };
+      // Formulas will still be written, pattern column will be empty
     }
     
     // PHASE 2: Formula Generation
@@ -627,17 +735,72 @@ function processTickerFormulas(ticker, row, index, BLOCK, SEP, useLongTermSignal
       };
     }
     
-    // PHASE 3: Formula Writing
+    // PHASE 3: Formula Writing (Staggered)
     try {
-      // Write formulas to sheet (columns B-AF, 31 columns)
-      calc.getRange(row, 2, 1, 31).setFormulas([formulas]);
-      Logger.log(`${ticker}: Formulas written to row ${row}`);
+      // Phase 1: Write formulas for columns E-AF (indices 3-30 in formulas array)
+      // These are the main calculation formulas that don't depend on B, C, D
+      const phase1Formulas = formulas.slice(3);
+      calc.getRange(row, 5, 1, 28).setFormulas([phase1Formulas]);
+      Logger.log(`${ticker}: Phase 1 complete - wrote formulas for columns E-AF (28 columns)`);
     } catch (writeError) {
-      Logger.log(`${ticker}: Error writing formulas - ${writeError.message}`);
+      Logger.log(`${ticker}: Error writing Phase 1 formulas - ${writeError.message}`);
       return {
         success: false,
         error: writeError.message,
-        phase: 'write'
+        phase: 'write-phase1'
+      };
+    }
+    
+    // Delay after Phase 1: Allow calculation engine to process main formulas
+    try {
+      Logger.log(`${ticker}: Applying ${DELAY_AFTER_MAIN_FORMULAS}ms delay after Phase 1...`);
+      Utilities.sleep(DELAY_AFTER_MAIN_FORMULAS);
+    } catch (delayError) {
+      Logger.log(`${ticker}: Error during Phase 1 delay - ${delayError.message}`);
+      // Delay error is not fatal - continue with next phase
+    }
+    
+    // Phase 2: Write formulas for columns C-D (indices 1-2 in formulas array)
+    // These formulas depend on price data and pattern detection
+    try {
+      // Extract formulas for indices 1-2 from formulas array
+      const phase2Formulas = formulas.slice(1, 3);
+      
+      // Write to range starting at column 3 (C) with 2 columns
+      calc.getRange(row, 3, 1, 2).setFormulas([phase2Formulas]);
+      
+      // Add logging for Phase 2 completion
+      Logger.log(`${ticker}: Phase 2 complete - wrote formulas for columns C-D (2 columns)`);
+    } catch (writeError) {
+      Logger.log(`${ticker}: Error writing Phase 2 formulas - ${writeError.message}`);
+      return {
+        success: false,
+        error: writeError.message,
+        phase: 'write-phase2'
+      };
+    }
+    
+    // Delay after Phase 2: Allow calculation engine to process C-D formulas
+    try {
+      Logger.log(`${ticker}: Applying ${DELAY_AFTER_CD_FORMULAS}ms delay after Phase 2...`);
+      Utilities.sleep(DELAY_AFTER_CD_FORMULAS);
+    } catch (delayError) {
+      Logger.log(`${ticker}: Error during Phase 2 delay - ${delayError.message}`);
+      // Delay error is not fatal - continue with next phase
+    }
+    
+    // Phase 3: Write formula for column B (index 0 in formulas array)
+    // This formula depends on many other columns and should be written last
+    try {
+      const phase3Formula = formulas[0];
+      calc.getRange(row, 2, 1, 1).setFormulas([[phase3Formula]]);
+      Logger.log(`${ticker}: Phase 3 complete - wrote formula for column B (SIGNAL)`);
+    } catch (writeError) {
+      Logger.log(`${ticker}: Error writing Phase 3 formula - ${writeError.message}`);
+      return {
+        success: false,
+        error: writeError.message,
+        phase: 'write-phase3'
       };
     }
     
@@ -653,11 +816,7 @@ function processTickerFormulas(ticker, row, index, BLOCK, SEP, useLongTermSignal
     } catch (formatError) {
       Logger.log(`${ticker}: Error applying formatting - ${formatError.message}`);
       // Formatting error is not fatal - formulas are already written
-      return {
-        success: false,
-        error: formatError.message,
-        phase: 'format'
-      };
+      // Continue and mark as successful since formulas are in place
     }
     
     // All phases completed successfully

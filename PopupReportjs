@@ -173,9 +173,10 @@ class MasterAnalysisEngineText {
  * - Uses ONLY the fields returned by getTickerDataFromBaseline()
  * - Produces a professional, indicator-complete narrative with explicit "Why" and "Why Not"
  * - Output is HTML (for showAnalysisPopup right pane)
+ * - Conditionally shows sections based on trigger source (REPORT sheet vs others)
  */
 class MasterAnalysisEngine {
-  static analyze(d) {
+  static analyze(d, isFromReportSheet = false) {
     // ---------------------------
     // Helpers
     // ---------------------------
@@ -224,7 +225,6 @@ class MasterAnalysisEngine {
     const ath        = n(d.isATH);
     const athDiff    = n(d.athDiff);
     const rr         = n(d.rrQuality);
-    const trendScore = n(d.trendScore);
     const trendState = t(d.trendState);
 
     const sma20      = n(d.sma20);
@@ -423,6 +423,39 @@ class MasterAnalysisEngine {
 
     const decisionChip = chipClass(actionTone);
 
+    // If triggered from REPORT sheet, get D18 content and rows 7-8 for custom narrative
+    let customNarrative = "";
+    let marketRating = "";
+    let consensusPrice = "";
+    
+    if (isFromReportSheet) {
+      try {
+        const ss = SpreadsheetApp.getActiveSpreadsheet();
+        const reportSheet = ss.getSheetByName("REPORT");
+        if (reportSheet) {
+          // Get MARKET RATING from B7
+          const b7Value = reportSheet.getRange("B7").getValue();
+          if (b7Value && String(b7Value).trim() !== "" && String(b7Value).trim() !== "—") {
+            marketRating = String(b7Value).trim();
+          }
+          
+          // Get CONSENSUS PRICE from B8
+          const b8Value = reportSheet.getRange("B8").getValue();
+          if (b8Value && String(b8Value).trim() !== "" && String(b8Value).trim() !== "—") {
+            consensusPrice = String(b8Value).trim();
+          }
+          
+          // Get AI analysis from D18
+          const d18Value = reportSheet.getRange("D18").getValue();
+          if (d18Value && String(d18Value).trim() !== "") {
+            customNarrative = String(d18Value).trim();
+          }
+        }
+      } catch (err) {
+        console.error("Error reading REPORT sheet data:", err);
+      }
+    }
+
     const html = `
       <div class="mi-wrap">
         <div class="mi-head">
@@ -449,7 +482,7 @@ class MasterAnalysisEngine {
               <div class="k">PRICE</div><div class="v">${p2(price)}</div>
               <div class="k">CHG%</div><div class="v">${chg == null ? "—" : pct(chg)}</div>
               <div class="k">RVOL</div><div class="v">${rvol == null ? "—" : (f2(rvol) + "x")} (${rvolBand})</div>
-              <div class="k">TREND</div><div class="v">${t(trendState)} | Score: ${trendScore == null ? "—" : trendScore}</div>
+              <div class="k">TREND</div><div class="v">${t(trendState)}</div>
               <div class="k">R:R</div><div class="v">${rr == null ? "—" : (f2(rr) + "x")}</div>
             </div>
           </div>
@@ -489,6 +522,33 @@ class MasterAnalysisEngine {
           </div>
         </div>
 
+        ${isFromReportSheet && (marketRating || consensusPrice || customNarrative) ? `
+        ${marketRating || consensusPrice ? `
+        <div class="mi-section mi-analyst-section">
+          <div class="mi-section-title">Analyst Consensus</div>
+          <div class="mi-analyst-grid">
+            ${marketRating ? `
+            <div class="mi-analyst-item">
+              <div class="mi-analyst-label">Market Rating</div>
+              <div class="mi-analyst-value mi-rating-${marketRating.toLowerCase().replace(/\s+/g, '-')}">${marketRating}</div>
+            </div>
+            ` : ''}
+            ${consensusPrice ? `
+            <div class="mi-analyst-item">
+              <div class="mi-analyst-label">12-Month Target</div>
+              <div class="mi-analyst-value mi-price-target">${consensusPrice}</div>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+        ` : ''}
+        ${customNarrative ? `
+        <div class="mi-section">
+          <div class="mi-section-title">Investment Analysis</div>
+          <div class="mi-narrative">${customNarrative.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\*([^*]+)\*/g, '<em>$1</em>').replace(/\n/g, '<br>')}</div>
+        </div>
+        ` : ''}
+        ` : `
         <div class="mi-section">
           <div class="mi-section-title">Why this decision</div>
           <ul class="mi-list">
@@ -527,6 +587,7 @@ class MasterAnalysisEngine {
               : ""
           }
         </div>
+        `}
       </div>
     `;
 
@@ -774,6 +835,69 @@ function showAnalysisPopup(ticker, reportHtml, d) {
         font-size:12px;
         margin-bottom:6px;
       }
+      .rightBody .mi-narrative{
+        font-size:12px;
+        line-height:1.6;
+        color:#e5e7eb;
+        white-space:pre-wrap;
+        word-wrap:break-word;
+      }
+      .rightBody .mi-narrative strong{
+        font-weight:900;
+        color:#fbbf24;
+      }
+      .rightBody .mi-narrative em{
+        font-style:italic;
+        color:#93c5fd;
+      }
+      .rightBody .mi-analyst-section{
+        background:#0d1117;
+        border:1px solid #30363d;
+      }
+      .rightBody .mi-analyst-grid{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:12px;
+        margin-top:8px;
+      }
+      .rightBody .mi-analyst-item{
+        background:#0b1220;
+        border:1px solid #30363d;
+        border-radius:8px;
+        padding:10px;
+        text-align:center;
+      }
+      .rightBody .mi-analyst-label{
+        font-size:10px;
+        font-weight:800;
+        color:#9ca3af;
+        text-transform:uppercase;
+        letter-spacing:0.5px;
+        margin-bottom:6px;
+      }
+      .rightBody .mi-analyst-value{
+        font-size:14px;
+        font-weight:900;
+        letter-spacing:0.3px;
+      }
+      .rightBody .mi-rating-strong-buy{
+        color:#10b981;
+      }
+      .rightBody .mi-rating-buy{
+        color:#34d399;
+      }
+      .rightBody .mi-rating-hold{
+        color:#fbbf24;
+      }
+      .rightBody .mi-rating-sell{
+        color:#f87171;
+      }
+      .rightBody .mi-rating-strong-sell{
+        color:#dc2626;
+      }
+      .rightBody .mi-price-target{
+        color:#93c5fd;
+      }
     </style>
   `;
 
@@ -932,14 +1056,6 @@ function buildIndicatorPanelHtml_(d) {
     return BG_GREY;
   };
 
-  const colorTrendScore = () => {
-    const ts = num(d.trendScore);
-    if (ts == null) return BG_GREY;
-    if (ts >= 3) return BG_GREEN;
-    if (ts <= 1) return BG_RED;
-    return BG_GREY;
-  };
-
   const colorTrendState = () => {
     const v = String(d.trendState || "").toUpperCase();
     if (v === "BULL") return BG_GREEN;
@@ -1044,7 +1160,6 @@ function buildIndicatorPanelHtml_(d) {
 
   // --- SECTION: TREND ---
   html += `<div style="${sectionStyle}">TREND</div>`;
-  html += row("TREND ★", fmt.text(d.trendScore), colorTrendScore());
   html += row("STATE", fmt.text(d.trendState), colorTrendState());
   html += row("SMA20", fmt.price(d.sma20), BG_GREY);
   html += row("SMA50", fmt.price(d.sma50), BG_GREY);
@@ -1076,6 +1191,10 @@ function buildIndicatorPanelHtml_(d) {
 function runMasterAnalysis() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
+  // Detect if triggered from REPORT sheet
+  const activeSheet = ss.getActiveSheet();
+  const isFromReportSheet = activeSheet && activeSheet.getName() === "REPORT";
+  
   // Get ticker from ACTIVE CELL or specific cell (C1)
   const activeCell = ss.getActiveCell();
   let ticker = activeCell.getValue();
@@ -1095,13 +1214,13 @@ function runMasterAnalysis() {
   if (!d) return;
 
   // 5. Generate and show the report
-  const report = MasterAnalysisEngine.analyze(d);
-  showAnalysisPopup(ticker, report,d);
+  const report = MasterAnalysisEngine.analyze(d, isFromReportSheet);
+  showAnalysisPopup(ticker, report, d);
 }
 
 /**
  * Helper: Searches the Golden Baseline for a specific ticker and returns the data object.
- * Mapping strictly follows the provided A-Y column sequence.
+ * Mapping strictly follows the NEW CALCULATIONS column structure (A-AG, 33 columns).
  * @param {string} ticker - The stock symbol to search for.
  */
 function getTickerDataFromBaseline(ticker) {
@@ -1121,19 +1240,19 @@ function getTickerDataFromBaseline(ticker) {
     if (data[i][0].toString().toUpperCase() === ticker.toString().toUpperCase()) {
       const rowData = data[i];
       
-      // MAPPING TABLE: A=0, B=1, C=2, D=3, E=4... Y=24
+      // NEW MAPPING TABLE: A=0, B=1, C=2... AG=32
       return {
         ticker:      rowData[0],  // Col A: Ticker
         signal:      rowData[1],  // Col B: SIGNAL
-        fundamental: rowData[2],  // Col C: FUNDAMENTAL (swapped)
-        decision:    rowData[3],  // Col D: DECISION (swapped)
+        patterns:    rowData[2],  // Col C: PATTERNS (NEW)
+        decision:    rowData[3],  // Col D: DECISION
         price:       rowData[4],  // Col E: Price
         changePct:   rowData[5],  // Col F: Change %
-        volRatio:    rowData[6],  // Col G: Vol Trend
+        volRatio:    rowData[6],  // Col G: Vol Trend (RVOL)
         isATH:       rowData[7],  // Col H: ATH (TRUE)
         athDiff:     rowData[8],  // Col I: ATH Diff %
-        rrQuality:   rowData[9],  // Col J: R:R Quality
-        trendScore:  rowData[10], // Col K: Trend Score
+        athZone:     rowData[9],  // Col J: ATH Zone (NEW)
+        fundamental: rowData[10], // Col K: FUNDAMENTAL (NEW position)
         trendState:  rowData[11], // Col L: Trend State
         sma20:       rowData[12], // Col M: SMA 20
         sma50:       rowData[13], // Col N: SMA 50
@@ -1143,12 +1262,19 @@ function getTickerDataFromBaseline(ticker) {
         divergence:  rowData[17], // Col R: Divergence
         adx:         rowData[18], // Col S: ADX (14)
         stochK:      rowData[19], // Col T: Stoch %K (14)
-        support:     rowData[20], // Col U: Support
-        resistance:  rowData[21], // Col V: Resistance
-        target:      rowData[22], // Col W: Target (3:1)
-        atr:         rowData[23], // Col X: ATR (14)
-        bolB:        rowData[24], // Col Y: Bollinger %B
-        stopLoss:    rowData[20]  // Mapping Support as StopLoss
+        volRegime:   rowData[20], // Col U: Vol Regime (NEW)
+        bbpSignal:   rowData[21], // Col V: BBP Signal (NEW)
+        atr:         rowData[22], // Col W: ATR (14)
+        bolB:        rowData[23], // Col X: Bollinger %B
+        target:      rowData[24], // Col Y: Target
+        rrQuality:   rowData[25], // Col Z: R:R Quality (NEW position)
+        support:     rowData[26], // Col AA: Support
+        resistance:  rowData[27], // Col AB: Resistance
+        atrStop:     rowData[28], // Col AC: ATR Stop (NEW)
+        atrTarget:   rowData[29], // Col AD: ATR Target (NEW)
+        positionSize:rowData[30], // Col AE: Position Size (NEW)
+        lastState:   rowData[31], // Col AF: Last State
+        stopLoss:    rowData[26]  // Mapping Support as StopLoss
       };
     }
   }

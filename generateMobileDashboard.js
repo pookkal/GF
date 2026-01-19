@@ -1,6 +1,6 @@
 /**
 * ==============================================================================
-* STABLE_MASTER_ALL_CLEAN_v3.1_KIRO_OPTIMIZED
+* STABLE_MASTER_ALL_CLEAN_v3.1_KIRO_volume_fix
 * ==============================================================================
 */
 
@@ -1414,13 +1414,28 @@ function createReportChartInternal_(REPORT, ticker) {
       if (checkboxes.ATR_STOP) dataRow.push(atrStop || 0);
       if (checkboxes.ATR_TARGET) dataRow.push(atrTarget || 0);
       
-      // Add volume LAST to prevent series shifting issues - SIMPLIFIED LOGIC
+      // Add volume LAST to prevent series shifting issues - CORRECTED LOGIC
       if (checkboxes.VOLUME) {
-        const prevClose = (i > 4) ? Number(raw[i - 1][4]) : close;
-        // Split volume into bull/bear based on price movement
-        // Bull volume (green) when close >= previous close
-        // Bear volume (red) when close < previous close
-        const isBullVolume = close >= prevClose;
+        // Use open price for intraday comparison (close vs open)
+        // Fallback to previous close if open is unavailable
+        let open = Number(raw[i][1]);
+        if (!open || isNaN(open)) {
+          open = (i > 4) ? Number(raw[i - 1][4]) : close;
+          if (i < 7) {
+            console.log(`Row ${i}: Warning - Open price unavailable, using fallback (${open})`);
+          }
+        }
+        
+        // Split volume into bull/bear based on intraday price movement
+        // Bull volume (green) when close >= open
+        // Bear volume (red) when close < open
+        const isBullVolume = close >= open;
+        
+        // Validate volume data
+        if (!vol || isNaN(vol) || vol < 0) {
+          console.log(`Row ${i}: Warning - Invalid volume data (${vol}), setting to 0`);
+          vol = 0;
+        }
         
         // Use original volume values - secondary axis will handle scaling
         const bullVol = isBullVolume ? vol : 0;
@@ -1428,7 +1443,7 @@ function createReportChartInternal_(REPORT, ticker) {
         
         // Debug volume calculation for first few rows
         if (i < 7) {
-          console.log(`Row ${i}: close=${close}, vol=${vol}, isBull=${isBullVolume}, bullVol=${bullVol}, bearVol=${bearVol}`);
+          console.log(`Row ${i}: open=${open}, close=${close}, vol=${vol}, isBull=${isBullVolume}, bullVol=${bullVol}, bearVol=${bearVol}`);
         }
         
         // Always add both bull and bear volume to maintain consistent column count
@@ -1490,13 +1505,22 @@ function createReportChartInternal_(REPORT, ticker) {
         const maxHistVol = allHistoricalVols.length > 0 ? Math.max(...allHistoricalVols) : 1000000;
         const proxyVolume = maxHistVol * 0.5; // Use 50% of max historical volume as proxy
         
-        const isBullVolume = livePrice >= lastHistClose;
+        // For live data, the open price is the last historical close (where today's trading started)
+        // Compare current live price (close) to today's open to determine bull/bear volume
+        const liveOpen = lastHistClose;
+        
+        // Validate open price
+        if (!liveOpen || isNaN(liveOpen) || liveOpen <= 0) {
+          console.log(`Warning - Invalid open price for live data (${liveOpen}), using live price as fallback`);
+        }
+        
+        const isBullVolume = livePrice >= liveOpen;
         
         // Use proxy volume for today's data
         const bullVol = isBullVolume ? proxyVolume : 0;
         const bearVol = isBullVolume ? 0 : proxyVolume;
         
-        console.log(`Live volume proxy: ${proxyVolume}, isBull=${isBullVolume}, bullVol=${bullVol}, bearVol=${bearVol}`);
+        console.log(`Live volume: open=${liveOpen}, close=${livePrice}, proxy=${proxyVolume}, isBull=${isBullVolume}, bullVol=${bullVol}, bearVol=${bearVol}`);
         
         // Always add both bull and bear volume to maintain consistent column count
         liveDataRow.push(bullVol, bearVol);
@@ -1664,9 +1688,10 @@ function createReportChartInternal_(REPORT, ticker) {
   if (checkboxes.ATR_STOP) {
     seriesConfig[seriesIndex] = { 
       type: "line", 
-      color: "#F87171", // RED per requirements
-      lineWidth: 2, 
-      lineDashStyle: [4, 4], // DOTTED line per requirements - NOTE: Google Sheets may not render this in combo charts
+      color: "#f80ed1ff",
+      lineWidth: 1, 
+      pointSize: 2, // This creates a "beaded" look
+      lineDashStyle: 'long-dash', // DOTTED line per requirements - NOTE: Google Sheets may not render this in combo charts
       labelInLegend: "ATR Stop",
       targetAxisIndex: 0 // Explicitly assign to primary axis
     };
@@ -1676,9 +1701,10 @@ function createReportChartInternal_(REPORT, ticker) {
   if (checkboxes.ATR_TARGET) {
     seriesConfig[seriesIndex] = { 
       type: "line", 
-      color: "#34D399", // GREEN per requirements
-      lineWidth: 2, 
-      lineDashStyle: [4, 4], // DOTTED line per requirements - NOTE: Google Sheets may not render this in combo charts
+      color: "#e7ef0bff", 
+      lineWidth: 1, 
+      pointSize: 2, // This creates a "beaded" look
+      lineDashStyle: 'long-dash', // DOTTED line per requirements - NOTE: Google Sheets may not render this in combo charts
       labelInLegend: "ATR Target",
       targetAxisIndex: 0 // Explicitly assign to primary axis
     };
