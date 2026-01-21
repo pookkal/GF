@@ -18,6 +18,7 @@ function onOpen() {
     .addSeparator()
     .addItem('📖 Build Reference Guide', 'generateReferenceSheet')
     .addSeparator()
+    .addItem('⚙️ Setup Monitor Config', 'setupMonitorConfiguration')
     .addItem('🔔 Start Market Monitor', 'startMarketMonitor')
     .addItem('🔕 Stop Monitor', 'stopMarketMonitor')
     .addItem('📩 Test Alert Now', 'checkSignalsAndSendAlerts')

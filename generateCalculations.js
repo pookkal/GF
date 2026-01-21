@@ -9,7 +9,7 @@
 const DELAY_AFTER_MAIN_FORMULAS = 12500;  // 12.5 seconds - allows calculation engine to process bulk formulas (columns E-AF)
 const DELAY_AFTER_CD_FORMULAS = 2000;     // 2 seconds - shorter delay for smaller formula set (columns C-D)
 
-// Column headers for CALCULATIONS sheet (35 columns: A-AI)
+// Column headers for CALCULATIONS sheet (34 columns: A-AH)
 const CALC_HEADERS = [
   'Ticker',           // A
   'MARKET RATING',    // B (NEW - references INPUT D)
@@ -44,8 +44,7 @@ const CALC_HEADERS = [
   'ATR STOP',         // AE (shifted from AC)
   'ATR TARGET',       // AF (shifted from AD)
   'POSITION SIZE',    // AG (shifted from AE)
-  'LAST STATE',       // AH (shifted from AF)
-  'ANALYSIS SUMMARY'  // AI (NEW - institutional narrative)
+  'LAST STATE'        // AH (shifted from AF)
 ];
 
 function generateCalculationsSheet() {
