@@ -9,7 +9,7 @@
 const DELAY_AFTER_MAIN_FORMULAS = 12500;  // 12.5 seconds - allows calculation engine to process bulk formulas (columns E-AF)
 const DELAY_AFTER_CD_FORMULAS = 2000;     // 2 seconds - shorter delay for smaller formula set (columns C-D)
 
-// Column headers for CALCULATIONS sheet (34 columns: A-AH)
+// Column headers for CALCULATIONS sheet (35 columns: A-AI)
 const CALC_HEADERS = [
   'Ticker',           // A
   'MARKET RATING',    // B (NEW - references INPUT D)
@@ -44,7 +44,8 @@ const CALC_HEADERS = [
   'ATR STOP',         // AE (shifted from AC)
   'ATR TARGET',       // AF (shifted from AD)
   'POSITION SIZE',    // AG (shifted from AE)
-  'LAST STATE'        // AH (shifted from AF)
+  'LAST STATE',       // AH (shifted from AF)
+  'ANALYSIS SUMMARY'  // AI (NEW - institutional narrative)
 ];
 
 function generateCalculationsSheet() {
@@ -630,9 +631,11 @@ function buildSignalFormula(row, SEP, useLongTermSignal) {
   // R=RSI, S=MACD Hist, U=ADX, V=Stoch %K, Y=ATR, Z=Bollinger %B, AC=Support, AD=Resistance
   
   if (useLongTermSignal) {
-    return `=IF(OR(ISBLANK($G${row})${SEP}$G${row}=0)${SEP}"LOADING"${SEP}IFS($G${row}<$AC${row}${SEP}"STOP OUT"${SEP}$G${row}<$Q${row}${SEP}"RISK OFF"${SEP}AND($K${row}>=-0.01${SEP}$I${row}>=1.5${SEP}$U${row}>=20${SEP}$G${row}>$Q${row})${SEP}"ATH BREAKOUT"${SEP}AND($Y${row}>IFERROR(AVERAGE(OFFSET($Y${row}${SEP}-MIN(20${SEP}ROW($Y${row})-1)${SEP}0${SEP}MIN(20${SEP}ROW($Y${row})-1)))${SEP}$Y${row})*1.5${SEP}$I${row}>=2.0${SEP}$G${row}>$AD${row})${SEP}"VOLATILITY BREAKOUT"${SEP}AND($Z${row}<=0.1${SEP}$R${row}<=25${SEP}$V${row}<=0.20${SEP}$G${row}>$Q${row})${SEP}"EXTREME OVERSOLD BUY"${SEP}AND($G${row}>$Q${row}${SEP}$P${row}>$Q${row}${SEP}$R${row}<=30${SEP}$S${row}>0${SEP}$U${row}>=20${SEP}$I${row}>=1.5)${SEP}"STRONG BUY"${SEP}AND($G${row}>$Q${row}${SEP}$P${row}>$Q${row}${SEP}$R${row}<=40${SEP}$S${row}>0${SEP}$U${row}>=15)${SEP}"BUY"${SEP}AND($G${row}>$Q${row}${SEP}$R${row}<=35${SEP}$G${row}>=$P${row}*0.95)${SEP}"ACCUMULATE"${SEP}$R${row}<=20${SEP}"OVERSOLD"${SEP}OR($R${row}>=80${SEP}$Z${row}>=0.9)${SEP}"OVERBOUGHT"${SEP}AND($G${row}>$Q${row}${SEP}$R${row}>40${SEP}$R${row}<70)${SEP}"HOLD"${SEP}TRUE${SEP}"NEUTRAL"))`;
+    // LONG-TERM INVESTMENT MODE - Conservative, trend-following approach
+    return `=IF(OR(ISBLANK($G${row})${SEP}$G${row}=0)${SEP}"LOADING"${SEP}IFS($G${row}<$AC${row}${SEP}"STOP OUT"${SEP}$G${row}<$Q${row}${SEP}"RISK OFF"${SEP}AND($G${row}>$Q${row}${SEP}$P${row}>$Q${row}${SEP}$R${row}>=30${SEP}$R${row}<=40${SEP}$S${row}>0${SEP}$U${row}>=20${SEP}$I${row}>=1.5)${SEP}"STRONG BUY"${SEP}AND($G${row}>$Q${row}${SEP}$P${row}>$Q${row}${SEP}$R${row}>40${SEP}$R${row}<=50${SEP}$S${row}>0${SEP}$U${row}>=15)${SEP}"BUY"${SEP}AND($G${row}>$Q${row}${SEP}$R${row}>=35${SEP}$R${row}<=55${SEP}$G${row}>=$P${row}*0.95${SEP}$G${row}<=$P${row}*1.05)${SEP}"ACCUMULATE"${SEP}AND($R${row}<=30${SEP}$G${row}>$AC${row})${SEP}"OVERSOLD WATCH"${SEP}OR($R${row}>=70${SEP}$Z${row}>=0.85${SEP}$G${row}>=$AD${row}*0.98)${SEP}"TRIM"${SEP}AND($G${row}>$Q${row}${SEP}$R${row}>40${SEP}$R${row}<70)${SEP}"HOLD"${SEP}TRUE${SEP}"NEUTRAL"))`;
   } else {
-    return `=IF(OR(ISBLANK($G${row})${SEP}$G${row}=0)${SEP}"LOADING"${SEP}IFS($G${row}<$AC${row}${SEP}"STOP OUT"${SEP}$G${row}<$Q${row}${SEP}"RISK OFF"${SEP}AND($Y${row}>IFERROR(AVERAGE(OFFSET($Y${row}${SEP}-MIN(20${SEP}ROW($Y${row})-1)${SEP}0${SEP}MIN(20${SEP}ROW($Y${row})-1)))${SEP}$Y${row})*1.5${SEP}$I${row}>=2.0${SEP}$G${row}>$AD${row})${SEP}"VOLATILITY BREAKOUT"${SEP}AND($K${row}>=-0.01${SEP}$I${row}>=1.5${SEP}$U${row}>=20)${SEP}"ATH BREAKOUT"${SEP}AND($I${row}>=1.5${SEP}$G${row}>=$AD${row}*0.995)${SEP}"BREAKOUT"${SEP}AND($G${row}>$Q${row}${SEP}$S${row}>0${SEP}$U${row}>=20)${SEP}"MOMENTUM"${SEP}AND($G${row}>$Q${row}${SEP}$P${row}>$Q${row}${SEP}$U${row}>=15)${SEP}"UPTREND"${SEP}AND($G${row}>$P${row}${SEP}$G${row}>$O${row})${SEP}"BULLISH"${SEP}AND(OR($V${row}<=0.20${SEP}$Z${row}<=0.2)${SEP}$G${row}>$AC${row})${SEP}"OVERSOLD"${SEP}OR($R${row}>=80${SEP}$Z${row}>=0.9)${SEP}"OVERBOUGHT"${SEP}AND($Y${row}<IFERROR(AVERAGE(OFFSET($Y${row}${SEP}-MIN(20${SEP}ROW($Y${row})-1)${SEP}0${SEP}MIN(20${SEP}ROW($Y${row})-1)))${SEP}$Y${row})*0.7${SEP}$U${row}<15${SEP}ABS($Z${row}-0.5)<0.2)${SEP}"VOLATILITY SQUEEZE"${SEP}$U${row}<15${SEP}"RANGE"${SEP}TRUE${SEP}"NEUTRAL"))`;
+    // TRADE MODE - Momentum and breakout focused
+    return `=IF(OR(ISBLANK($G${row})${SEP}$G${row}=0)${SEP}"LOADING"${SEP}IFS($G${row}<$AC${row}${SEP}"STOP OUT"${SEP}AND($Y${row}>IFERROR(AVERAGE(OFFSET($Y${row}${SEP}-MIN(20${SEP}ROW($Y${row})-1)${SEP}0${SEP}MIN(20${SEP}ROW($Y${row})-1)))${SEP}$Y${row})*1.5${SEP}$I${row}>=2.0${SEP}$G${row}>=$AD${row}*1.01)${SEP}"VOLATILITY BREAKOUT"${SEP}AND($I${row}>=1.5${SEP}$G${row}>=$AD${row}*1.02)${SEP}"BREAKOUT"${SEP}AND($K${row}>=-0.01${SEP}$I${row}>=2.0${SEP}$U${row}>=25)${SEP}"ATH BREAKOUT"${SEP}AND($G${row}>$P${row}${SEP}$S${row}>0${SEP}$U${row}>=20)${SEP}"MOMENTUM"${SEP}AND($V${row}<=20${SEP}$S${row}>0${SEP}$G${row}>$AC${row})${SEP}"OVERSOLD REVERSAL"${SEP}AND($Y${row}<IFERROR(AVERAGE(OFFSET($Y${row}${SEP}-MIN(20${SEP}ROW($Y${row})-1)${SEP}0${SEP}MIN(20${SEP}ROW($Y${row})-1)))${SEP}$Y${row})*0.7${SEP}$U${row}<15${SEP}ABS($Z${row}-0.5)<0.2)${SEP}"VOLATILITY SQUEEZE"${SEP}AND($U${row}<15${SEP}$G${row}>=$AC${row}*0.98${SEP}$G${row}<=$AC${row}*1.02)${SEP}"RANGE SUPPORT BUY"${SEP}OR($R${row}>=70${SEP}$Z${row}>=0.9)${SEP}"OVERBOUGHT"${SEP}$G${row}<$Q${row}${SEP}"RISK OFF"${SEP}AND($U${row}<15${SEP}$G${row}>$AC${row})${SEP}"RANGE"${SEP}TRUE${SEP}"NEUTRAL"))`;
   }
 }
 
@@ -659,10 +662,11 @@ function buildDecisionFormula(row, SEP, useLongTermSignal) {
       // For PURCHASED positions
       `IFS(` +
       `OR($D${row}="STOP OUT"${SEP}$D${row}="RISK OFF")${SEP}"🔴 EXIT"${SEP}` +
+      `AND($D${row}="TRIM"${SEP}${hasPattern}${SEP}${hasBearishPattern})${SEP}"🟠 TRIM (PATTERN CONFIRMED)"${SEP}` +
+      `$D${row}="TRIM"${SEP}"🟠 TRIM"${SEP}` +
       `AND(OR($D${row}="STRONG BUY"${SEP}$D${row}="BUY"${SEP}$D${row}="ACCUMULATE")${SEP}${hasPattern}${SEP}${hasBullishPattern})${SEP}"🟢 ADD (PATTERN CONFIRMED)"${SEP}` +
       `AND(OR($D${row}="STRONG BUY"${SEP}$D${row}="BUY"${SEP}$D${row}="ACCUMULATE")${SEP}${hasPattern}${SEP}${hasBearishPattern})${SEP}"⚠️ HOLD (PATTERN CONFLICT)"${SEP}` +
       `OR($D${row}="STRONG BUY"${SEP}$D${row}="BUY"${SEP}$D${row}="ACCUMULATE")${SEP}"🟢 ADD"${SEP}` +
-      `$D${row}="OVERBOUGHT"${SEP}"🟠 TRIM"${SEP}` +
       `$D${row}="HOLD"${SEP}"⚖️ HOLD"${SEP}` +
       `TRUE${SEP}"⚖️ HOLD"` +
       `)${SEP}` +
@@ -670,11 +674,12 @@ function buildDecisionFormula(row, SEP, useLongTermSignal) {
       `IFS(` +
       `OR($D${row}="STOP OUT"${SEP}$D${row}="RISK OFF")${SEP}"🔴 AVOID"${SEP}` +
       `AND($D${row}="STRONG BUY"${SEP}${hasPattern}${SEP}${hasBullishPattern})${SEP}"🟢 STRONG BUY (PATTERN CONFIRMED)"${SEP}` +
-      `AND(OR($D${row}="STRONG BUY"${SEP}$D${row}="BUY")${SEP}${hasPattern}${SEP}${hasBearishPattern})${SEP}"⚠️ HOLD (PATTERN CONFLICT)"${SEP}` +
+      `AND(OR($D${row}="STRONG BUY"${SEP}$D${row}="BUY")${SEP}${hasPattern}${SEP}${hasBearishPattern})${SEP}"⚠️ CAUTION (PATTERN CONFLICT)"${SEP}` +
       `$D${row}="STRONG BUY"${SEP}"🟢 STRONG BUY"${SEP}` +
-      `OR($D${row}="BUY"${SEP}$D${row}="ACCUMULATE")${SEP}"🟢 BUY"${SEP}` +
-      `$D${row}="OVERSOLD"${SEP}"🟡 WATCH (OVERSOLD)"${SEP}` +
-      `$D${row}="OVERBOUGHT"${SEP}"⏳ WAIT (OVERBOUGHT)"${SEP}` +
+      `$D${row}="BUY"${SEP}"🟢 BUY"${SEP}` +
+      `$D${row}="ACCUMULATE"${SEP}"🟢 ACCUMULATE"${SEP}` +
+      `$D${row}="OVERSOLD WATCH"${SEP}"🟡 WATCH (OVERSOLD)"${SEP}` +
+      `$D${row}="TRIM"${SEP}"⏳ WAIT (EXTENDED)"${SEP}` +
       `$D${row}="HOLD"${SEP}"⚖️ WATCH"${SEP}` +
       `TRUE${SEP}"⚪ NEUTRAL"` +
       `)` +
@@ -688,28 +693,27 @@ function buildDecisionFormula(row, SEP, useLongTermSignal) {
       `bearishPat${SEP}${hasBearishPattern}${SEP}` +
       `hasPat${SEP}${hasPattern}${SEP}` +
       `IFS(` +
-      // Stop-out check - Price below Support (AC not AE)
-      `AND(IFERROR(VALUE($G${row})${SEP}0)>0${SEP}IFERROR(VALUE($AC${row})${SEP}0)>0${SEP}IFERROR(VALUE($G${row})${SEP}0)<IFERROR(VALUE($AC${row})${SEP}0))${SEP}"Stop-Out"${SEP}` +
+      // Stop-out check - Price below Support
+      `AND(IFERROR(VALUE($G${row})${SEP}0)>0${SEP}IFERROR(VALUE($AC${row})${SEP}0)>0${SEP}IFERROR(VALUE($G${row})${SEP}0)<IFERROR(VALUE($AC${row})${SEP}0))${SEP}"🔴 STOP OUT"${SEP}` +
       // Pattern-confirmed strong signals
-      `AND(NOT(purchased)${SEP}OR($D${row}="VOLATILITY BREAKOUT"${SEP}$D${row}="ATH BREAKOUT")${SEP}hasPat${SEP}bullishPat)${SEP}"🟢 STRONG TRADE LONG (PATTERN CONFIRMED)"${SEP}` +
-      `AND(NOT(purchased)${SEP}$D${row}="BREAKOUT"${SEP}hasPat${SEP}bullishPat)${SEP}"🟢 TRADE LONG (PATTERN CONFIRMED)"${SEP}` +
+      `AND(NOT(purchased)${SEP}$D${row}="VOLATILITY BREAKOUT"${SEP}hasPat${SEP}bullishPat)${SEP}"🟢 STRONG TRADE LONG (PATTERN CONFIRMED)"${SEP}` +
+      `AND(NOT(purchased)${SEP}OR($D${row}="BREAKOUT"${SEP}$D${row}="ATH BREAKOUT")${SEP}hasPat${SEP}bullishPat)${SEP}"🟢 TRADE LONG (PATTERN CONFIRMED)"${SEP}` +
       // Pattern conflicts
-      `AND(NOT(purchased)${SEP}OR($D${row}="VOLATILITY BREAKOUT"${SEP}$D${row}="ATH BREAKOUT"${SEP}$D${row}="BREAKOUT"${SEP}$D${row}="MOMENTUM")${SEP}hasPat${SEP}bearishPat)${SEP}"⚠️ HOLD (PATTERN CONFLICT)"${SEP}` +
+      `AND(NOT(purchased)${SEP}OR($D${row}="VOLATILITY BREAKOUT"${SEP}$D${row}="BREAKOUT"${SEP}$D${row}="ATH BREAKOUT"${SEP}$D${row}="MOMENTUM")${SEP}hasPat${SEP}bearishPat)${SEP}"⚠️ CAUTION (PATTERN CONFLICT)"${SEP}` +
       // Standard signals without pattern consideration
-      `AND(NOT(purchased)${SEP}OR($D${row}="VOLATILITY BREAKOUT"${SEP}$D${row}="ATH BREAKOUT"))${SEP}"Strong Trade Long"${SEP}` +
-      `AND(NOT(purchased)${SEP}$D${row}="BREAKOUT")${SEP}"Trade Long"${SEP}` +
-      `AND(NOT(purchased)${SEP}$D${row}="MOMENTUM")${SEP}"Accumulate"${SEP}` +
-      `AND(NOT(purchased)${SEP}$D${row}="OVERSOLD")${SEP}"Add in Dip"${SEP}` +
-      `AND(NOT(purchased)${SEP}$D${row}="VOLATILITY SQUEEZE")${SEP}"Wait for Breakout"${SEP}` +
+      `AND(NOT(purchased)${SEP}$D${row}="VOLATILITY BREAKOUT")${SEP}"🟢 STRONG TRADE LONG"${SEP}` +
+      `AND(NOT(purchased)${SEP}OR($D${row}="BREAKOUT"${SEP}$D${row}="ATH BREAKOUT"))${SEP}"🟢 TRADE LONG"${SEP}` +
+      `AND(NOT(purchased)${SEP}$D${row}="MOMENTUM")${SEP}"🟡 ACCUMULATE"${SEP}` +
+      `AND(NOT(purchased)${SEP}$D${row}="OVERSOLD REVERSAL")${SEP}"🟢 BUY DIP"${SEP}` +
+      `AND(NOT(purchased)${SEP}$D${row}="RANGE SUPPORT BUY")${SEP}"🟡 RANGE BUY"${SEP}` +
+      `AND(NOT(purchased)${SEP}$D${row}="VOLATILITY SQUEEZE")${SEP}"⏳ WAIT FOR BREAKOUT"${SEP}` +
       // Purchased position management
-      `AND(purchased${SEP}OR($D${row}="OVERBOUGHT"${SEP}IFERROR(VALUE($G${row})${SEP}0)>=IFERROR(VALUE($AF${row})${SEP}0)))${SEP}"Take Profit"${SEP}` +
-      `AND(purchased${SEP}$D${row}="RISK OFF")${SEP}"Risk-Off"${SEP}` +
-      `AND(NOT(purchased)${SEP}$D${row}="RISK OFF")${SEP}"Avoid"${SEP}` +
+      `AND(purchased${SEP}OR($D${row}="OVERBOUGHT"${SEP}IFERROR(VALUE($G${row})${SEP}0)>=IFERROR(VALUE($AD${row})${SEP}0)*0.98))${SEP}"🟠 TAKE PROFIT"${SEP}` +
+      `AND(purchased${SEP}$D${row}="RISK OFF")${SEP}"🔴 RISK OFF"${SEP}` +
+      `AND(NOT(purchased)${SEP}$D${row}="RISK OFF")${SEP}"🔴 AVOID"${SEP}` +
       // Default holds
-      `$D${row}="MOMENTUM"${SEP}"Hold"${SEP}` +
-      `$D${row}="UPTREND"${SEP}"Hold"${SEP}` +
-      `$D${row}="BULLISH"${SEP}"Hold"${SEP}` +
-      `TRUE${SEP}"Hold"` +
+      `purchased${SEP}"⚖️ HOLD"${SEP}` +
+      `TRUE${SEP}"⚪ NEUTRAL"` +
       `)))`;
   }
 }

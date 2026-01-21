@@ -596,112 +596,321 @@ class MasterAnalysisEngine {
 }
 
 /**
- * Shows professional 2-pane dialog:
- * - Left: your compact indicator panel (buildIndicatorPanelHtml_)
- * - Right: MasterAnalysisEngine HTML narrative
+ * Shows professional 3-pane dialog:
+ * - Left: compact indicator panel (buildIndicatorPanelHtml_)
+ * - Middle: INPUT F data formatted professionally
+ * - Bottom: DASH_REPORT data formatted
+ * - Top: CALCULATIONS B-F data highlighted
  */
 function showAnalysisPopup(ticker, reportHtml, d) {
   const leftPanel = buildIndicatorPanelHtml_(d);
+  const middlePanel = buildInputFPanel_(ticker);
+  const bottomPanel = buildDashReportPanel_(ticker);
+  const topPanel = buildCalculationsTopPanel_(ticker);
 
   const html = `
     <div class="wrap">
-      <div class="left">
-        <div class="leftTitle">${String(ticker || "").toUpperCase()}</div>
-        <div class="leftBody">
-          ${leftPanel}
-        </div>
-        <button class="btnClose" onclick="google.script.host.close()">CLOSE</button>
+      <div class="top-section">
+        ${topPanel}
       </div>
+      
+      <div class="main-content">
+        <div class="left">
+          <div class="leftTitle">${String(ticker || "").toUpperCase()}</div>
+          <div class="leftBody">
+            ${leftPanel}
+          </div>
+          <button class="btnClose" onclick="google.script.host.close()">CLOSE</button>
+        </div>
 
-      <div class="right">
-        <div class="rightTitle">INTELLIGENCE REPORT</div>
-        <div class="rightBody">
-          ${reportHtml}
+        <div class="right-container">
+          <div class="middle">
+            <div class="middleTitle">ANALYSIS DETAILS</div>
+            <div class="middleBody">
+              ${middlePanel}
+            </div>
+          </div>
+          
+          <div class="bottom-section">
+            <div class="bottomTitle">DASHBOARD METRICS</div>
+            <div class="bottomBody">
+              ${bottomPanel}
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
     <style>
+      * {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      }
+      
       .wrap{
-        display:flex; gap:12px; align-items:stretch;
-        padding:12px; background:#0b0f14;
-        font-family:Consolas,'Courier New',monospace;
+        display:flex;
+        flex-direction:column;
+        gap:8px;
+        padding:8px;
+        background:#0b0f14;
         color:#e5e7eb;
+        height:100vh;
+        overflow:hidden;
       }
 
-      /* LEFT PANE */
-      .left{
-        width:28%;
-        min-width:270px;
+      /* TOP SECTION - CALCULATIONS B-F */
+      .top-section{
         background:#0b1220;
         border:1px solid #30363d;
-        border-radius:12px;
-        padding:10px;
+        border-radius:8px;
+        padding:8px;
+        min-height:60px;
       }
-      .leftTitle{
-        font-weight:900;
-        color:#93c5fd;
-        letter-spacing:0.6px;
-        font-size:12px;
-        padding:4px 0 8px 0;
-        border-bottom:1px solid #30363d;
-        margin-bottom:8px;
-      }
-      .leftBody{ }
-      .btnClose{
-        margin-top:10px;
-        width:100%;
-        padding:10px;
-        border-radius:10px;
-        cursor:pointer;
-        font-weight:900;
-        background:#111827;
-        color:#93c5fd;
-        border:1px solid #30363d;
-      }
-      .btnClose:hover{ background:#1f2937; }
 
-      /* RIGHT PANE */
-      .right{
-        width:72%;
-        background:#0d1117;
+      /* MAIN CONTENT - LEFT + RIGHT CONTAINER */
+      .main-content{
+        display:flex;
+        gap:8px;
+        flex:1;
+        overflow:hidden;
+      }
+
+      /* LEFT PANE - NARROWER */
+      .left{
+        width:22%;
+        min-width:220px;
+        background:#0b1220;
         border:1px solid #30363d;
-        border-radius:12px;
+        border-radius:8px;
+        padding:8px;
         display:flex;
         flex-direction:column;
       }
-      .rightTitle{
-        font-weight:900;
-        color:#58a6ff;
-        letter-spacing:0.8px;
-        font-size:12px;
-        padding:10px 12px;
+      .leftTitle{
+        font-weight:700;
+        color:#93c5fd;
+        letter-spacing:0.3px;
+        font-size:13px;
+        padding:3px 0 6px 0;
         border-bottom:1px solid #30363d;
-        background:#0b1220;
-        border-top-left-radius:12px;
-        border-top-right-radius:12px;
+        margin-bottom:6px;
       }
-      .rightBody{
-        padding:12px;
+      .leftBody{
+        flex:1;
         overflow:auto;
-        max-height:640px;
       }
-      /* RIGHT PANE – TOP SIGNAL / FUND / DECISION CHIPS */
-      .right .mi-chip{
-        display:inline-block;
-        padding:4px 10px;
-        border-radius:999px;
-        font-weight:900;
-        letter-spacing:.4px;
-        border:1px solid #eab308;
-        background:#0b1220;
-        margin-right:6px;
+      .btnClose{
+        margin-top:8px;
+        width:100%;
+        padding:8px;
+        border-radius:8px;
+        cursor:pointer;
+        font-weight:600;
+        background:#111827;
+        color:#93c5fd;
+        border:1px solid #30363d;
+        font-size:12px;
+      }
+      .btnClose:hover{ background:#1f2937; }
+
+      /* RIGHT CONTAINER - MIDDLE + BOTTOM STACKED EQUALLY */
+      .right-container{
+        flex:1;
+        display:flex;
+        flex-direction:column;
+        gap:8px;
+        overflow:hidden;
       }
 
-      .right .mi-chip-yellow{
-        background:#facc15;   /* bright yellow */
-        color:#111827;        /* near-black text */
-        border-color:#eab308;
+      /* MIDDLE PANE - INPUT F - EQUAL HEIGHT */
+      .middle{
+        flex:1;
+        background:#0d1117;
+        border:1px solid #30363d;
+        border-radius:8px;
+        display:flex;
+        flex-direction:column;
+        overflow:hidden;
+        min-height:0;
+      }
+      .middleTitle{
+        font-weight:600;
+        color:#58a6ff;
+        letter-spacing:0.5px;
+        font-size:13px;
+        padding:8px 10px;
+        border-bottom:1px solid #30363d;
+        background:#0b1220;
+        border-top-left-radius:8px;
+        border-top-right-radius:8px;
+      }
+      .middleBody{
+        padding:14px;
+        overflow:auto;
+        flex:1;
+      }
+
+      /* BOTTOM SECTION - DASH_REPORT - EQUAL HEIGHT */
+      .bottom-section{
+        flex:1;
+        background:#0b1220;
+        border:1px solid #30363d;
+        border-radius:8px;
+        padding:8px;
+        display:flex;
+        flex-direction:column;
+        overflow:hidden;
+        min-height:0;
+      }
+      .bottomTitle{
+        font-weight:600;
+        color:#fbbf24;
+        letter-spacing:0.5px;
+        font-size:13px;
+        margin-bottom:6px;
+        padding-bottom:4px;
+        border-bottom:1px solid #30363d;
+      }
+      .bottomBody{
+        font-size:12px;
+        line-height:1.6;
+        overflow:auto;
+        flex:1;
+      }
+
+      /* Formatting helpers */
+      .data-row{
+        display:flex;
+        justify-content:space-between;
+        padding:4px 6px;
+        margin:3px 0;
+        border-radius:4px;
+        background:#0b1220;
+        border:1px solid #30363d;
+      }
+      .data-label{
+        font-weight:600;
+        color:#9ca3af;
+        font-size:11px;
+      }
+      .data-value{
+        font-weight:500;
+        color:#e5e7eb;
+        font-size:11px;
+      }
+      .section-header{
+        font-weight:600;
+        color:#93c5fd;
+        font-size:11px;
+        letter-spacing:0.3px;
+        margin:8px 0 4px 0;
+        padding:3px 6px;
+        background:#111827;
+        border-radius:4px;
+        border:1px solid #30363d;
+      }
+      .highlight-box{
+        background:#1f2937;
+        border:2px solid #fbbf24;
+        border-radius:6px;
+        padding:6px 8px;
+        margin:3px 0;
+      }
+      .highlight-label{
+        font-weight:600;
+        color:#fbbf24;
+        font-size:10px;
+        letter-spacing:0.3px;
+        text-transform:uppercase;
+        margin-bottom:3px;
+      }
+      .highlight-value{
+        font-weight:600;
+        color:#e5e7eb;
+        font-size:12px;
+      }
+      .text-content{
+        font-size:12px;
+        line-height:1.6;
+        color:#e5e7eb;
+        white-space:pre-wrap;
+        word-wrap:break-word;
+      }
+      .text-content strong{
+        font-weight:600;
+        color:#fbbf24;
+      }
+      
+      /* Professional analysis formatting */
+      .analysis-heading{
+        font-weight:600;
+        color:#58a6ff;
+        font-size:14px;
+        letter-spacing:0.3px;
+        margin:14px 0 8px 0;
+        padding-bottom:4px;
+        border-bottom:1px solid #30363d;
+      }
+      .analysis-paragraph{
+        font-size:13px;
+        line-height:1.7;
+        color:#e5e7eb;
+        margin-bottom:12px;
+        text-align:left;
+      }
+      .analysis-paragraph strong{
+        font-weight:600;
+        color:#fbbf24;
+      }
+      .analysis-paragraph em{
+        font-style:italic;
+        color:#93c5fd;
+      }
+      .analysis-text{
+        font-size:13px;
+        line-height:1.7;
+        color:#e5e7eb;
+      }
+      
+      /* Dashboard metrics formatting */
+      .dash-section{
+        font-weight:600;
+        color:#fbbf24;
+        font-size:12px;
+        letter-spacing:0.3px;
+        margin:10px 0 6px 0;
+        padding:4px 8px;
+        background:#1f2937;
+        border-radius:4px;
+        border-left:3px solid #fbbf24;
+      }
+      .dash-row{
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        padding:4px 8px;
+        margin:2px 0;
+        border-bottom:1px solid #1f2937;
+      }
+      .dash-label{
+        font-weight:600;
+        color:#9ca3af;
+        font-size:11px;
+        flex:0 0 40%;
+        padding-right:8px;
+      }
+      .dash-value{
+        font-weight:500;
+        color:#e5e7eb;
+        font-size:11px;
+        flex:1;
+        text-align:left;
+      }
+      .dash-text{
+        font-size:11px;
+        line-height:1.6;
+        color:#e5e7eb;
+        margin:4px 0;
+        padding:2px 8px;
       }
 
 
@@ -902,20 +1111,222 @@ function showAnalysisPopup(ticker, reportHtml, d) {
   `;
 
   const out = HtmlService.createHtmlOutput(html)
-    .setWidth(1120)
-    .setHeight(720);
+    .setWidth(1200)
+    .setHeight(900);
 
   SpreadsheetApp.getUi().showModalDialog(out, `Terminal Intelligence: ${String(ticker).toUpperCase()}`);
+}
+
+
+/**
+ * Builds the TOP panel showing CALCULATIONS B-F data (highlighted)
+ * CALCULATIONS structure:
+ * B=MARKET RATING, C=DECISION, D=SIGNAL, E=PATTERNS, F=CONSENSUS PRICE, G=PRICE, H=CHANGE%
+ */
+function buildCalculationsTopPanel_(ticker) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const calcSheet = ss.getSheetByName("CALCULATIONS");
+  
+  if (!calcSheet) {
+    return '<div class="text-content">CALCULATIONS sheet not found</div>';
+  }
+
+  const data = calcSheet.getDataRange().getValues();
+  let rowData = null;
+  
+  for (let i = 0; i < data.length; i++) {
+    if (data[i][0].toString().toUpperCase() === ticker.toString().toUpperCase()) {
+      rowData = data[i];
+      break;
+    }
+  }
+  
+  if (!rowData) {
+    return '<div class="text-content">Ticker not found in CALCULATIONS</div>';
+  }
+
+  // CALCULATIONS columns: A=0(Ticker), B=1(MARKET RATING), C=2(DECISION), D=3(SIGNAL), E=4(PATTERNS), F=5(CONSENSUS PRICE)
+  const marketRating = rowData[1] || "—";
+  const decision = rowData[2] || "—";
+  const signal = rowData[3] || "—";
+  const patterns = rowData[4] || "—";
+  const consensusPrice = rowData[5];
+  
+  // Format consensus price
+  const consensusPriceDisplay = (typeof consensusPrice === 'number') ? '$' + consensusPrice.toFixed(2) : (consensusPrice || "—");
+
+  return `
+    <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:10px;">
+      <div class="highlight-box">
+        <div class="highlight-label">Market Rating</div>
+        <div class="highlight-value">${marketRating}</div>
+      </div>
+      <div class="highlight-box">
+        <div class="highlight-label">Decision</div>
+        <div class="highlight-value">${decision}</div>
+      </div>
+      <div class="highlight-box">
+        <div class="highlight-label">Signal</div>
+        <div class="highlight-value">${signal}</div>
+      </div>
+      <div class="highlight-box">
+        <div class="highlight-label">Patterns</div>
+        <div class="highlight-value">${patterns}</div>
+      </div>
+      <div class="highlight-box">
+        <div class="highlight-label">Consensus Price</div>
+        <div class="highlight-value">${consensusPriceDisplay}</div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Builds the MIDDLE panel showing INPUT F data formatted professionally
+ * Reads directly from INPUT sheet column F
+ */
+function buildInputFPanel_(ticker) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const inputSheet = ss.getSheetByName("INPUT");
+  
+  if (!inputSheet) {
+    return '<div class="analysis-text">INPUT sheet not found</div>';
+  }
+
+  const data = inputSheet.getDataRange().getValues();
+  let columnFData = "";
+  
+  for (let i = 0; i < data.length; i++) {
+    if (data[i][0].toString().toUpperCase() === ticker.toString().toUpperCase()) {
+      // Column F is index 5
+      columnFData = data[i][5] || "";
+      break;
+    }
+  }
+  
+  if (!columnFData) {
+    return '<div class="analysis-text">No analysis data available for this ticker</div>';
+  }
+
+  // Format the data professionally with proper structure
+  let formattedContent = String(columnFData);
+  
+  // Split into paragraphs and format
+  const paragraphs = formattedContent.split(/\n\n+/);
+  let html = '';
+  
+  for (let para of paragraphs) {
+    para = para.trim();
+    if (!para) continue;
+    
+    // Check if it's a heading (starts with ## or **HEADING**)
+    if (para.match(/^##\s+(.+)$/)) {
+      const heading = para.replace(/^##\s+/, '');
+      html += `<div class="analysis-heading">${heading}</div>`;
+    } else if (para.match(/^\*\*([^*]+)\*\*:?\s*$/)) {
+      const heading = para.replace(/^\*\*([^*]+)\*\*:?\s*$/, '$1');
+      html += `<div class="analysis-heading">${heading}</div>`;
+    } else {
+      // Regular paragraph - format bold and italic
+      para = para
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>');
+      html += `<div class="analysis-paragraph">${para}</div>`;
+    }
+  }
+
+  return html || '<div class="analysis-text">No formatted content available</div>';
+}
+
+/**
+ * Builds the BOTTOM panel showing DASH_REPORT data formatted professionally
+ * Reads the output of the DASH_REPORT custom function from REPORT sheet A43
+ * Filters out duplicate DECISION/SIGNAL/PATTERNS and "📊 INSTITUTIONAL ANALYSIS" header
+ */
+function buildDashReportPanel_(ticker) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const reportSheet = ss.getSheetByName("REPORT");
+  
+  if (!reportSheet) {
+    return '<div class="dash-text">REPORT sheet not found</div>';
+  }
+
+  // Read the DASH_REPORT output from cell A43 (which contains the formula =DASH_REPORT(A1))
+  const dashReportData = reportSheet.getRange("A43").getDisplayValue() || "";
+  
+  if (!dashReportData || dashReportData === "—") {
+    return '<div class="dash-text">No dashboard data available</div>';
+  }
+
+  // Format the data professionally
+  let formattedContent = String(dashReportData);
+  
+  // Remove excessive equals signs and decorative characters
+  formattedContent = formattedContent
+    .replace(/═+/g, '')
+    .replace(/◈+/g, '')
+    .replace(/━+/g, '')
+    .replace(/\[━+\]/g, '')
+    .replace(/\s*\|\s*/g, ' | ');
+  
+  // Split into sections and format
+  const lines = formattedContent.split(/\n+/);
+  let html = '';
+  
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) continue;
+    
+    // Skip duplicate "📊 INSTITUTIONAL ANALYSIS" header
+    if (line.match(/\s*INSTITUTIONAL\s*ANALYSIS/i)) {
+      continue;
+    }
+    
+    // Skip duplicate DECISION/SIGNAL/PATTERNS lines (they're already in top bar)
+    if (line.match(/DECISION\s*[:=]/i) || 
+        line.match(/SIGNAL\s*[:=]/i) || 
+        line.match(/PATTERNS\s*[:=]/i)) {
+      continue;
+    }
+    
+    // Check if it's a section header (starts with [, contains emojis, or all caps)
+    if (line.match(/^\[.*\]$/) || line.match(/^[🔴🟢🟡⚪📊📈📉🎯💡⚠️🔥✅]+\s+[A-Z\s]+:?$/)) {
+      const cleanHeader = line.replace(/[\[\]]/g, '').trim();
+      html += `<div class="dash-section">${cleanHeader}</div>`;
+    }
+    // Check if it's a key-value pair (contains : or →)
+    else if (line.includes(':') || line.includes('→')) {
+      const parts = line.split(/[:→]/);
+      if (parts.length >= 2) {
+        const label = parts[0].trim();
+        const value = parts.slice(1).join(':').trim();
+        html += `
+          <div class="dash-row">
+            <span class="dash-label">${label}</span>
+            <span class="dash-value">${value}</span>
+          </div>
+        `;
+      } else {
+        html += `<div class="dash-text">${line}</div>`;
+      }
+    }
+    // Regular text
+    else {
+      html += `<div class="dash-text">${line}</div>`;
+    }
+  }
+
+  return html || '<div class="dash-text">No formatted content available</div>';
 }
 
 
 /* ---------- popup helpers ---------- */
 
 /**
- * Builds the LEFT-side indicator panel HTML (tight layout).
- * - Top: SIGNAL / FUNDAMENTAL / DECISION (bright yellow)
- * - Then: E..Y indicators (Price..Bollinger %B) in compact rows
- * - Uses only green/red/grey backgrounds (industry-style)
+ * Builds the LEFT-side indicator panel HTML (2-column grid layout with dashboard color coding).
+ * - Uses 2-column grid structure for compact display
+ * - Dashboard color coding: green/red/grey backgrounds
  */
 function buildIndicatorPanelHtml_(d) {
   const num = (v) => {
@@ -934,91 +1345,64 @@ function buildIndicatorPanelHtml_(d) {
     stochPct: (v) => {
       const n = num(v);
       if (n == null) return "—";
-      // StochK is 0..1 in your sheet
       return `${(n * 100).toFixed(1)}%`;
     },
     bollPct: (v) => {
       const n = num(v);
       if (n == null) return "—";
-      // %B is 0..1 in your sheet
       return `${(n * 100).toFixed(1)}%`;
     }
   };
 
-  // Only 3 background colors
+  // Dashboard color coding
   const BG_GREEN = "#0f3d2e";
   const BG_RED   = "#4a1414";
   const BG_GREY  = "#1f2937";
   const FG_LIGHT = "#e5e7eb";
-  const BG_YELLOW ="#E1AD01";
 
-  const rowStyle = (bg, isTop) => [
+  const cellStyle = (bg) => [
     `background:${bg}`,
     `color:${FG_LIGHT}`,
     `border:1px solid #30363d`,
-    `border-radius:${isTop ? 10 : 8}px`,
-    `padding:${isTop ? "6px 8px" : "4px 8px"}`,
-    `margin:${isTop ? "4px 0" : "3px 0"}`,
+    `border-radius:4px`,
+    `padding:6px 8px`,
     `display:flex`,
-    `align-items:center`,
-    `justify-content:space-between`,
-    `gap:10px`
+    `flex-direction:column`,
+    `gap:2px`
   ].join(";");
 
-  const labelStyle = (isTop) => [
-    `font-weight:${isTop ? 900 : 800}`,
+  const labelStyle = [
+    `font-weight:600`,
     `letter-spacing:0.2px`,
-    `font-size:${isTop ? "13px" : "12px"}`,
+    `font-size:11px`,
+    `color:#9ca3af`,
     `white-space:nowrap`,
     `overflow:hidden`,
-    `text-overflow:ellipsis`,
-    `max-width:60%`
+    `text-overflow:ellipsis`
   ].join(";");
 
-  const valStyle = (isTop) => [
-    `font-weight:${isTop ? 900 : 700}`,
-    `font-size:${isTop ? "13px" : "12px"}`,
-    `text-align:right`,
+  const valStyle = [
+    `font-weight:600`,
+    `font-size:12px`,
+    `color:${FG_LIGHT}`,
     `white-space:nowrap`
   ].join(";");
 
   const sectionStyle = [
-    `margin:6px 0 4px 0`,
+    `margin:10px 0 6px 0`,
     `padding:4px 8px`,
-    `border-radius:8px`,
+    `border-radius:6px`,
     `background:#111827`,
     `border:1px solid #30363d`,
     `color:#93c5fd`,
-    `font-weight:900`,
-    `font-size:10.5px`,
-    `letter-spacing:0.6px`,
-    `text-transform:uppercase`
+    `font-weight:600`,
+    `font-size:10px`,
+    `letter-spacing:0.4px`,
+    `text-transform:uppercase`,
+    `grid-column:1 / -1`
   ].join(";");
 
-  // --- Color rules (green/red/grey only) ---
-  const colorSignal = (s) => {
-    const v = String(s || "").toUpperCase();
-    if (/STOP|RISK-OFF/.test(v)) return BG_RED;
-    if (/BREAKOUT|TREND CONTINUATION|MEAN REVERSION/.test(v)) return BG_GREEN;
-    return BG_GREY;
-  };
-
-  const colorFund = (f) => {
-    const v = String(f || "").toUpperCase();
-    if (/ZOMBIE/.test(v)) return BG_RED;
-    if (/PRICED FOR PERFECTION|EXPENSIVE/.test(v)) return BG_RED;
-    if (/VALUE/.test(v)) return BG_GREEN;
-    return BG_GREY; // FAIR or unknown
-  };
-
-  const colorDecision = (c) => {
-    const v = String(c || "").toUpperCase();
-    if (/STOP|AVOID/.test(v)) return BG_RED;
-    if (/TAKE PROFIT|REDUCE/.test(v)) return BG_RED;
-    if (/TRADE LONG|ACCUMULATE|ADD IN DIP/.test(v)) return BG_GREEN;
-    return BG_GREY;
-  };
-
+  // Color rules matching DASHBOARD sheet
   const colorPriceVsSMA200 = () => {
     const p = num(d.price), sma200 = num(d.sma200);
     if (p == null || sma200 == null) return BG_GREY;
@@ -1044,7 +1428,6 @@ function buildIndicatorPanelHtml_(d) {
   const colorAthDiff = () => {
     const x = num(d.athDiff);
     if (x == null) return BG_GREY;
-    // athDiff is (Price-ATH)/ATH, negative means below ATH (normal)
     return x >= 0 ? BG_GREEN : BG_RED;
   };
 
@@ -1066,8 +1449,8 @@ function buildIndicatorPanelHtml_(d) {
   const colorRSI = () => {
     const r = num(d.rsi);
     if (r == null) return BG_GREY;
-    if (r <= 30) return BG_GREEN; // oversold (tactical value)
-    if (r >= 70) return BG_RED;   // overbought (risk)
+    if (r <= 30) return BG_GREEN;
+    if (r >= 70) return BG_RED;
     return BG_GREY;
   };
 
@@ -1087,16 +1470,16 @@ function buildIndicatorPanelHtml_(d) {
   const colorADX = () => {
     const a = num(d.adx);
     if (a == null) return BG_GREY;
-    if (a >= 25) return BG_GREEN; // trend strength
-    if (a < 15) return BG_GREY;    // range/chop
+    if (a >= 25) return BG_GREEN;
+    if (a < 15) return BG_GREY;
     return BG_GREY;
   };
 
   const colorStoch = () => {
     const k = num(d.stochK);
     if (k == null) return BG_GREY;
-    if (k <= 0.2) return BG_GREEN; // oversold timing
-    if (k >= 0.8) return BG_RED;   // overbought timing risk
+    if (k <= 0.2) return BG_GREEN;
+    if (k >= 0.8) return BG_RED;
     return BG_GREY;
   };
 
@@ -1104,82 +1487,65 @@ function buildIndicatorPanelHtml_(d) {
     const p = num(d.price);
     const v = num(d[key]);
     if (p == null || v == null || v <= 0) return BG_GREY;
-    // near support => green; near resistance => red
     if (key === "support") return (p <= v * 1.01) ? BG_GREEN : BG_GREY;
     if (key === "resistance") return (p >= v * 0.99) ? BG_RED : BG_GREY;
-    return BG_GREY;
-  };
-
-  const colorATR = () => {
-    // ATR itself not directional; grey
     return BG_GREY;
   };
 
   const colorBoll = () => {
     const b = num(d.bolB);
     if (b == null) return BG_GREY;
-    if (b <= 0.2) return BG_GREEN; // statistical low
-    if (b >= 0.8) return BG_RED;   // statistical high
+    if (b <= 0.2) return BG_GREEN;
+    if (b >= 0.8) return BG_RED;
     return BG_GREY;
   };
 
-  // Row builder
-  const row = (label, value, bg, isTop = false, labelColor = null, valueColor = null) => {
-    const ls = labelStyle(isTop) + (labelColor ? `;color:${labelColor}` : "");
-    const vs = valStyle(isTop) + (valueColor ? `;color:${valueColor}` : "");
+  // Cell builder
+  const cell = (label, value, bg) => {
     return `
-      <div style="${rowStyle(bg, isTop)}">
-        <div style="${ls}">${label}</div>
-        <div style="${vs}">${value}</div>
+      <div style="${cellStyle(bg)}">
+        <div style="${labelStyle}">${label}</div>
+        <div style="${valStyle}">${value}</div>
       </div>
     `;
   };
 
-  // Top chips: bright yellow emphasis (text)
-  const TOP_YELLOW = "#ffe600";
-  const topBg = (bg) => bg; // keep bg 3-color; make text yellow for prominence
+  // 2-column grid container
+  let html = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">`;
 
-  let html = "";
-
-  // --- TOP: SIGNAL / FUND / DECISION (tight + bigger) ---
-  // --- html += row("SIGNAL", fmt.text(d.signal), topBg(colorSignal(d.signal)), true, TOP_YELLOW, TOP_YELLOW);
-  // --- html += row("FUNDAMENTAL", fmt.text(d.fundamental), topBg(colorFund(d.fundamental)), true, TOP_YELLOW, TOP_YELLOW);
-  // --- html += row("DECISION", fmt.text(d.decision), topBg(colorDecision(d.decision)), true, TOP_YELLOW, TOP_YELLOW);
-
-  // --- SECTION: PRICE / VOLUME ---
+  // PRICE / VOLUME SECTION
   html += `<div style="${sectionStyle}">PRICE / VOLUME</div>`;
-  html += row("PRICE", fmt.price(d.price), colorPriceVsSMA200());
-  html += row("CHG%", fmt.pct(d.changePct), colorChangePct());
-  html += row("VOL", fmt.ratio(d.volRatio), colorVol());
+  html += cell("PRICE", fmt.price(d.price), colorPriceVsSMA200());
+  html += cell("CHG%", fmt.pct(d.changePct), colorChangePct());
+  html += cell("VOL", fmt.ratio(d.volRatio), colorVol());
+  html += cell("ATH %", fmt.pct(d.athDiff), colorAthDiff());
 
-  // --- SECTION: PERFORMANCE ---
-  html += `<div style="${sectionStyle}">PERFORMANCE</div>`;
-  html += row("ATH", fmt.price(d.isATH), BG_GREY);
-  html += row("ATH %", fmt.pct(d.athDiff), colorAthDiff());
-  html += row("R:R", fmt.n2(d.rrQuality),BG_GREY); //---colorRR();
-
-  // --- SECTION: TREND ---
+  // TREND SECTION
   html += `<div style="${sectionStyle}">TREND</div>`;
-  html += row("STATE", fmt.text(d.trendState), colorTrendState());
-  html += row("SMA20", fmt.price(d.sma20), BG_GREY);
-  html += row("SMA50", fmt.price(d.sma50), BG_GREY);
-  html += row("SMA200", fmt.price(d.sma200), BG_GREY);
+  html += cell("STATE", fmt.text(d.trendState), colorTrendState());
+  html += cell("R:R", fmt.n2(d.rrQuality), colorRR());
+  html += cell("SMA20", fmt.price(d.sma20), BG_GREY);
+  html += cell("SMA50", fmt.price(d.sma50), BG_GREY);
+  html += cell("SMA200", fmt.price(d.sma200), BG_GREY);
+  html += cell("ATH", fmt.price(d.isATH), BG_GREY);
 
-  // --- SECTION: MOMENTUM ---
+  // MOMENTUM SECTION
   html += `<div style="${sectionStyle}">MOMENTUM</div>`;
-  html += row("RSI", fmt.n2(d.rsi), colorRSI());
-  html += row("MACD", fmt.n3(d.macdHist), colorMACD());
-  html += row("DIV", fmt.text(d.divergence), colorDiv());
-  html += row("ADX", fmt.n2(d.adx), colorADX());
-  html += row("STO", fmt.stochPct(d.stochK), colorStoch());
+  html += cell("RSI", fmt.n2(d.rsi), colorRSI());
+  html += cell("MACD", fmt.n3(d.macdHist), colorMACD());
+  html += cell("DIV", fmt.text(d.divergence), colorDiv());
+  html += cell("ADX", fmt.n2(d.adx), colorADX());
+  html += cell("STO", fmt.stochPct(d.stochK), colorStoch());
+  html += cell("%B", fmt.bollPct(d.bolB), colorBoll());
 
-  // --- SECTION: LEVELS / RISK ---
+  // LEVELS / RISK SECTION
   html += `<div style="${sectionStyle}">LEVELS / RISK</div>`;
-  html += row("SUPPORT", fmt.price(d.support), colorLevels("support"));
-  html += row("RESIST", fmt.price(d.resistance), colorLevels("resistance"));
-  html += row("TARGET", fmt.price(d.target), BG_GREY);
-  html += row("ATR", fmt.n2(d.atr), colorATR());
-  html += row("%B", fmt.bollPct(d.bolB), colorBoll());
+  html += cell("SUPPORT", fmt.price(d.support), colorLevels("support"));
+  html += cell("RESIST", fmt.price(d.resistance), colorLevels("resistance"));
+  html += cell("TARGET", fmt.price(d.target), BG_GREY);
+  html += cell("ATR", fmt.n2(d.atr), BG_GREY);
+
+  html += `</div>`;
 
   return html;
 }
@@ -1191,36 +1557,53 @@ function buildIndicatorPanelHtml_(d) {
 function runMasterAnalysis() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
-  // Detect if triggered from REPORT sheet
+  // Detect which sheet triggered the function
   const activeSheet = ss.getActiveSheet();
-  const isFromReportSheet = activeSheet && activeSheet.getName() === "REPORT";
+  const sheetName = activeSheet ? activeSheet.getName() : "";
+  const isFromReportSheet = sheetName === "REPORT";
+  const isFromDashboard = sheetName === "DASHBOARD";
   
-  // Get ticker from ACTIVE CELL or specific cell (C1)
-  const activeCell = ss.getActiveCell();
-  let ticker = activeCell.getValue();
+  let ticker = "";
   
-  // Fallback: If active cell is empty, check INPUT!C1
-  if (!ticker || typeof ticker !== 'string' || ticker === "") {
-    ticker = ss.getSheetByName("INPUT").getRange("C1").getValue();
+  // Get ticker based on source sheet
+  if (isFromDashboard) {
+    // Get ticker from column A of the selected row
+    const activeCell = ss.getActiveCell();
+    if (activeCell) {
+      const row = activeCell.getRow();
+      ticker = activeSheet.getRange(row, 1).getValue(); // Column A
+    }
+  } else {
+    // Get ticker from ACTIVE CELL or REPORT A1
+    const activeCell = ss.getActiveCell();
+    ticker = activeCell ? activeCell.getValue() : "";
+    
+    // Fallback: Check REPORT A1
+    if (!ticker || typeof ticker !== 'string' || ticker === "") {
+      const reportSheet = ss.getSheetByName("REPORT");
+      if (reportSheet) {
+        ticker = reportSheet.getRange("A1").getValue();
+      }
+    }
   }
 
-  if (!ticker) {
-    ss.toast("⚠️ Please select a Ticker or enter one in INPUT!C1", "INPUT NEEDED");
+  if (!ticker || typeof ticker !== 'string' || ticker === "") {
+    ss.toast("⚠️ Please select a cell with a ticker symbol", "INPUT NEEDED");
     return;
   }
 
-  // 4. Fetch the data using the A-Y mapping helper
+  // Fetch the data
   const d = getTickerDataFromBaseline(ticker);
   if (!d) return;
 
-  // 5. Generate and show the report
+  // Generate and show the report
   const report = MasterAnalysisEngine.analyze(d, isFromReportSheet);
   showAnalysisPopup(ticker, report, d);
 }
 
 /**
  * Helper: Searches the Golden Baseline for a specific ticker and returns the data object.
- * Mapping strictly follows the NEW CALCULATIONS column structure (A-AG, 33 columns).
+ * Mapping follows the CURRENT CALCULATIONS column structure (A-AI)
  * @param {string} ticker - The stock symbol to search for.
  */
 function getTickerDataFromBaseline(ticker) {
@@ -1240,41 +1623,52 @@ function getTickerDataFromBaseline(ticker) {
     if (data[i][0].toString().toUpperCase() === ticker.toString().toUpperCase()) {
       const rowData = data[i];
       
-      // NEW MAPPING TABLE: A=0, B=1, C=2... AG=32
+      // CORRECT MAPPING TABLE based on generateCalculations.js:
+      // A=0(Ticker), B=1(MARKET RATING), C=2(DECISION), D=3(SIGNAL), E=4(PATTERNS), 
+      // F=5(CONSENSUS PRICE), G=6(Price), H=7(Change %), I=8(Vol Trend), 
+      // J=9(ATH TRUE), K=10(ATH Diff %), L=11(ATH ZONE), M=12(FUNDAMENTAL),
+      // N=13(Trend State), O=14(SMA 20), P=15(SMA 50), Q=16(SMA 200),
+      // R=17(RSI), S=18(MACD Hist), T=19(Divergence), U=20(ADX 14), V=21(Stoch %K 14),
+      // W=22(VOL REGIME), X=23(BBP SIGNAL), Y=24(ATR 14), Z=25(Bollinger %B),
+      // AA=26(Target 3:1), AB=27(R:R Quality), AC=28(Support), AD=29(Resistance),
+      // AE=30(ATR STOP), AF=31(ATR TARGET), AG=32(POSITION SIZE), AH=33(LAST STATE), AI=34(ANALYSIS SUMMARY)
+      
       return {
         ticker:      rowData[0],  // Col A: Ticker
-        signal:      rowData[1],  // Col B: SIGNAL
-        patterns:    rowData[2],  // Col C: PATTERNS (NEW)
-        decision:    rowData[3],  // Col D: DECISION
-        price:       rowData[4],  // Col E: Price
-        changePct:   rowData[5],  // Col F: Change %
-        volRatio:    rowData[6],  // Col G: Vol Trend (RVOL)
-        isATH:       rowData[7],  // Col H: ATH (TRUE)
-        athDiff:     rowData[8],  // Col I: ATH Diff %
-        athZone:     rowData[9],  // Col J: ATH Zone (NEW)
-        fundamental: rowData[10], // Col K: FUNDAMENTAL (NEW position)
-        trendState:  rowData[11], // Col L: Trend State
-        sma20:       rowData[12], // Col M: SMA 20
-        sma50:       rowData[13], // Col N: SMA 50
-        sma200:      rowData[14], // Col O: SMA 200
-        rsi:         rowData[15], // Col P: RSI
-        macdHist:    rowData[16], // Col Q: MACD Hist
-        divergence:  rowData[17], // Col R: Divergence
-        adx:         rowData[18], // Col S: ADX (14)
-        stochK:      rowData[19], // Col T: Stoch %K (14)
-        volRegime:   rowData[20], // Col U: Vol Regime (NEW)
-        bbpSignal:   rowData[21], // Col V: BBP Signal (NEW)
-        atr:         rowData[22], // Col W: ATR (14)
-        bolB:        rowData[23], // Col X: Bollinger %B
-        target:      rowData[24], // Col Y: Target
-        rrQuality:   rowData[25], // Col Z: R:R Quality (NEW position)
-        support:     rowData[26], // Col AA: Support
-        resistance:  rowData[27], // Col AB: Resistance
-        atrStop:     rowData[28], // Col AC: ATR Stop (NEW)
-        atrTarget:   rowData[29], // Col AD: ATR Target (NEW)
-        positionSize:rowData[30], // Col AE: Position Size (NEW)
-        lastState:   rowData[31], // Col AF: Last State
-        stopLoss:    rowData[26]  // Mapping Support as StopLoss
+        marketRating:rowData[1],  // Col B: MARKET RATING
+        decision:    rowData[2],  // Col C: DECISION
+        signal:      rowData[3],  // Col D: SIGNAL
+        patterns:    rowData[4],  // Col E: PATTERNS
+        consensusPrice: rowData[5], // Col F: CONSENSUS PRICE
+        price:       rowData[6],  // Col G: Price
+        changePct:   rowData[7],  // Col H: Change %
+        volRatio:    rowData[8],  // Col I: Vol Trend (RVOL)
+        isATH:       rowData[9],  // Col J: ATH (TRUE)
+        athDiff:     rowData[10], // Col K: ATH Diff %
+        athZone:     rowData[11], // Col L: ATH ZONE
+        fundamental: rowData[12], // Col M: FUNDAMENTAL
+        trendState:  rowData[13], // Col N: Trend State
+        sma20:       rowData[14], // Col O: SMA 20
+        sma50:       rowData[15], // Col P: SMA 50
+        sma200:      rowData[16], // Col Q: SMA 200
+        rsi:         rowData[17], // Col R: RSI
+        macdHist:    rowData[18], // Col S: MACD Hist
+        divergence:  rowData[19], // Col T: Divergence
+        adx:         rowData[20], // Col U: ADX (14)
+        stochK:      rowData[21], // Col V: Stoch %K (14)
+        volRegime:   rowData[22], // Col W: Vol Regime
+        bbpSignal:   rowData[23], // Col X: BBP Signal
+        atr:         rowData[24], // Col Y: ATR (14)
+        bolB:        rowData[25], // Col Z: Bollinger %B
+        target:      rowData[26], // Col AA: Target (3:1)
+        rrQuality:   rowData[27], // Col AB: R:R Quality
+        support:     rowData[28], // Col AC: Support
+        resistance:  rowData[29], // Col AD: Resistance
+        atrStop:     rowData[30], // Col AE: ATR STOP
+        atrTarget:   rowData[31], // Col AF: ATR TARGET
+        positionSize:rowData[32], // Col AG: POSITION SIZE
+        lastState:   rowData[33], // Col AH: Last State
+        stopLoss:    rowData[28]  // Mapping Support as StopLoss
       };
     }
   }

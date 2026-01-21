@@ -4,6 +4,7 @@
 * ==============================================================================
 */
 
+
 function generateMobileReport() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const REPORT = ss.getSheetByName('REPORT') || ss.insertSheet('REPORT');
@@ -25,8 +26,7 @@ function generateMobileReport() {
   
   SpreadsheetApp.flush();
   
-  // NOTE: Chart creation is now handled inside createFormulaReport_() 
-  // based on PRICE checkbox state - removed duplicate call here
+  // NOTE: Chart creation is now automatic on sheet generation
 }
 
 /**
@@ -186,13 +186,13 @@ function createFormulaReport_(REPORT) {
   REPORT.getRange('B6').setFormula(lookup('E')); // PATTERNS from CALCULATIONS column E
   REPORT.getRange('B6:C6').merge();
   
-  // Row 7: Direct reference to INPUT column D
-  REPORT.getRange('A7').setValue('INPUT D');
+  // Row 7: M.RATING (Market Rating from INPUT column D)
+  REPORT.getRange('A7').setValue('M.RATING');
   REPORT.getRange('B7:C7').merge();
   REPORT.getRange('B7').setFormula(`=IFERROR(INDEX(INPUT!D:D${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(INPUT!A:A)))${SEP}0))${SEP}"—")`);
   
-  // Row 8: Direct reference to INPUT column E
-  REPORT.getRange('A8').setValue('INPUT E');
+  // Row 8: M.PRICE (Market Price from INPUT column E)
+  REPORT.getRange('A8').setValue('M.PRICE');
   REPORT.getRange('B8:C8').merge();
   REPORT.getRange('B8').setFormula(`=IFERROR(INDEX(INPUT!E:E${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(INPUT!A:A)))${SEP}0))${SEP}"—")`);
   
@@ -224,6 +224,9 @@ function createFormulaReport_(REPORT) {
   
   // Apply conditional formatting to decision cells
   applyDecisionConditionalFormatting_(REPORT);
+  
+  // Apply conditional formatting to M.PRICE (B8) - green if M.PRICE > Current Price, red otherwise
+  applyMarketPriceConditionalFormatting_(REPORT);
   
   // Chart section at D3:N17 - starts after controls
   setupChartSection_(REPORT);
@@ -287,78 +290,19 @@ function createFormulaReport_(REPORT) {
   row = addDataRow_(REPORT, row, 'R:R Quality', lookup('AB'), '0.00"x"');
   row = addDataRow_(REPORT, row, 'Support', lookup('AC'), '$#,##0.00');
   row = addDataRow_(REPORT, row, 'Resistance', lookup('AD'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'ATR STOP', lookup('AC'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'ATR TARGET', lookup('AD'), '$#,##0.00');
-  row = addDataRow_(REPORT, row, 'POSITION SIZE', lookup('AE'), '@')
+  row = addDataRow_(REPORT, row, 'ATR STOP', lookup('AE'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'ATR TARGET', lookup('AF'), '$#,##0.00');
+  row = addDataRow_(REPORT, row, 'POSITION SIZE', lookup('AG'), '@')
   
-  // CORRECTED A43 FORMULA SECTION - Copy this to replace lines 287-360 in generateMobileDashboard.js
-
-  // NOTES - Signal explanation at row 43 (A43:C60)
-  // Explains which indicators triggered the SIGNAL and how DECISION was derived
-  // Build formula with direct INDEX/MATCH patterns (not using lookup/numLookup helper functions)
-  const decisionLookup = `IFERROR(INDEX(CALCULATIONS!B:B${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0))${SEP}"—")`;
-  const signalLookup = `IFERROR(INDEX(CALCULATIONS!C:C${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0))${SEP}"—")`;
-  const patternsLookup = `IFERROR(INDEX(CALCULATIONS!D:D${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0))${SEP}"—")`;
-  const priceNum = `IFERROR(VALUE(INDEX(CALCULATIONS!E:E${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
-  const rvolNum = `IFERROR(VALUE(INDEX(CALCULATIONS!G:G${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
-  const athDiffNum = `IFERROR(VALUE(INDEX(CALCULATIONS!J:J${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
-  const sma20Num = `IFERROR(VALUE(INDEX(CALCULATIONS!N:N${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
-  const sma50Num = `IFERROR(VALUE(INDEX(CALCULATIONS!O:O${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
-  const sma200Num = `IFERROR(VALUE(INDEX(CALCULATIONS!P:P${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
-  const rsiNum = `IFERROR(VALUE(INDEX(CALCULATIONS!Q:Q${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
-  const macdHistNum = `IFERROR(VALUE(INDEX(CALCULATIONS!R:R${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
-  const adxNum = `IFERROR(VALUE(INDEX(CALCULATIONS!T:T${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
-  const stochKNum = `IFERROR(VALUE(INDEX(CALCULATIONS!U:U${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
-  const bbPercentBNum = `IFERROR(VALUE(INDEX(CALCULATIONS!X:X${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
-  const supportNum = `IFERROR(VALUE(INDEX(CALCULATIONS!AA:AA${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
-  const resistanceNum = `IFERROR(VALUE(INDEX(CALCULATIONS!AB:AB${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`;
+  // INSTITUTIONAL ANALYSIS - A43:C60
+  // Use custom function DASH_REPORT instead of long formula to avoid length limits
+  // The DASH_REPORT function must be added to Apps Script project separately
   
-  const notesFormula = `=IF($A$1=""${SEP}""${SEP}IF(${priceNum}=0${SEP}"LOADING"${SEP}` +
-    `"SIGNAL ANALYSIS FOR "&$A$1&CHAR(10)&CHAR(10)&` +
-    `"═══════════════════════════════════"&CHAR(10)&` +
-    `"DECISION: "&${decisionLookup}&CHAR(10)&` +
-    `"SIGNAL: "&${signalLookup}&CHAR(10)&` +
-    `"PATTERNS: "&${patternsLookup}&CHAR(10)&` +
-    `"═══════════════════════════════════"&CHAR(10)&CHAR(10)&` +
-    `"WHY THIS SIGNAL FIRED:"&CHAR(10)&CHAR(10)&` +
-    `IF(${signalLookup}="STOP OUT"${SEP}"• Price ("&TEXT(${priceNum}${SEP}"$0.00")&") fell below Support ("&TEXT(${supportNum}${SEP}"$0.00")&")"&CHAR(10)&"• Risk management triggered - exit position immediately"${SEP}` +
-    `IF(${signalLookup}="RISK OFF"${SEP}"• Price ("&TEXT(${priceNum}${SEP}"$0.00")&") below SMA200 ("&TEXT(${sma200Num}${SEP}"$0.00")&")"&CHAR(10)&"• Bear market regime - avoid new positions"${SEP}` +
-    `IF(${signalLookup}="ATH BREAKOUT"${SEP}"• ATH Diff: "&TEXT(${athDiffNum}${SEP}"0.0%")&" (within 1% of all-time high)"&CHAR(10)&"• RVOL: "&TEXT(${rvolNum}${SEP}"0.00x")&" (≥1.5x confirms strong participation)"&CHAR(10)&"• ADX: "&TEXT(${adxNum}${SEP}"0.0")&" (≥20 confirms trend strength)"&CHAR(10)&"• Price above SMA200 (bull regime)"${SEP}` +
-    `IF(${signalLookup}="VOLATILITY BREAKOUT"${SEP}"• ATR spiked >1.5x its 20-day average"&CHAR(10)&"• RVOL: "&TEXT(${rvolNum}${SEP}"0.00x")&" (≥2.0x extreme volume)"&CHAR(10)&"• Price ("&TEXT(${priceNum}${SEP}"$0.00")&") broke above Resistance ("&TEXT(${resistanceNum}${SEP}"$0.00")&")"${SEP}` +
-    `IF(${signalLookup}="EXTREME OVERSOLD BUY"${SEP}"• Bollinger %B: "&TEXT(${bbPercentBNum}${SEP}"0.0%")&" (≤10% = lower band)"&CHAR(10)&"• RSI: "&TEXT(${rsiNum}${SEP}"0.0")&" (≤25 = deeply oversold)"&CHAR(10)&"• Stoch %K: "&TEXT(${stochKNum}${SEP}"0.0%")&" (≤20% = oversold timing)"&CHAR(10)&"• Price above SMA200 (bull regime)"${SEP}` +
-    `IF(${signalLookup}="STRONG BUY"${SEP}"• Price above SMA200 (bull regime)"&CHAR(10)&"• SMA50 ("&TEXT(${sma50Num}${SEP}"$0.00")&") > SMA200 (uptrend confirmed)"&CHAR(10)&"• RSI: "&TEXT(${rsiNum}${SEP}"0.0")&" (≤30 = oversold entry)"&CHAR(10)&"• MACD Hist: "&TEXT(${macdHistNum}${SEP}"0.000")&" (>0 = positive momentum)"&CHAR(10)&"• ADX: "&TEXT(${adxNum}${SEP}"0.0")&" (≥20 = strong trend)"&CHAR(10)&"• RVOL: "&TEXT(${rvolNum}${SEP}"0.00x")&" (≥1.5x = high participation)"${SEP}` +
-    `IF(${signalLookup}="BUY"${SEP}"• Price above SMA200 (bull regime)"&CHAR(10)&"• SMA50 ("&TEXT(${sma50Num}${SEP}"$0.00")&") > SMA200 (uptrend)"&CHAR(10)&"• RSI: "&TEXT(${rsiNum}${SEP}"0.0")&" (≤40 = pullback entry)"&CHAR(10)&"• MACD Hist: "&TEXT(${macdHistNum}${SEP}"0.000")&" (>0 = momentum)"&CHAR(10)&"• ADX: "&TEXT(${adxNum}${SEP}"0.0")&" (≥15 = developing trend)"${SEP}` +
-    `IF(${signalLookup}="ACCUMULATE"${SEP}"• Price above SMA200 (bull regime)"&CHAR(10)&"• RSI: "&TEXT(${rsiNum}${SEP}"0.0")&" (≤35 = dip opportunity)"&CHAR(10)&"• Price near SMA50 ("&TEXT(${sma50Num}${SEP}"$0.00")&") support"${SEP}` +
-    `IF(${signalLookup}="BREAKOUT"${SEP}"• RVOL: "&TEXT(${rvolNum}${SEP}"0.00x")&" (≥1.5x = strong volume)"&CHAR(10)&"• Price ("&TEXT(${priceNum}${SEP}"$0.00")&") near/above Resistance ("&TEXT(${resistanceNum}${SEP}"$0.00")&")"${SEP}` +
-    `IF(${signalLookup}="MOMENTUM"${SEP}"• Price above SMA200 (bull regime)"&CHAR(10)&"• MACD Hist: "&TEXT(${macdHistNum}${SEP}"0.000")&" (>0 = positive momentum)"&CHAR(10)&"• ADX: "&TEXT(${adxNum}${SEP}"0.0")&" (≥20 = strong trend)"${SEP}` +
-    `IF(${signalLookup}="UPTREND"${SEP}"• Price above SMA200 (bull regime)"&CHAR(10)&"• SMA50 ("&TEXT(${sma50Num}${SEP}"$0.00")&") > SMA200 (uptrend structure)"&CHAR(10)&"• ADX: "&TEXT(${adxNum}${SEP}"0.0")&" (≥15 = developing trend)"${SEP}` +
-    `IF(${signalLookup}="BULLISH"${SEP}"• Price above SMA50 ("&TEXT(${sma50Num}${SEP}"$0.00")&")"&CHAR(10)&"• Price above SMA20 ("&TEXT(${sma20Num}${SEP}"$0.00")&")"&CHAR(10)&"• Short-term bullish alignment"${SEP}` +
-    `IF(${signalLookup}="OVERSOLD"${SEP}"• Stoch %K: "&TEXT(${stochKNum}${SEP}"0.0%")&" (≤20% = oversold) OR"&CHAR(10)&"• Bollinger %B: "&TEXT(${bbPercentBNum}${SEP}"0.0%")&" (≤20% = lower band)"&CHAR(10)&"• Price above Support ("&TEXT(${supportNum}${SEP}"$0.00")&")"${SEP}` +
-    `IF(${signalLookup}="OVERBOUGHT"${SEP}"• RSI: "&TEXT(${rsiNum}${SEP}"0.0")&" (≥80 = overbought) OR"&CHAR(10)&"• Bollinger %B: "&TEXT(${bbPercentBNum}${SEP}"0.0%")&" (≥90% = upper band)"&CHAR(10)&"• Potential reversal zone"${SEP}` +
-    `IF(${signalLookup}="VOLATILITY SQUEEZE"${SEP}"• ATR <0.7x its 20-day average (low volatility)"&CHAR(10)&"• ADX: "&TEXT(${adxNum}${SEP}"0.0")&" (<15 = weak trend)"&CHAR(10)&"• Bollinger %B: "&TEXT(${bbPercentBNum}${SEP}"0.0%")&" (mid-band compression)"&CHAR(10)&"• Coiling for potential breakout"${SEP}` +
-    `IF(${signalLookup}="RANGE"${SEP}"• ADX: "&TEXT(${adxNum}${SEP}"0.0")&" (<15 = no clear trend)"&CHAR(10)&"• Price oscillating between support/resistance"${SEP}` +
-    `"• No specific signal criteria met"&CHAR(10)&"• Neutral market conditions"` +
-    `))))))))))))))))&CHAR(10)&CHAR(10)&` +
-    `"HOW DECISION WAS DERIVED:"&CHAR(10)&CHAR(10)&` +
-    `"1. SIGNAL provides the technical setup: "&${signalLookup}&CHAR(10)&CHAR(10)&` +
-    `"2. PATTERNS "&IF(${patternsLookup}="None"${SEP}"not detected"${SEP}"detected: "&${patternsLookup})&CHAR(10)&` +
-    `IF(${patternsLookup}<>"None"${SEP}"   • Bullish patterns (ASC_TRI${SEP} BRKOUT${SEP} DBL_BTM${SEP} INV_H&S${SEP} CUP_HDL) confirm long signals"&CHAR(10)&"   • Bearish patterns (DESC_TRI${SEP} H&S${SEP} DBL_TOP) create conflicts"&CHAR(10)${SEP}"")&CHAR(10)&` +
-    `"3. DECISION combines SIGNAL + PATTERNS:"&CHAR(10)&` +
-    `IF(OR(${decisionLookup}="🟢 STRONG BUY (PATTERN CONFIRMED)"${SEP}${decisionLookup}="🟢 STRONG TRADE LONG (PATTERN CONFIRMED)")${SEP}"   • Strong signal ("&${signalLookup}&") + bullish pattern = high-confidence entry"${SEP}` +
-    `IF(${decisionLookup}="⚠️ HOLD (PATTERN CONFLICT)"${SEP}"   • Strong signal ("&${signalLookup}&") BUT bearish pattern detected = wait for clarity"${SEP}` +
-    `IF(OR(${decisionLookup}="🟢 STRONG BUY"${SEP}${decisionLookup}="Strong Trade Long")${SEP}"   • Strong signal ("&${signalLookup}&") without pattern confirmation"${SEP}` +
-    `IF(OR(${decisionLookup}="🟢 BUY"${SEP}${decisionLookup}="Trade Long"${SEP}${decisionLookup}="🟢 ADD")${SEP}"   • Positive signal ("&${signalLookup}&") supports entry/add"${SEP}` +
-    `IF(${decisionLookup}="🔴 EXIT"${SEP}"   • STOP OUT or RISK OFF signal = immediate exit required"${SEP}` +
-    `IF(${decisionLookup}="🟠 TRIM"${SEP}"   • OVERBOUGHT signal = take partial profits"${SEP}` +
-    `IF(${decisionLookup}="⏳ WAIT (OVERBOUGHT)"${SEP}"   • OVERBOUGHT signal = wait for pullback before entry"${SEP}` +
-    `IF(${decisionLookup}="🟡 WATCH (OVERSOLD)"${SEP}"   • OVERSOLD signal = monitor for entry opportunity"${SEP}` +
-    `"   • Signal: "&${signalLookup}&" = hold current position or wait"` +
-    `))))))))&CHAR(10)&CHAR(10)&` +
-    `"NOTE: FUNDAMENTAL data is informational only and does NOT influence SIGNAL or DECISION logic."` +
-    `))`;
+  // Set custom function formula on A43 FIRST
+  REPORT.getRange('A43').setFormula('=DASH_REPORT(A1)');
   
+  // Now merge and apply formatting
   REPORT.getRange('A43:C60').merge()
-    .setFormula(notesFormula)
     .setBackground(P.BG_ROW_A)
     .setFontColor('#FFFF00') // Yellow font
     .setFontWeight('normal')
@@ -390,13 +334,8 @@ function createFormulaReport_(REPORT) {
   // Called at the END to avoid merge conflicts with earlier cell operations
   setupReportLayout(REPORT);
   
-  // Only create chart if PRICE checkbox is checked (for faster sheet generation)
-  const priceChecked = REPORT.getRange('D2').getValue();
-  if (priceChecked === true) {
-    createReportChart_(REPORT);
-  } else {
-    console.log('PRICE checkbox not checked, skipping chart creation for faster generation');
-  }
+  // Always create chart since PRICE checkbox is enabled by default
+  createReportChart_(REPORT);
 }
 
 /**
@@ -1079,7 +1018,6 @@ function setupReportTickerDropdown_(reportSheet, inputSheet) {
     
     SpreadsheetApp.flush();
     Utilities.sleep(100);
-    // NOTE: Chart creation now handled by PRICE checkbox - removed automatic call
     return;
   }
   
@@ -1107,7 +1045,6 @@ function setupReportTickerDropdown_(reportSheet, inputSheet) {
     }
   }
   
-  // NOTE: Chart creation now handled by PRICE checkbox - removed automatic call
   SpreadsheetApp.flush();
   Utilities.sleep(100);
 }
@@ -1126,10 +1063,10 @@ function setupChartControls_(REPORT) {
   
   // All 9 controls in consecutive columns D through L
   const controls = [
-    ['PRICE', false],  // Changed to false - only generate chart when clicked
-    ['SMA20', false], 
-    ['SMA50', false],
-    ['SMA200', false],
+    ['PRICE', true],  // Enable by default to create chart on first load
+    ['SMA20', true],  // Enable by default
+    ['SMA50', true],  // Enable by default
+    ['SMA200', true], // Enable by default
     ['VOLUME', true],  // Enable volume by default to show bull/bear bars
     ['SUPPORT', true],
     ['RESISTANCE', true],
@@ -1310,24 +1247,26 @@ function createReportChartInternal_(REPORT, ticker) {
     console.log(`Sample raw row 6: ${JSON.stringify(raw[6])}`);
   }
   
-  // Get current values from CALCULATIONS sheet for support/resistance/ATR
+  // Get current values from CALCULATIONS sheet for support/resistance/ATR/ATR STOP/ATR TARGET
   const CALC = ss.getSheetByName('CALCULATIONS');
-  let support = 0, resistance = 0, atr = 0, currentRSI = 50, currentPrice = 0;
+  let support = 0, resistance = 0, atr = 0, currentRSI = 50, currentPrice = 0, atrStop = 0, atrTarget = 0;
   
   if (CALC) {
     const calcData = CALC.getDataRange().getValues();
     const tickerRow = calcData.findIndex(row => String(row[0]).toUpperCase().trim() === ticker.toUpperCase());
     if (tickerRow !== -1) {
       const calcRow = calcData[tickerRow];
-      // Column indices are 0-based: A=0, B=1, C=2, ..., Z=25, AA=26, AB=27, etc.
+      // Column indices are 0-based: A=0, B=1, C=2, ..., Z=25, AA=26, AB=27, AC=28, AD=29, AE=30, AF=31
       currentPrice = Number(calcRow[4]) || 0; // Column E (index 4) - Price
-      support = Number(calcRow[26]) || 0; // Column AA (index 26) - Support
-      resistance = Number(calcRow[27]) || 0; // Column AB (index 27) - Resistance
-      atr = Number(calcRow[22]) || 0; // Column W (index 22) - ATR (14)
-      currentRSI = Number(calcRow[16]) || 0; // Column Q (index 16) - RSI
+      support = Number(calcRow[28]) || 0; // Column AC (index 28) - Support
+      resistance = Number(calcRow[29]) || 0; // Column AD (index 29) - Resistance
+      atr = Number(calcRow[24]) || 0; // Column Y (index 24) - ATR (14)
+      currentRSI = Number(calcRow[17]) || 0; // Column R (index 17) - RSI
+      atrStop = Number(calcRow[30]) || 0; // Column AE (index 30) - ATR STOP
+      atrTarget = Number(calcRow[31]) || 0; // Column AF (index 31) - ATR TARGET
       
       // Debug log to verify data is being read correctly
-      console.log(`Chart data for ${ticker}: Price=${currentPrice}, Support=${support}, Resistance=${resistance}, ATR=${atr}, RSI=${currentRSI}`);
+      console.log(`Chart data for ${ticker}: Price=${currentPrice}, Support=${support}, Resistance=${resistance}, ATR=${atr}, RSI=${currentRSI}, ATR_STOP=${atrStop}, ATR_TARGET=${atrTarget}`);
     } else {
       console.log(`Ticker ${ticker} not found in CALCULATIONS sheet`);
     }
@@ -1389,9 +1328,9 @@ function createReportChartInternal_(REPORT, ticker) {
       const s50 = slice.length >= 50 ? Number((slice.slice(-50).reduce((a, b) => a + b, 0) / 50).toFixed(2)) : null;
       const s200 = slice.length >= 200 ? Number((slice.slice(-200).reduce((a, b) => a + b, 0) / 200).toFixed(2)) : null;
       
-      // Calculate ATR-based levels using current ATR (static values - straight lines)
-      const atrStop = atr > 0 ? currentPrice - (atr * 2) : currentPrice * 0.95;
-      const atrTarget = atr > 0 ? currentPrice + (atr * 3) : currentPrice * 1.05;
+      // Use ATR STOP and ATR TARGET values directly from CALCULATIONS sheet (columns AE and AF)
+      // These are static values (straight lines) calculated once for the ticker
+      // No need to recalculate - just use the pre-calculated values
       
       // Build data row based on selected checkboxes - FIXED ORDER TO PREVENT SHIFTING
       const dataRow = [d];
@@ -1479,9 +1418,9 @@ function createReportChartInternal_(REPORT, ticker) {
       const liveS50 = fullCloses.length >= 50 ? Number((fullCloses.slice(-50).reduce((a, b) => a + b, 0) / 50).toFixed(2)) : null;
       const liveS200 = fullCloses.length >= 200 ? Number((fullCloses.slice(-200).reduce((a, b) => a + b, 0) / 200).toFixed(2)) : null;
       
-      // Calculate ATR-based levels using current ATR (static values - straight lines)
-      const atrStop = atr > 0 ? livePrice - (atr * 2) : livePrice * 0.95;
-      const atrTarget = atr > 0 ? livePrice + (atr * 3) : livePrice * 1.05;
+      // Use ATR STOP and ATR TARGET values directly from CALCULATIONS sheet (columns AE and AF)
+      // These are static values (straight lines) - already retrieved above from CALCULATIONS
+      // No need to recalculate for live data - use the same pre-calculated values
       
       // Build live data row based on selected checkboxes - SAME ORDER AS HISTORICAL DATA
       const liveDataRow = [today];
@@ -1738,7 +1677,7 @@ function createReportChartInternal_(REPORT, ticker) {
     seriesIndex++;
   }
   
-  // If no checkboxes are selected, show at least price
+  // If no checkboxes are selected, show at least price as fallback
   if (Object.keys(seriesConfig).length === 0) {
     seriesConfig[0] = { type: "line", color: "#1A73E8", lineWidth: 1, labelInLegend: "Price" };
   }
@@ -1969,23 +1908,11 @@ function handleReportSheetEdit(e) {
   const row = range.getRow();
   const col = range.getColumn();
   
-  // Handle chart controls: checkbox changes (row 2, columns E-M: 5-13), ticker change (A1), or date/interval change (A2:C2 and C3)
-  if ((row === 2 && col >= 5 && col <= 13) || a1 === "A1" || (row === 2 && col >= 1 && col <= 3) || a1 === "C3") {
+  // Handle chart controls: checkbox changes (row 2, columns D-L: 4-12), ticker change (A1), or date/interval change (A2:C3)
+  if ((row === 2 && col >= 4 && col <= 12) || a1 === "A1" || (row === 2 && col >= 1 && col <= 3) || a1 === "C3") {
     try {
-      // Check if PRICE checkbox (D2, was E2 before column D deletion) is checked before updating chart
-      const priceChecked = sheet.getRange('D2').getValue();
-      if (priceChecked === true) {
-        ss.toast("🔄 Updating REPORT Chart...", "WORKING", 2);
-        updateReportChart();
-      } else {
-        // If PRICE is unchecked and user just checked it, create chart
-        if (a1 === "E2" && e.value === true) {
-          ss.toast("🔄 Creating REPORT Chart...", "WORKING", 2);
-          updateReportChart();
-        } else {
-          ss.toast("ℹ️ Check PRICE to generate chart", "INFO", 2);
-        }
-      }
+      ss.toast("🔄 Updating REPORT Chart...", "WORKING", 2);
+      updateReportChart();
     } catch (err) {
       ss.toast("REPORT Chart update error: " + err.toString(), "⚠️ FAIL", 6);
     }
@@ -1993,7 +1920,7 @@ function handleReportSheetEdit(e) {
 }
 
 /**
- * Update REPORT sheet chart - internal function
+ * Update REPORT sheet chart - always recreate to ensure proper scaling
  */
 function updateReportChart() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -2004,7 +1931,8 @@ function updateReportChart() {
   SpreadsheetApp.flush();
   Utilities.sleep(100);
   
-  // Simply call the existing chart creation function
+  // Always recreate chart to ensure proper axis scaling (especially for volume)
+  // This is necessary because min/max data points change with different tickers/date ranges
   createReportChart_(REPORT);
 }
 
@@ -2367,7 +2295,52 @@ function applyDecisionConditionalFormatting_(REPORT) {
   const existingRules = sheet.getConditionalFormatRules();
   const allNewRules = signalRules.concat(fundamentalRules).concat(decisionRules);
   sheet.setConditionalFormatRules(existingRules.concat(allNewRules));
-}/**
+}
+
+/**
+ * Apply conditional formatting to M.PRICE (B8)
+ * Green if M.PRICE > Current Price, Red otherwise
+ * Uses helper column to avoid cross-sheet reference error
+ */
+function applyMarketPriceConditionalFormatting_(REPORT) {
+  const P = reportPalette___();
+  
+  // Get locale separator
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const locale = (ss.getSpreadsheetLocale() || "").toLowerCase();
+  const SEP = (/^(en|en_)/.test(locale)) ? "," : ";";
+  
+  // M.PRICE cell (B8)
+  const marketPriceCell = REPORT.getRange('B8');
+  
+  // Create helper formula in hidden column AX (column 50) to get current price
+  const helperCol = 50; // Column AX
+  const helperCell = REPORT.getRange(8, helperCol); // AX8
+  helperCell.setFormula(`=IFERROR(VALUE(INDEX(CALCULATIONS!G:G${SEP}MATCH(UPPER(TRIM($A$1))${SEP}ARRAYFORMULA(UPPER(TRIM(CALCULATIONS!A:A)))${SEP}0)))${SEP}0)`);
+  
+  // Green if M.PRICE (B8) > Current Price (AX8)
+  const greenRule = SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied(`=AND(NOT(ISBLANK(B8))${SEP}B8<>"—"${SEP}ISNUMBER(VALUE(B8))${SEP}VALUE(B8)>AX8${SEP}AX8>0)`)
+    .setBackground(P.CHIP_POS)
+    .setFontColor(P.POS_TXT)
+    .setRanges([marketPriceCell])
+    .build();
+  
+  // Red if M.PRICE (B8) <= Current Price (AX8)
+  const redRule = SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied(`=AND(NOT(ISBLANK(B8))${SEP}B8<>"—"${SEP}ISNUMBER(VALUE(B8))${SEP}VALUE(B8)<=AX8${SEP}AX8>0)`)
+    .setBackground(P.CHIP_NEG)
+    .setFontColor(P.NEG_TXT)
+    .setRanges([marketPriceCell])
+    .build();
+  
+  // Apply rules
+  const sheet = REPORT;
+  const existingRules = sheet.getConditionalFormatRules();
+  sheet.setConditionalFormatRules(existingRules.concat([greenRule, redRule]));
+}
+
+/**
  
 * Apply SMA color coding using helper formulas
  */
@@ -2495,7 +2468,7 @@ function setupReportLayout(REPORT) {
     .setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
   
-  // Merge cells A43:M65 with content preservation
+  // Merge cells A43:M65 with formula preservation
   // First, unmerge any existing merges in this range to avoid conflicts
   try {
     REPORT.getRange('A43:M65').breakApart();
@@ -2504,10 +2477,10 @@ function setupReportLayout(REPORT) {
   }
   
   const mergeRange1 = REPORT.getRange('A43:M65');
-  const existingContent1 = REPORT.getRange('A43').getValue();
+  const existingFormula1 = REPORT.getRange('A43').getFormula();
   mergeRange1.merge();
-  if (existingContent1) {
-    REPORT.getRange('A43').setValue(existingContent1);
+  if (existingFormula1) {
+    REPORT.getRange('A43').setFormula(existingFormula1);
   }
 }
 
@@ -2521,4 +2494,172 @@ function positionReportChart(chart) {
     .setOption('width', 880)   // Width to span D-N
     .setOption('height', 420)  // Height to span rows 3-17
     .build();
+}
+
+/**
+ * Custom function for REPORT sheet institutional analysis
+ * Usage: =DASH_REPORT(A1)
+ * @param {string} ticker - The ticker symbol from cell A1
+ * @return {string} Institutional analysis text
+ * @customfunction
+ */
+function DASH_REPORT(ticker) {
+  if (!ticker || ticker === "") return "";
+  
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const CALC = ss.getSheetByName('CALCULATIONS');
+  
+  if (!CALC) return "CALCULATIONS sheet not found";
+  
+  // Get all data from CALCULATIONS sheet
+  const calcData = CALC.getDataRange().getValues();
+  
+  // Find the ticker row
+  const tickerUpper = String(ticker).toUpperCase().trim();
+  const tickerRow = calcData.findIndex(row => String(row[0]).toUpperCase().trim() === tickerUpper);
+  
+  if (tickerRow === -1) return "Ticker not found in CALCULATIONS";
+  
+  const row = calcData[tickerRow];
+  
+  // Extract values (0-based indices)
+  const decision = row[2] || "—";  // Column C
+  const signal = row[3] || "—";    // Column D
+  const patterns = row[4] || "—";  // Column E
+  const price = Number(row[6]) || 0;  // Column G
+  const rsi = Number(row[17]) || 0;   // Column R
+  const adx = Number(row[20]) || 0;   // Column U
+  const volTrend = Number(row[8]) || 0;  // Column I
+  const sma50 = Number(row[15]) || 0;    // Column P
+  const sma200 = Number(row[16]) || 0;   // Column Q
+  const support = Number(row[28]) || 0;  // Column AC
+  const resistance = Number(row[29]) || 0; // Column AD
+  const bbp = Number(row[25]) || 0;      // Column Z
+  const athDiff = Number(row[10]) || 0;  // Column K
+  
+  // Check if data is loaded
+  if (price === 0) return "LOADING...";
+  
+  // Build the analysis text
+  let text = "📊 INSTITUTIONAL ANALYSIS: " + ticker + "\n\n";
+  text += "DECISION: " + decision + " | SIGNAL: " + signal + "\n";
+  text += "PATTERNS: " + patterns + "\n";
+  text += "═══════════════════════════════════════════════════\n\n";
+  text += "🎯 WHY '" + signal + "' TRIGGERED:\n\n";
+  
+  // Signal-specific explanations
+  if (signal === "ACCUMULATE") {
+    text += "✅ Price ($" + price.toFixed(2) + ") > SMA 200 ($" + sma200.toFixed(2) + ") → Bullish long-term trend\n";
+    text += "✅ RSI (" + rsi.toFixed(1) + ") between 35-55 → Neutral zone, not overbought/oversold\n";
+    text += "✅ Price within 5% of SMA 50 → $" + price.toFixed(2) + " is within $" + sma50.toFixed(2) + " ± 5% range ($" + (sma50 * 0.95).toFixed(2) + " - $" + (sma50 * 1.05).toFixed(2) + ")\n\n";
+    text += "This is a conservative accumulation zone - stock is in bullish trend but not overextended, making it safe to build position gradually.";
+  } else if (signal === "STRONG BUY") {
+    text += "✅ Price > SMA 200 → Bullish regime | SMA 50 > SMA 200 → Uptrend confirmed\n";
+    text += "✅ RSI (" + rsi.toFixed(1) + ") 30-40 → Early entry | MACD > 0 → Positive momentum\n";
+    text += "✅ ADX (" + adx.toFixed(1) + ") ≥ 20 → Strong trend | Vol (" + volTrend.toFixed(2) + "x) ≥ 1.5x → High participation\n\n";
+    text += "High-conviction entry with strong trend, momentum, and volume confirmation.";
+  } else if (signal === "BUY") {
+    text += "✅ Price > SMA 200 → Bullish | SMA 50 > SMA 200 → Uptrend intact\n";
+    text += "✅ RSI (" + rsi.toFixed(1) + ") 40-50 → Healthy pullback | MACD > 0 → Momentum positive\n";
+    text += "✅ ADX (" + adx.toFixed(1) + ") ≥ 15 → Developing trend\n\n";
+    text += "Standard buy signal with good risk/reward. Trend established but not overextended.";
+  } else if (signal === "STOP OUT") {
+    text += "🔴 Price ($" + price.toFixed(2) + ") < Support ($" + support.toFixed(2) + ") → Support breakdown\n";
+    text += "🔴 Risk management triggered → Exit position immediately to preserve capital\n\n";
+    text += "Critical support breached. Technical structure compromised - exit to limit losses.";
+  } else if (signal === "RISK OFF") {
+    text += "🔴 Price ($" + price.toFixed(2) + ") < SMA 200 ($" + sma200.toFixed(2) + ") → Bear market regime\n";
+    text += "🔴 Long-term trend broken → Avoid new long positions\n\n";
+    text += "Bearish market structure. Stay defensive and wait for trend reversal confirmation.";
+  } else if (signal === "TRIM") {
+    text += "⚠️ RSI (" + rsi.toFixed(1) + ") ≥ 70 → Overbought | Bollinger %B (" + (bbp * 100).toFixed(1) + "%) ≥ 85% → Extended\n";
+    text += "⚠️ Price near Resistance ($" + resistance.toFixed(2) + ") → Supply zone\n\n";
+    text += "Stock overextended. Consider taking partial profits to lock in gains.";
+  } else {
+    text += "Signal criteria: " + signal + " - see formula logic for details";
+  }
+  
+  text += "\n\n─────────────────────────────────────────────────────\n📉 OTHER INDICATOR ANALYSIS:\n\n";
+  
+  // RSI Analysis
+  text += "• RSI (" + rsi.toFixed(1) + "): ";
+  if (rsi >= 70) text += "Overbought (≥70) - momentum exhaustion risk";
+  else if (rsi >= 60) text += "Elevated (60-70) - strong but approaching overbought";
+  else if (rsi >= 50) text += "Bullish momentum (50-60) - healthy uptrend";
+  else if (rsi >= 40) text += "Neutral (40-50) - balanced, waiting for bias";
+  else if (rsi >= 30) text += "Pullback zone (30-40) - dip buying opportunity";
+  else text += "Oversold (<30) - potential bounce, needs confirmation";
+  text += "\n";
+  
+  // ADX Analysis
+  text += "• ADX (" + adx.toFixed(1) + "): ";
+  if (adx >= 25) text += "Strong trend (≥25)";
+  else if (adx >= 20) text += "Developing trend (20-25)";
+  else if (adx >= 15) text += "Weak trend (15-20)";
+  else text += "No trend (<15) - range-bound";
+  text += "\n";
+  
+  // Volume Trend Analysis
+  text += "• Vol Trend (" + volTrend.toFixed(2) + "x): ";
+  if (volTrend >= 2.0) text += "Extreme (≥2.0x) - institutional activity";
+  else if (volTrend >= 1.5) text += "Strong (1.5-2.0x) - above average";
+  else if (volTrend >= 1.0) text += "Normal (1.0-1.5x) - average";
+  else if (volTrend >= 0.7) text += "Low (0.7-1.0x) - drift risk";
+  else text += "Very low (<0.7x) - lack of conviction";
+  text += "\n";
+  
+  // Bollinger %B Analysis
+  text += "• Bollinger %B (" + (bbp * 100).toFixed(1) + "%): ";
+  if (bbp >= 0.85) text += "Overbought (≥85%) - extended, limited upside";
+  else if (bbp >= 0.5) text += "Upper half (50-85%) - bullish bias";
+  else if (bbp >= 0.2) text += "Lower half (20-50%) - neutral to bearish";
+  else text += "Oversold (<20%) - near lower band, bounce potential";
+  text += "\n";
+  
+  // Price Position Analysis
+  text += "• Price Position: ";
+  if (price < support) text += "Below Support ($" + support.toFixed(2) + ") - breakdown";
+  else if (price < sma200) text += "Below SMA 200 - bear regime";
+  else if (price > resistance * 0.98) text += "Near Resistance ($" + resistance.toFixed(2) + ") - supply zone";
+  else text += "Mid-range - neutral positioning";
+  text += "\n";
+  
+  // ATH Diff Analysis
+  text += "• ATH Diff (" + (athDiff * 100).toFixed(1) + "%): ";
+  if (athDiff >= -0.02) text += "At ATH (≥-2%) - market leader";
+  else if (athDiff >= -0.05) text += "Near ATH (-2% to -5%)";
+  else if (athDiff >= -0.15) text += "Pullback (-5% to -15%)";
+  else if (athDiff >= -0.30) text += "Correction (-15% to -30%)";
+  else text += "Deep value (<-30%)";
+  text += "\n\n";
+  
+  text += "─────────────────────────────────────────────────────\n🎯 HOW DECISION WAS DERIVED:\n\n";
+  text += "1. SIGNAL: " + signal + " (technical setup)\n";
+  text += "2. PATTERNS: " + (patterns === "—" ? "not detected" : patterns + " detected") + "\n";
+  if (patterns !== "—") {
+    text += "   Bullish patterns (ASC_TRI, BRKOUT, DBL_BTM, INV_H&S, CUP_HDL) confirm longs\n";
+    text += "   Bearish patterns (DESC_TRI, H&S, DBL_TOP) create conflicts\n";
+  }
+  text += "3. DECISION: " + decision + "\n";
+  
+  // Decision explanation
+  if (decision.includes("PATTERN CONFIRMED")) {
+    text += "   ✅ " + signal + " + Bullish pattern = HIGH-CONFIDENCE ENTRY";
+  } else if (decision.includes("PATTERN CONFLICT")) {
+    text += "   ⚠️ " + signal + " BUT bearish pattern = WAIT FOR CLARITY";
+  } else if (decision.includes("BUY") || decision.includes("ADD")) {
+    text += "   ✅ Positive signal supports entry/add";
+  } else if (decision.includes("EXIT")) {
+    text += "   🔴 STOP OUT/RISK OFF = IMMEDIATE EXIT";
+  } else if (decision.includes("TRIM")) {
+    text += "   🟠 Overbought = TAKE PARTIAL PROFITS";
+  } else if (decision.includes("HOLD")) {
+    text += "   ⚖️ No actionable signal = MAINTAIN POSITION";
+  } else {
+    text += "   ⚪ Neutral - wait for clearer setup";
+  }
+  
+  text += "\n\n📌 NOTE: FUNDAMENTAL data is informational only. Technical analysis drives all signals.";
+  
+  return text;
 }
