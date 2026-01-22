@@ -1016,6 +1016,81 @@ function displaySummary(total, errors) {
   }
 }
 
+/**
+ * OPTIMIZED: Update only SIGNAL (D) and DECISION (C) formulas when INPUT!G1 is toggled
+ * This is much faster than regenerating the entire CALCULATIONS sheet
+ * Only updates the formulas that depend on the useLongTermSignal flag
+ */
+function updateSignalFormulas() {
+  const startTime = new Date();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  try {
+    // Get required sheets
+    const calc = ss.getSheetByName("CALCULATIONS");
+    const inputSheet = ss.getSheetByName("INPUT");
+    
+    if (!calc || !inputSheet) {
+      ss.toast('Required sheets (CALCULATIONS or INPUT) not found.', '❌ Error', 3);
+      return;
+    }
+
+    // Get locale separator
+    const locale = (ss.getSpreadsheetLocale() || "").toLowerCase();
+    const SEP = (/^(en|en_)/.test(locale)) ? "," : ";";
+
+    // Check if long-term signal mode is enabled
+    const useLongTermSignal = inputSheet.getRange('G1').getValue() === true;
+    
+    // Get all tickers from column A (starting from row 3)
+    const tickerRange = calc.getRange("A3:A").getValues();
+    const tickers = tickerRange.filter(row => row[0] && String(row[0]).trim() !== "").map(row => String(row[0]).trim());
+    
+    if (tickers.length === 0) {
+      ss.toast('No tickers found in CALCULATIONS sheet.', '⚠️ Warning', 3);
+      return;
+    }
+
+    Logger.log(`Updating signal formulas for ${tickers.length} tickers (mode: ${useLongTermSignal ? 'LONG-TERM' : 'TRADE'})`);
+    
+    // Build formula arrays for batch update
+    const signalFormulas = [];
+    const decisionFormulas = [];
+    
+    for (let i = 0; i < tickers.length; i++) {
+      const row = i + 3; // Data starts at row 3
+      
+      // Generate SIGNAL formula (column D)
+      const signalFormula = buildSignalFormula(row, SEP, useLongTermSignal);
+      signalFormulas.push([signalFormula]);
+      
+      // Generate DECISION formula (column C)
+      const decisionFormula = buildDecisionFormula(row, SEP, useLongTermSignal);
+      decisionFormulas.push([decisionFormula]);
+    }
+    
+    // Update SIGNAL formulas (column D) - all at once
+    Logger.log('Writing SIGNAL formulas (column D)...');
+    calc.getRange(3, 4, tickers.length, 1).setFormulas(signalFormulas);
+    SpreadsheetApp.flush();
+    
+    // Small delay to allow SIGNAL formulas to calculate
+    Utilities.sleep(1000);
+    
+    // Update DECISION formulas (column C) - all at once
+    Logger.log('Writing DECISION formulas (column C)...');
+    calc.getRange(3, 3, tickers.length, 1).setFormulas(decisionFormulas);
+    SpreadsheetApp.flush();
+    
+    const elapsed = ((new Date() - startTime) / 1000).toFixed(2);
+    Logger.log(`Signal formulas updated in ${elapsed}s`);
+    
+  } catch (error) {
+    Logger.log(`Error in updateSignalFormulas: ${error.stack}`);
+    ss.toast(`Failed to update signal formulas: ${error.message}`, '❌ Error', 5);
+  }
+}
+
 // Export functions for testing (Node.js environment)
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -1029,6 +1104,7 @@ if (typeof module !== 'undefined' && module.exports) {
     displayProgress,
     displaySummary,
     columnToLetter,
+    updateSignalFormulas,
     // Helper formula builders
     buildSignalFormula,
     buildFundamentalFormula,

@@ -438,7 +438,9 @@ function applyConditionalFormatting(sh, r0, numRows, C_GREEN, C_RED, C_BLUE) {
   add(`=REGEXMATCH($E${r0},"ASC_TRI|BRKOUT|DBL_BTM|INV_H&S|CUP_HDL")`, C_GREEN, 5);
   add(`=REGEXMATCH($E${r0},"DESC_TRI|H&S|DBL_TOP")`, C_RED, 5);
 
-  // CONSENSUS PRICE (F) - No conditional formatting
+  // CONSENSUS PRICE (F) - Red if below Price, Green if >15% above Price
+  add(`=AND($F${r0}>0,$G${r0}>0,$F${r0}<$G${r0})`, C_RED, 6);
+  add(`=AND($F${r0}>0,$G${r0}>0,$F${r0}>=$G${r0}*1.15)`, C_GREEN, 6);
 
   // PRICE (G) and Change% (H) - Green for positive, Red for negative
   add(`=$H${r0}>0`, C_GREEN, 7);
@@ -470,7 +472,7 @@ function applyConditionalFormatting(sh, r0, numRows, C_GREEN, C_RED, C_BLUE) {
   add(`=$N${r0}="BULL"`, C_GREEN, 14);
   add(`=$N${r0}="BEAR"`, C_RED, 14);
 
-  // SMAs (O/P/Q) - Green above SMA, Red below
+  // SMAs (O/P/Q) - Green when price >= SMA (bullish), Red when price < SMA (bearish)
   add(`=AND($O${r0}>0,$G${r0}>=$O${r0})`, C_GREEN, 15);
   add(`=AND($O${r0}>0,$G${r0}<$O${r0})`, C_RED, 15);
   add(`=AND($P${r0}>0,$G${r0}>=$P${r0})`, C_GREEN, 16);

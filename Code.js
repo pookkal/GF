@@ -59,14 +59,15 @@ function onEdit(e) {
       return;
     }
 
-    // Calculations refresh trigger (G1) to swithc Invest / Trade mode
+    // Calculations refresh trigger (G1) to switch Invest / Trade mode
     if (a1 === "G1") {
       try {
-        ss.toast("Calculations refreshing...", "⚙️ REFRESH", 6);
-        generateCalculationsSheet();
+        ss.toast("Updating signal formulas...", "⚙️ REFRESH", 3);
+        updateSignalFormulas();
         SpreadsheetApp.flush();
+        ss.toast("Signal formulas updated successfully", "✓ Complete", 2);
       } catch (err) {
-        ss.toast("Calculations refresh error: " + err.toString(), "⚠️ FAIL", 6);
+        ss.toast("Signal update error: " + err.toString(), "⚠️ FAIL", 6);
       }
       return;
     }
