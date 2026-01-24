@@ -1441,29 +1441,51 @@ function createReportChartInternal_(REPORT, ticker) {
       if (checkboxes.ATR_STOP) liveDataRow.push(atrStop || 0);
       if (checkboxes.ATR_TARGET) liveDataRow.push(atrTarget || 0);
       
-      // Add volume LAST - use proxy volume for today (same as updateDynamicChart)
+      // Add volume LAST - FIXED: Check if non-trading day, then use GOOGLEFINANCE volume
       if (checkboxes.VOLUME) {
-        // Get max volume from historical data for proxy calculation
-        const allHistoricalVols = raw.slice(4).map(r => Number(r[5])).filter(v => isFinite(v) && v > 0);
-        const maxHistVol = allHistoricalVols.length > 0 ? Math.max(...allHistoricalVols) : 1000000;
-        const proxyVolume = maxHistVol * 0.5; // Use 50% of max historical volume as proxy
+        let bullVol = 0;
+        let bearVol = 0;
         
-        // For live data, the open price is the last historical close (where today's trading started)
-        // Compare current live price (close) to today's open to determine bull/bear volume
-        const liveOpen = lastHistClose;
+        // Check if today is a non-trading day by comparing current price to last historical close
+        // If price hasn't changed, it's a non-trading day (market closed)
+        const priceChange = Math.abs(livePrice - lastHistClose);
+        const isNonTradingDay = priceChange < 0.01; // Price change less than 1 cent = non-trading day
         
-        // Validate open price
-        if (!liveOpen || isNaN(liveOpen) || liveOpen <= 0) {
-          console.log(`Warning - Invalid open price for live data (${liveOpen}), using live price as fallback`);
+        if (isNonTradingDay) {
+          // Non-trading day - use volume = 0
+          console.log(`Live volume: Non-trading day detected (price unchanged: ${livePrice} vs ${lastHistClose}), using volume=0`);
+        } else {
+          // Trading day - get actual volume from GOOGLEFINANCE
+          try {
+            const tempSheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+            const tempCell = tempSheet.getRange('Z2'); // Use a safe temporary cell
+            tempCell.setFormula(`=GOOGLEFINANCE("${ticker}","volume")`);
+            SpreadsheetApp.flush();
+            Utilities.sleep(500); // Give time for API call to complete
+            
+            const todayVolume = Number(tempCell.getValue()) || 0;
+            tempCell.clear(); // Clean up temporary formula
+            
+            console.log(`Today's volume from GOOGLEFINANCE: ${todayVolume}`);
+            
+            if (todayVolume > 0) {
+              // Market is open or has traded today - use actual volume
+              // For live data, the open price is the last historical close (where today's trading started)
+              const liveOpen = lastHistClose;
+              const isBullVolume = livePrice >= liveOpen;
+              
+              bullVol = isBullVolume ? todayVolume : 0;
+              bearVol = isBullVolume ? 0 : todayVolume;
+              
+              console.log(`Live volume: open=${liveOpen}, close=${livePrice}, volume=${todayVolume}, isBull=${isBullVolume}, bullVol=${bullVol}, bearVol=${bearVol}`);
+            } else {
+              console.log(`Live volume: GOOGLEFINANCE returned 0 volume`);
+            }
+          } catch (e) {
+            console.log(`Error fetching today's volume: ${e.toString()}, using volume=0`);
+            // On error, use 0 volume
+          }
         }
-        
-        const isBullVolume = livePrice >= liveOpen;
-        
-        // Use proxy volume for today's data
-        const bullVol = isBullVolume ? proxyVolume : 0;
-        const bearVol = isBullVolume ? 0 : proxyVolume;
-        
-        console.log(`Live volume: open=${liveOpen}, close=${livePrice}, proxy=${proxyVolume}, isBull=${isBullVolume}, bullVol=${bullVol}, bearVol=${bearVol}`);
         
         // Always add both bull and bear volume to maintain consistent column count
         liveDataRow.push(bullVol, bearVol);

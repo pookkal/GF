@@ -306,8 +306,8 @@ function writeFormulas(calc, tickers, SEP) {
   
   // Check if long-term signal mode is enabled
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const inputSheet = ss.getSheetByName('INPUT');
-  const useLongTermSignal = inputSheet.getRange('G1').getValue() === true;
+  const dashboard = ss.getSheetByName('DASHBOARD');
+  const useLongTermSignal = dashboard ? dashboard.getRange('H1').getValue() === true : false;
   
   // Get DATA sheet reference for pattern detection
   const dataSheet = ss.getSheetByName('DATA');
@@ -1017,7 +1017,7 @@ function displaySummary(total, errors) {
 }
 
 /**
- * OPTIMIZED: Update only SIGNAL (D) and DECISION (C) formulas when INPUT!G1 is toggled
+ * OPTIMIZED: Update only SIGNAL (D) and DECISION (C) formulas when DASHBOARD!H1 is toggled
  * This is much faster than regenerating the entire CALCULATIONS sheet
  * Only updates the formulas that depend on the useLongTermSignal flag
  */
@@ -1028,10 +1028,10 @@ function updateSignalFormulas() {
   try {
     // Get required sheets
     const calc = ss.getSheetByName("CALCULATIONS");
-    const inputSheet = ss.getSheetByName("INPUT");
+    const dashboard = ss.getSheetByName("DASHBOARD");
     
-    if (!calc || !inputSheet) {
-      ss.toast('Required sheets (CALCULATIONS or INPUT) not found.', '❌ Error', 3);
+    if (!calc || !dashboard) {
+      ss.toast('Required sheets (CALCULATIONS or DASHBOARD) not found.', '❌ Error', 3);
       return;
     }
 
@@ -1040,7 +1040,7 @@ function updateSignalFormulas() {
     const SEP = (/^(en|en_)/.test(locale)) ? "," : ";";
 
     // Check if long-term signal mode is enabled
-    const useLongTermSignal = inputSheet.getRange('G1').getValue() === true;
+    const useLongTermSignal = dashboard.getRange('H1').getValue() === true;
     
     // Get all tickers from column A (starting from row 3)
     const tickerRange = calc.getRange("A3:A").getValues();

@@ -438,10 +438,10 @@ function getChangePriority_(field, oldVal, newVal) {
  * @returns {boolean} True if should alert
  */
 function shouldAlert_(threshold, priority) {
-  if (threshold === 'ALL') return true;
+  if (threshold === 'All' || threshold === 'ALL') return true;
   if (threshold === 'CRITICAL') return priority === 'CRITICAL';
   if (threshold === 'HIGH') return priority === 'CRITICAL' || priority === 'HIGH';
-  return true; // Default to ALL
+  return true; // Default to All
 }
 
 /**
@@ -704,22 +704,22 @@ function cleanupOldHistory_(historySheet) {
 }
 
 /**
- * Get alert threshold from INPUT sheet (L1)
- * @returns {string} Threshold value (ALL, CRITICAL, HIGH)
+ * Get alert threshold from DASHBOARD sheet (P1)
+ * @returns {string} Threshold value (All, CRITICAL, HIGH)
  */
 function getAlertThreshold_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const inputSheet = ss.getSheetByName('INPUT');
+  const dashboard = ss.getSheetByName('DASHBOARD');
   
-  if (!inputSheet) {
-    return 'ALL'; // Default
+  if (!dashboard) {
+    return 'All'; // Default
   }
   
-  const threshold = String(inputSheet.getRange('L1').getValue() || 'ALL').trim().toUpperCase();
+  const threshold = String(dashboard.getRange('P1').getValue() || 'All').trim();
   
   // Validate threshold
-  if (['ALL', 'CRITICAL', 'HIGH'].indexOf(threshold) === -1) {
-    return 'ALL';
+  if (['All', 'CRITICAL', 'HIGH'].indexOf(threshold) === -1) {
+    return 'All';
   }
   
   return threshold;
@@ -755,43 +755,29 @@ function deleteMonitorTriggers_() {
  */
 function setupMonitorConfiguration() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const inputSheet = ss.getSheetByName('INPUT');
+  const dashboard = ss.getSheetByName('DASHBOARD');
   
-  if (!inputSheet) {
-    ss.toast('❌ INPUT sheet not found', 'Error', 3);
+  if (!dashboard) {
+    ss.toast('❌ DASHBOARD sheet not found', 'Error', 3);
     return;
   }
   
   try {
-    // K1: Label
-    inputSheet.getRange('K1')
-      .setValue('ALERT THRESHOLD:')
-      .setFontWeight('bold')
-      .setBackground('#E8EAF6')
-      .setHorizontalAlignment('right');
+    // Alert threshold is now in DASHBOARD P1
+    // This is automatically set up by setupControlRowDropdowns()
     
-    // L1: Dropdown value
-    const currentValue = inputSheet.getRange('L1').getValue();
-    if (!currentValue) {
-      inputSheet.getRange('L1').setValue('ALL');
-    }
+    ss.toast('✅ Alert threshold is configured in DASHBOARD P1', 'Info', 5);
     
-    // Add data validation dropdown
-    const rule = SpreadsheetApp.newDataValidation()
-      .requireValueInList(['ALL', 'HIGH', 'CRITICAL'], true)
-      .setAllowInvalid(false)
-      .setHelpText('ALL: All changes | HIGH: High + Critical only | CRITICAL: Critical only')
-      .build();
+    const ui = SpreadsheetApp.getUi();
+    ui.alert('ℹ️ Alert Configuration', 
+             'Alert threshold is now controlled from the DASHBOARD sheet.\n\n' +
+             '• Location: DASHBOARD P1 (ALERT dropdown)\n' +
+             '• Options: All, HIGH, CRITICAL\n' +
+             '• Default: All\n\n' +
+             'The dropdown is automatically configured when you build the dashboard.', 
+             ui.ButtonSet.OK);
     
-    inputSheet.getRange('L1')
-      .setDataValidation(rule)
-      .setBackground('#FFF9C4')
-      .setHorizontalAlignment('center')
-      .setFontWeight('bold');
-    
-    ss.toast('✅ Monitor configuration added to INPUT sheet (K1/L1)', 'Setup Complete', 5);
-    
-    Logger.log('Monitor configuration setup complete');
+    Logger.log('Monitor configuration info displayed');
     
   } catch (error) {
     Logger.log('Error in setupMonitorConfiguration: ' + error.toString());

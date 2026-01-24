@@ -50,10 +50,15 @@ function generateDataSheet() {
     // Get locale separator
     const SEP = (/^(en|en_)/.test(ss.getSpreadsheetLocale())) ? "," : ";";
 
-    // Row 2: Ticker headers + Market Regime headers
+    // ========================================================================
+    // ROW 2: Ticker headers + 52WH/52WL + Market Regime headers
+    // ========================================================================
     const row2 = new Array(finalTotalCols).fill("");
     for (let i = 0; i < tickers.length; i++) {
-      row2[i * colsPer] = tickers[i];
+      const b = i * colsPer;
+      row2[b] = tickers[i];
+      row2[b + 1] = "52WH";
+      row2[b + 3] = "52WL";
     }
     row2[regimeStartCol - 1] = "USA_REGIME";
     row2[regimeStartCol] = "USA_RATIO"; 
@@ -64,12 +69,21 @@ function generateDataSheet() {
     
     dataSheet.getRange(2, 1, 1, finalTotalCols)
       .setValues([row2])
-      .setNumberFormat("@")
       .setFontWeight("bold");
+    
+    // Add formulas for 52WH and 52WL values
+    for (let i = 0; i < tickers.length; i++) {
+      const t = tickers[i];
+      const c = (i * colsPer) + 1;
+      dataSheet.getRange(2, c + 2).setFormula(`=IFERROR(MAX(QUERY(GOOGLEFINANCE("${t}","high",TODAY()-365,TODAY()),"SELECT Col2 LABEL Col2 ''")),0)`);
+      dataSheet.getRange(2, c + 4).setFormula(`=IFERROR(MIN(QUERY(GOOGLEFINANCE("${t}","low",TODAY()-365,TODAY()),"SELECT Col2 LABEL Col2 ''")),0)`);
+    }
 
     ss.toast("Building formulas...", "⏳ Processing", 2);
 
-    // Row 3: Formulas for ATH / P-E / EPS + Market Regime
+    // ========================================================================
+    // ROW 3: ATH / P-E / EPS + Market Regime
+    // ========================================================================
     const row3Formulas = new Array(finalTotalCols).fill("");
     for (let i = 0; i < tickers.length; i++) {
       const t = tickers[i];
@@ -115,7 +129,7 @@ function generateDataSheet() {
     
     dataSheet.getRange(3, 1, 1, finalTotalCols).setFormulas([row3Formulas]);
 
-    // Write labels
+    // Write labels for row 3
     for (let i = 0; i < tickers.length; i++) {
       const c = (i * colsPer) + 1;
       dataSheet.getRange(3, c).setValue("ATH:");
@@ -125,7 +139,9 @@ function generateDataSheet() {
 
     ss.toast("Fetching historical data...", "⏳ Loading", 2);
 
-    // Row 4: GOOGLEFINANCE(all)
+    // ========================================================================
+    // ROW 4: GOOGLEFINANCE(all) - Historical data
+    // ========================================================================
     const row4Formulas = new Array(finalTotalCols).fill("");
     for (let i = 0; i < tickers.length; i++) {
       const t = tickers[i];
@@ -133,14 +149,21 @@ function generateDataSheet() {
     }
     dataSheet.getRange(4, 1, 1, finalTotalCols).setFormulas([row4Formulas]);
 
-    // Number formats
+    // ========================================================================
+    // NUMBER FORMATTING
+    // ========================================================================
     for (let i = 0; i < tickers.length; i++) {
       const c = (i * colsPer) + 1;
+      // Row 2: 52WH and 52WL formatting
+      dataSheet.getRange(2, c + 2).setNumberFormat("#,##0.00");
+      dataSheet.getRange(2, c + 4).setNumberFormat("#,##0.00");
+      // Row 3: ATH, P/E, EPS formatting
       dataSheet.getRange(3, c + 1).setNumberFormat("#,##0.00");
       dataSheet.getRange(3, c + 3).setNumberFormat("0.00");
       dataSheet.getRange(3, c + 5).setNumberFormat("0.00");
     }
     
+    // Market regime formatting
     dataSheet.getRange(3, regimeStartCol, 1, 1).setNumberFormat("@");
     dataSheet.getRange(3, regimeStartCol + 1, 1, 1).setNumberFormat("0.000");
     dataSheet.getRange(3, regimeStartCol + 2, 1, 1).setNumberFormat("0.0");
@@ -148,17 +171,41 @@ function generateDataSheet() {
     dataSheet.getRange(3, regimeStartCol + 4, 1, 1).setNumberFormat("0.000");
     dataSheet.getRange(3, regimeStartCol + 5, 1, 1).setNumberFormat("0.0");
 
-    // Label styling
+    // Historical data formatting
+    for (let i = 0; i < tickers.length; i++) {
+      const colStart = (i * colsPer) + 1;
+      dataSheet.getRange(5, colStart, 1000, 1).setNumberFormat("yyyy-mm-dd");
+      dataSheet.getRange(5, colStart + 1, 1000, 5).setNumberFormat("#,##0.00");
+    }
+
+    // ========================================================================
+    // STYLING
+    // ========================================================================
     const LABEL_BG = "#1F2937";
     const LABEL_FG = "#F9FAFB";
-    const labelA1s = [];
+    
+    // Row 2: 52WH/52WL label styling
+    const row2LabelA1s = [];
     for (let i = 0; i < tickers.length; i++) {
       const c = (i * colsPer) + 1;
-      labelA1s.push(dataSheet.getRange(3, c).getA1Notation());
-      labelA1s.push(dataSheet.getRange(3, c + 2).getA1Notation());
-      labelA1s.push(dataSheet.getRange(3, c + 4).getA1Notation());
+      row2LabelA1s.push(dataSheet.getRange(2, c + 1).getA1Notation());
+      row2LabelA1s.push(dataSheet.getRange(2, c + 3).getA1Notation());
     }
-    dataSheet.getRangeList(labelA1s)
+    dataSheet.getRangeList(row2LabelA1s)
+      .setBackground(LABEL_BG)
+      .setFontColor(LABEL_FG)
+      .setFontWeight("bold")
+      .setHorizontalAlignment("left");
+    
+    // Row 3: ATH/P/E/EPS label styling
+    const row3LabelA1s = [];
+    for (let i = 0; i < tickers.length; i++) {
+      const c = (i * colsPer) + 1;
+      row3LabelA1s.push(dataSheet.getRange(3, c).getA1Notation());
+      row3LabelA1s.push(dataSheet.getRange(3, c + 2).getA1Notation());
+      row3LabelA1s.push(dataSheet.getRange(3, c + 4).getA1Notation());
+    }
+    dataSheet.getRangeList(row3LabelA1s)
       .setBackground(LABEL_BG)
       .setFontColor(LABEL_FG)
       .setFontWeight("bold")
@@ -176,13 +223,6 @@ function generateDataSheet() {
       .setFontColor("#4A148C")
       .setFontWeight("bold")
       .setHorizontalAlignment("center");
-
-    // Historical formatting
-    for (let i = 0; i < tickers.length; i++) {
-      const colStart = (i * colsPer) + 1;
-      dataSheet.getRange(5, colStart, 1000, 1).setNumberFormat("yyyy-mm-dd");
-      dataSheet.getRange(5, colStart + 1, 1000, 5).setNumberFormat("#,##0.00");
-    }
 
     SpreadsheetApp.flush();
     

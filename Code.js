@@ -35,66 +35,82 @@ function onEdit(e) {
   // INPUT filters -> refresh dashboard
   // ------------------------------------------------------------
   if (sheet.getName() === "INPUT") {
-    // Dashboard refresh triggers (B1 or C1)
-    if (a1 === "B1" || a1 === "C1") {
-      try {
-        ss.toast("Dashboard refreshing...", "⚙️ REFRESH", 6);
-        generateDashboardSheet();
-        SpreadsheetApp.flush();
-      } catch (err) {
-        ss.toast("Dashboard filter refresh error: " + err.toString(), "⚠️ FAIL", 6);
-      }
-      return;
-    }
 
-    // Data refresh trigger (E1)
-    if (a1 === "E1") {
-      try {
-        ss.toast("Data refreshing...", "⚙️ REFRESH", 6);
-        generateDataSheet();
-        SpreadsheetApp.flush();
-      } catch (err) {
-        ss.toast("Data refresh error: " + err.toString(), "⚠️ FAIL", 6);
-      }
-      return;
-    }
-
-    // Calculations refresh trigger (G1) to switch Invest / Trade mode
-    if (a1 === "G1") {
-      try {
-        ss.toast("Updating signal formulas...", "⚙️ REFRESH", 3);
-        updateSignalFormulas();
-        SpreadsheetApp.flush();
-        ss.toast("Signal formulas updated successfully", "✓ Complete", 2);
-      } catch (err) {
-        ss.toast("Signal update error: " + err.toString(), "⚠️ FAIL", 6);
-      }
-      return;
-    }
   }
 
   // ------------------------------------------------------------
-  // DASHBOARD update controls:
-  // - B1 = Update CALCULATIONS + DASHBOARD
-  // - D1 = Update DASHBOARD only
+  // DASHBOARD control row handlers
   // ------------------------------------------------------------
-  if (sheet.getName() === "DASHBOARD" && (a1 === "B1" || a1 === "D1") && e.value === "TRUE") {
-    ss.toast("Refreshing Dashboard...", "⚙️ TERMINAL", 3);
-    try {
-      if (a1 === "B1") {
-        // Full refresh
-        generateCalculationsSheet();
+  if (sheet.getName() === "DASHBOARD") {
+    // Country filters (B1, D1)
+    if (a1 === "B1" || a1 === "D1") {
+      try {
+        updateCountryFilter();
+      } catch (err) {
+        ss.toast("Country filter error: " + err.toString(), "⚠️ FAIL", 3);
       }
-      // Dashboard refresh
-      generateDashboardSheet();
-      ss.toast("Dashboard Synchronized.", "✅ DONE", 2);
-    } catch (err) {
-      ss.toast("Error: " + err.toString(), "⚠️ FAIL", 6);
-    } finally {
-      // reset checkbox
-      sheet.getRange(a1).setValue(false);
+      return;
     }
-    return;
+
+    // Category filter (F1)
+    if (a1 === "F1") {
+      try {
+        updateCategoryFilter();
+      } catch (err) {
+        ss.toast("Category filter error: " + err.toString(), "⚠️ FAIL", 3);
+      }
+      return;
+    }
+
+    // Mode toggle (H1)
+    if (a1 === "H1") {
+      try {
+        syncModeToggle("DASHBOARD", "H1");
+      } catch (err) {
+        ss.toast("Mode toggle error: " + err.toString(), "⚠️ FAIL", 3);
+      }
+      return;
+    }
+
+    // Dashboard refresh (J1)
+    if (a1 === "J1" && e.value === "TRUE") {
+      try {
+        refreshDashboardDataFromCheckbox();
+      } catch (err) {
+        ss.toast("Dashboard refresh error: " + err.toString(), "⚠️ FAIL", 3);
+      }
+      return;
+    }
+
+    // Calculations refresh (L1)
+    if (a1 === "L1" && e.value === "TRUE") {
+      try {
+        refreshCalculations();
+      } catch (err) {
+        ss.toast("Calculations refresh error: " + err.toString(), "⚠️ FAIL", 3);
+      }
+      return;
+    }
+
+    // Data rebuild (N1)
+    if (a1 === "N1" && e.value === "TRUE") {
+      try {
+        rebuildDataSheet();
+      } catch (err) {
+        ss.toast("Data rebuild error: " + err.toString(), "⚠️ FAIL", 3);
+      }
+      return;
+    }
+
+    // Sort column change (B2)
+    if (a1 === "B2") {
+      try {
+        onSortColumnChange();
+      } catch (err) {
+        ss.toast("Sort error: " + err.toString(), "⚠️ FAIL", 3);
+      }
+      return;
+    }
   }
 
   // REPORT sheet controls - delegated to generateMobileDashboard.js
