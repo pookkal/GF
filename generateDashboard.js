@@ -227,23 +227,23 @@ function setupDashboardLayout(dashboard, SENTINEL) {
 
   // Clear any existing merges in row 3 to avoid merge conflicts
   try {
-    dashboard.getRange("A3:AG3").breakApart();
+    dashboard.getRange("A3:AI3").breakApart();
   } catch (e) {
     // Ignore if no merges exist
   }
 
-  dashboard.getRange("A3:AG3").clearContent();
+  dashboard.getRange("A3:AI3").clearContent();
   styleGroup("A3:A3", "IDENTITY", "#37474F");        // Dark Blue-Grey (A)
   styleGroup("B3:F3", "SIGNALING", "#1565C0");       // Blue (B-F: MARKET RATING, DECISION, SIGNAL, PATTERNS, CONSENSUS PRICE)
   styleGroup("G3:I3", "PRICE / VOLUME", "#D84315");  // Deep Orange (G-I: Price, Change%, Vol Trend)
-  styleGroup("J3:M3", "PERFORMANCE", "#1976D2");     // Medium Blue (J-M: ATH TRUE, ATH Diff%, ATH ZONE, FUNDAMENTAL)
-  styleGroup("N3:Q3", "TREND", "#00838F");           // Cyan (N-Q: Trend State, SMA 20/50/200)
-  styleGroup("R3:V3", "MOMENTUM", "#F57C00");        // Orange (R-V: RSI, MACD, Div, ADX, Stoch)
-  styleGroup("W3:Z3", "VOLATILITY", "#C62828");      // Red (W-Z: VOL REGIME, BBP SIGNAL, ATR, Bollinger %B)
-  styleGroup("AA3:AG3", "TARGET", "#AD1457");        // Pink (AA-AG: All target-related)
-  dashboard.getRange("A3:AG3").setWrap(true);
+  styleGroup("J3:O3", "PERFORMANCE", "#1976D2");     // Medium Blue (J-O: 52WH, 52WL, ATH TRUE, ATH Diff%, ATH ZONE, FUNDAMENTAL)
+  styleGroup("P3:S3", "TREND", "#00838F");           // Cyan (P-S: Trend State, SMA 20/50/200)
+  styleGroup("T3:X3", "MOMENTUM", "#F57C00");        // Orange (T-X: RSI, MACD, Div, ADX, Stoch)
+  styleGroup("Y3:AB3", "VOLATILITY", "#C62828");     // Red (Y-AB: VOL REGIME, BBP SIGNAL, ATR, Bollinger %B)
+  styleGroup("AC3:AI3", "TARGET", "#AD1457");        // Pink (AC-AI: All target-related)
+  dashboard.getRange("A3:AI3").setWrap(true);
 
-  // Row 4: Column headers (moved from old Row 3) - 33 columns A-AG
+  // Row 4: Column headers (moved from old Row 3) - 35 columns A-AI
   const headers = [[
     "Ticker",           // A
     "MARKET RATING",    // B (NEW)
@@ -254,33 +254,35 @@ function setupDashboardLayout(dashboard, SENTINEL) {
     "Price",            // G
     "Change %",         // H
     "Vol Trend",        // I
-    "ATH (TRUE)",       // J
-    "ATH Diff %",       // K
-    "ATH ZONE",         // L
-    "FUNDAMENTAL",      // M
-    "Trend State",      // N
-    "SMA 20",           // O
-    "SMA 50",           // P
-    "SMA 200",          // Q
-    "RSI",              // R
-    "MACD Hist",        // S
-    "Divergence",       // T
-    "ADX (14)",         // U
-    "Stoch %K (14)",    // V
-    "VOL REGIME",       // W
-    "BBP SIGNAL",       // X
-    "ATR (14)",         // Y
-    "Bollinger %B",     // Z
-    "Target (3:1)",     // AA
-    "R:R Quality",      // AB
-    "Support",          // AC
-    "Resistance",       // AD
-    "ATR STOP",         // AE
-    "ATR TARGET",       // AF
-    "POSITION SIZE"     // AG (33 columns total)
+    "52WH",             // J (NEW)
+    "52WL",             // K (NEW)
+    "ATH (TRUE)",       // L (shifted from J)
+    "ATH Diff %",       // M (shifted from K)
+    "ATH ZONE",         // N (shifted from L)
+    "FUNDAMENTAL",      // O (shifted from M)
+    "Trend State",      // P (shifted from N)
+    "SMA 20",           // Q (shifted from O)
+    "SMA 50",           // R (shifted from P)
+    "SMA 200",          // S (shifted from Q)
+    "RSI",              // T (shifted from R)
+    "MACD Hist",        // U (shifted from S)
+    "Divergence",       // V (shifted from T)
+    "ADX (14)",         // W (shifted from U)
+    "Stoch %K (14)",    // X (shifted from V)
+    "VOL REGIME",       // Y (shifted from W)
+    "BBP SIGNAL",       // Z (shifted from X)
+    "ATR (14)",         // AA (shifted from Y)
+    "Bollinger %B",     // AB (shifted from Z)
+    "Target (3:1)",     // AC (shifted from AA)
+    "R:R Quality",      // AD (shifted from AB)
+    "Support",          // AE (shifted from AC)
+    "Resistance",       // AF (shifted from AD)
+    "ATR STOP",         // AG (shifted from AE)
+    "ATR TARGET",       // AH (shifted from AF)
+    "POSITION SIZE"     // AI (shifted from AG) (35 columns total)
   ]];
 
-  dashboard.getRange(4, 1, 1, 33)
+  dashboard.getRange(4, 1, 1, 35)
     .setValues(headers)
     .setBackground("#0D0D0D").setFontColor("#FFD700").setFontWeight("bold")
     .setHorizontalAlignment("center").setVerticalAlignment("middle")
@@ -291,7 +293,7 @@ function setupDashboardLayout(dashboard, SENTINEL) {
   dashboard.setFrozenColumns(1);
 
   // Borders for rows 3-4 only (preserve row 1-2 borders from above)
-  dashboard.getRange("A3:AG4")
+  dashboard.getRange("A3:AI4")
     .setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID);
 
   // Sentinel note
@@ -302,8 +304,11 @@ function setupDashboardLayout(dashboard, SENTINEL) {
 }
 
 function refreshDashboardData(dashboard, ss, DATA_START_ROW, preserveCheckboxes = false) {
-  // Clear existing data (33 columns A-AG)
-  dashboard.getRange(DATA_START_ROW, 1, 1000, 33).clearContent();
+  // Get locale separator
+  const SEP = (/^(en|en_)/.test(ss.getSpreadsheetLocale())) ? "," : ";";
+  
+  // Clear existing data (35 columns A-AI)
+  dashboard.getRange(DATA_START_ROW, 1, 1000, 35).clearContent();
 
   // Only reset checkboxes on initial setup (not when filters change)
   if (!preserveCheckboxes) {
@@ -329,73 +334,76 @@ function refreshDashboardData(dashboard, ss, DATA_START_ROW, preserveCheckboxes 
     "Price": 7,
     "Change %": 8,
     "Vol Trend": 9,
-    "ATH (TRUE)": 10,
-    "ATH Diff %": 11,
-    "ATH ZONE": 12,
-    "FUNDAMENTAL": 13,
-    "Trend State": 14,
-    "SMA 20": 15,
-    "SMA 50": 16,
-    "SMA 200": 17,
-    "RSI": 18,
-    "MACD Hist": 19,
-    "Divergence": 20,
-    "ADX (14)": 21,
-    "Stoch %K (14)": 22,
-    "VOL REGIME": 23,
-    "BBP SIGNAL": 24,
-    "ATR (14)": 25,
-    "Bollinger %B": 26,
-    "Target (3:1)": 27,
-    "R:R Quality": 28,
-    "Support": 29,
-    "Resistance": 30,
-    "ATR STOP": 31,
-    "ATR TARGET": 32,
-    "POSITION SIZE": 33
+    "52WH": 10,
+    "52WL": 11,
+    "ATH (TRUE)": 12,
+    "ATH Diff %": 13,
+    "ATH ZONE": 14,
+    "FUNDAMENTAL": 15,
+    "Trend State": 16,
+    "SMA 20": 17,
+    "SMA 50": 18,
+    "SMA 200": 19,
+    "RSI": 20,
+    "MACD Hist": 21,
+    "Divergence": 22,
+    "ADX (14)": 23,
+    "Stoch %K (14)": 24,
+    "VOL REGIME": 25,
+    "BBP SIGNAL": 26,
+    "ATR (14)": 27,
+    "Bollinger %B": 28,
+    "Target (3:1)": 29,
+    "R:R Quality": 30,
+    "Support": 31,
+    "Resistance": 32,
+    "ATR STOP": 33,
+    "ATR TARGET": 34,
+    "POSITION SIZE": 35
   };
   
   const sortColumnIndex = columnMap[sortColumnName] || 8; // Default to column 8 (Change %)
 
-  // Filter formula - pulls columns from CALCULATIONS in CORRECT ORDER (matches CALCULATIONS exactly)
+  // Filter formula - pulls from CALCULATIONS with placeholder 0 for 52WH/52WL
   const filterFormula =
     '=IFERROR(' +
     'SORT(' +
     'FILTER({' +
     'CALCULATIONS!$A$3:$A,' +   // A: Ticker
-    'CALCULATIONS!$B$3:$B,' +   // B: MARKET RATING (NEW)
-    'CALCULATIONS!$C$3:$C,' +   // C: DECISION (shifted from B)
-    'CALCULATIONS!$D$3:$D,' +   // D: SIGNAL (shifted from C)
-    'CALCULATIONS!$E$3:$E,' +   // E: PATTERNS (shifted from D)
-    'CALCULATIONS!$F$3:$F,' +   // F: CONSENSUS PRICE (NEW)
-    'CALCULATIONS!$G$3:$G,' +   // G: Price (shifted from E)
-    'CALCULATIONS!$H$3:$H,' +   // H: Change % (shifted from F)
-    'CALCULATIONS!$I$3:$I,' +   // I: Vol Trend (shifted from G)
-    'CALCULATIONS!$J$3:$J,' +   // J: ATH (TRUE) (shifted from H)
-    'CALCULATIONS!$K$3:$K,' +   // K: ATH Diff % (shifted from I)
-    'CALCULATIONS!$L$3:$L,' +   // L: ATH ZONE (shifted from J)
-    'CALCULATIONS!$M$3:$M,' +   // M: FUNDAMENTAL (shifted from K)
-    'CALCULATIONS!$N$3:$N,' +   // N: Trend State (shifted from L)
-    'CALCULATIONS!$O$3:$O,' +   // O: SMA 20 (shifted from M)
-    'CALCULATIONS!$P$3:$P,' +   // P: SMA 50 (shifted from N)
-    'CALCULATIONS!$Q$3:$Q,' +   // Q: SMA 200 (shifted from O)
-    'CALCULATIONS!$R$3:$R,' +   // R: RSI (shifted from P)
-    'CALCULATIONS!$S$3:$S,' +   // S: MACD Hist (shifted from Q)
-    'CALCULATIONS!$T$3:$T,' +   // T: Divergence (shifted from R)
-    'CALCULATIONS!$U$3:$U,' +   // U: ADX (14) (shifted from S)
-    'CALCULATIONS!$V$3:$V,' +   // V: Stoch %K (14) (shifted from T)
-    'CALCULATIONS!$W$3:$W,' +   // W: VOL REGIME (shifted from U)
-    'CALCULATIONS!$X$3:$X,' +   // X: BBP SIGNAL (shifted from V)
-    'CALCULATIONS!$Y$3:$Y,' +   // Y: ATR (14) (shifted from W)
-    'CALCULATIONS!$Z$3:$Z,' +   // Z: Bollinger %B (shifted from X)
-    'CALCULATIONS!$AA$3:$AA,' + // AA: Target (3:1) (shifted from Y)
-    'CALCULATIONS!$AB$3:$AB,' + // AB: R:R Quality (shifted from Z)
-    'CALCULATIONS!$AC$3:$AC,' + // AC: Support (shifted from AA)
-    'CALCULATIONS!$AD$3:$AD,' + // AD: Resistance (shifted from AB)
-    'CALCULATIONS!$AE$3:$AE,' + // AE: ATR STOP (shifted from AC)
-    'CALCULATIONS!$AF$3:$AF,' + // AF: ATR TARGET (shifted from AD)
-    'CALCULATIONS!$AG$3:$AG' +  // AG: POSITION SIZE (shifted from AE)
-    // Note: LAST STATE (AH) is not included in DASHBOARD
+    'CALCULATIONS!$B$3:$B,' +   // B: MARKET RATING
+    'CALCULATIONS!$C$3:$C,' +   // C: DECISION
+    'CALCULATIONS!$D$3:$D,' +   // D: SIGNAL
+    'CALCULATIONS!$E$3:$E,' +   // E: PATTERNS
+    'CALCULATIONS!$F$3:$F,' +   // F: CONSENSUS PRICE
+    'CALCULATIONS!$G$3:$G,' +   // G: Price
+    'CALCULATIONS!$H$3:$H,' +   // H: Change %
+    'CALCULATIONS!$I$3:$I,' +   // I: Vol Trend
+    'CALCULATIONS!$AI$3:$AI,' + // J: 52WH (from CALCULATIONS AI)
+    'CALCULATIONS!$AJ$3:$AJ,' + // K: 52WL (from CALCULATIONS AJ)
+    'CALCULATIONS!$J$3:$J,' +   // L: ATH (TRUE)
+    'CALCULATIONS!$K$3:$K,' +   // M: ATH Diff %
+    'CALCULATIONS!$L$3:$L,' +   // N: ATH ZONE
+    'CALCULATIONS!$M$3:$M,' +   // O: FUNDAMENTAL
+    'CALCULATIONS!$N$3:$N,' +   // P: Trend State
+    'CALCULATIONS!$O$3:$O,' +   // Q: SMA 20
+    'CALCULATIONS!$P$3:$P,' +   // R: SMA 50
+    'CALCULATIONS!$Q$3:$Q,' +   // S: SMA 200
+    'CALCULATIONS!$R$3:$R,' +   // T: RSI
+    'CALCULATIONS!$S$3:$S,' +   // U: MACD Hist
+    'CALCULATIONS!$T$3:$T,' +   // V: Divergence
+    'CALCULATIONS!$U$3:$U,' +   // W: ADX (14)
+    'CALCULATIONS!$V$3:$V,' +   // X: Stoch %K (14)
+    'CALCULATIONS!$W$3:$W,' +   // Y: VOL REGIME
+    'CALCULATIONS!$X$3:$X,' +   // Z: BBP SIGNAL
+    'CALCULATIONS!$Y$3:$Y,' +   // AA: ATR (14)
+    'CALCULATIONS!$Z$3:$Z,' +   // AB: Bollinger %B
+    'CALCULATIONS!$AA$3:$AA,' + // AC: Target (3:1)
+    'CALCULATIONS!$AB$3:$AB,' + // AD: R:R Quality
+    'CALCULATIONS!$AC$3:$AC,' + // AE: Support
+    'CALCULATIONS!$AD$3:$AD,' + // AF: Resistance
+    'CALCULATIONS!$AE$3:$AE,' + // AG: ATR STOP
+    'CALCULATIONS!$AF$3:$AF,' + // AH: ATR TARGET
+    'CALCULATIONS!$AG$3:$AG' +  // AI: POSITION SIZE
     '},' +
     'ISNUMBER(MATCH(' +
     'CALCULATIONS!$A$3:$A,' +
@@ -403,15 +411,15 @@ function refreshDashboardData(dashboard, ss, DATA_START_ROW, preserveCheckboxes 
     'INPUT!$A$3:$A<>"",' +
     '(' +
     'IF(' +
-    'AND(DASHBOARD!$B$1=TRUE,DASHBOARD!$D$1=TRUE),' +  // Both USA and INDIA checked
-    'TRUE,' +  // Show all countries
+    'AND(DASHBOARD!$B$1=TRUE' + SEP + 'DASHBOARD!$D$1=TRUE),' +
+    '(INPUT!$B$3:$B<>"")*1,' +
     'IF(' +
-    'DASHBOARD!$B$1=TRUE,' +  // Only USA checked
-    'UPPER(TRIM(INPUT!$B$3:$B))="USA",' +
+    'DASHBOARD!$B$1=TRUE,' +
+    'IF(UPPER(TRIM(INPUT!$B$3:$B))="USA"' + SEP + '1' + SEP + '0),' +
     'IF(' +
-    'DASHBOARD!$D$1=TRUE,' +  // Only INDIA checked
-    'UPPER(TRIM(INPUT!$B$3:$B))="INDIA",' +
-    'TRUE' +  // Neither checked, show all
+    'DASHBOARD!$D$1=TRUE,' +
+    'IF(UPPER(TRIM(INPUT!$B$3:$B))="INDIA"' + SEP + '1' + SEP + '0),' +
+    '(INPUT!$B$3:$B<>"")*1' +
     ')' +
     ')' +
     ')' +
@@ -421,18 +429,18 @@ function refreshDashboardData(dashboard, ss, DATA_START_ROW, preserveCheckboxes 
     'IF(' +
     'OR(' +
     'DASHBOARD!$F$1="",' +
-    'REGEXMATCH(UPPER(DASHBOARD!$F$1),"(^|,\\s*)ALL(\\s*|,|$)")' +
+    'REGEXMATCH(UPPER(DASHBOARD!$F$1)' + SEP + '"(^|,\\s*)ALL(\\s*|,|$)")' +
     '),' +
-    'TRUE,' +
-    'REGEXMATCH(' +
-    '","&REGEXREPLACE(UPPER(TRIM(INPUT!$C$3:$C)),"\\s+","")&"," ,' +
-    '",\\s*(" & REGEXREPLACE(REGEXREPLACE(UPPER(TRIM(DASHBOARD!$F$1)),"\\s+",""),"\\s*,\\s*","|") & ")\\s*,"' +
-    ')' +
+    '(INPUT!$C$3:$C<>"")*1,' +
+    'IF(REGEXMATCH(' +
+    '","&REGEXREPLACE(UPPER(TRIM(INPUT!$C$3:$C))' + SEP + '"\\s+"' + SEP + '"")&"," ,' +
+    '",\\s*(" & REGEXREPLACE(REGEXREPLACE(UPPER(TRIM(DASHBOARD!$F$1))' + SEP + '"\\s+"' + SEP + '"")' + SEP + '"\\s*,\\s*"' + SEP + '"|") & ")\\s*,"' +
+    ')' + SEP + '1' + SEP + '0)' +
     ')' +
     ')' +
     '),0)' +
     '))' +
-    ',' + sortColumnIndex + ',FALSE' +  // Dynamic sort column, descending (FALSE = DESC)
+    ',' + sortColumnIndex + ',FALSE' +
     '),' +
     '"No Matches Found")';
 
@@ -453,7 +461,7 @@ function applyDataCellFormattingOnly_(sh, DATA_START_ROW) {
   const C_BLUE = "#E3F2FD";   // Light blue (default background)
   const C_GREEN = "#C8E6C9";  // Light green (positive)
   const C_RED = "#FFCDD2";    // Light red (negative)
-  const TOTAL_COLS = 33;
+  const TOTAL_COLS = 35;
 
   const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
@@ -471,7 +479,7 @@ function applyDataCellFormattingOnly_(sh, DATA_START_ROW) {
 
   const lastDataRow = findLastDataRow_();
   const numRows = Math.max(1, lastDataRow - DATA_START_ROW + 1);
-  const dataRange = sh.getRange(DATA_START_ROW, 1, numRows, 33);
+  const dataRange = sh.getRange(DATA_START_ROW, 1, numRows, 35);
 
   // Data range styling - LEFT ALIGNED with borders and BLACK text
   dataRange
@@ -486,31 +494,33 @@ function applyDataCellFormattingOnly_(sh, DATA_START_ROW) {
   // Add borders to all data cells
   dataRange.setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
 
-  // Number formats (updated for 33 columns A-AG)
+  // Number formats (updated for 35 columns A-AI)
   sh.getRange(DATA_START_ROW, 6, numRows, 1).setNumberFormat("#,##0.00");  // F: CONSENSUS PRICE
   sh.getRange(DATA_START_ROW, 7, numRows, 1).setNumberFormat("#,##0.00");  // G: Price
   sh.getRange(DATA_START_ROW, 8, numRows, 1).setNumberFormat("0.00%");     // H: Change%
   sh.getRange(DATA_START_ROW, 9, numRows, 1).setNumberFormat("0.00");      // I: Vol Trend (RVOL)
-  sh.getRange(DATA_START_ROW, 10, numRows, 1).setNumberFormat("#,##0.00"); // J: ATH (TRUE)
-  sh.getRange(DATA_START_ROW, 11, numRows, 1).setNumberFormat("0.00%");    // K: ATH Diff%
-  sh.getRange(DATA_START_ROW, 12, numRows, 1).setNumberFormat("@");        // L: ATH ZONE
-  sh.getRange(DATA_START_ROW, 13, numRows, 1).setNumberFormat("@");        // M: FUNDAMENTAL
-  sh.getRange(DATA_START_ROW, 15, numRows, 3).setNumberFormat("#,##0.00"); // O-Q: SMAs
-  sh.getRange(DATA_START_ROW, 18, numRows, 1).setNumberFormat("0.0");      // R: RSI
-  sh.getRange(DATA_START_ROW, 19, numRows, 1).setNumberFormat("0.000");    // S: MACD
-  sh.getRange(DATA_START_ROW, 21, numRows, 1).setNumberFormat("0.0");      // U: ADX
-  sh.getRange(DATA_START_ROW, 22, numRows, 1).setNumberFormat("0.00%");    // V: Stoch
-  sh.getRange(DATA_START_ROW, 23, numRows, 1).setNumberFormat("@");        // W: VOL REGIME
-  sh.getRange(DATA_START_ROW, 24, numRows, 1).setNumberFormat("@");        // X: BBP SIGNAL
-  sh.getRange(DATA_START_ROW, 25, numRows, 1).setNumberFormat("#,##0.00"); // Y: ATR
-  sh.getRange(DATA_START_ROW, 26, numRows, 1).setNumberFormat("0.00");     // Z: Bollinger %B
-  sh.getRange(DATA_START_ROW, 27, numRows, 1).setNumberFormat("#,##0.00"); // AA: Target (3:1)
-  sh.getRange(DATA_START_ROW, 28, numRows, 1).setNumberFormat("0.00");     // AB: R:R Quality
-  sh.getRange(DATA_START_ROW, 29, numRows, 1).setNumberFormat("#,##0.00"); // AC: Support
-  sh.getRange(DATA_START_ROW, 30, numRows, 1).setNumberFormat("#,##0.00"); // AD: Resistance
-  sh.getRange(DATA_START_ROW, 31, numRows, 1).setNumberFormat("#,##0.00"); // AE: ATR STOP
-  sh.getRange(DATA_START_ROW, 32, numRows, 1).setNumberFormat("#,##0.00"); // AF: ATR TARGET
-  sh.getRange(DATA_START_ROW, 33, numRows, 1).setNumberFormat("@");        // AG: POSITION SIZE
+  sh.getRange(DATA_START_ROW, 10, numRows, 1).setNumberFormat("#,##0.00"); // J: 52WH
+  sh.getRange(DATA_START_ROW, 11, numRows, 1).setNumberFormat("#,##0.00"); // K: 52WL
+  sh.getRange(DATA_START_ROW, 12, numRows, 1).setNumberFormat("#,##0.00"); // L: ATH (TRUE)
+  sh.getRange(DATA_START_ROW, 13, numRows, 1).setNumberFormat("0.00%");    // M: ATH Diff%
+  sh.getRange(DATA_START_ROW, 14, numRows, 1).setNumberFormat("@");        // N: ATH ZONE
+  sh.getRange(DATA_START_ROW, 15, numRows, 1).setNumberFormat("@");        // O: FUNDAMENTAL
+  sh.getRange(DATA_START_ROW, 16, numRows, 3).setNumberFormat("#,##0.00"); // P-R: SMAs
+  sh.getRange(DATA_START_ROW, 19, numRows, 1).setNumberFormat("0.0");      // S: RSI
+  sh.getRange(DATA_START_ROW, 20, numRows, 1).setNumberFormat("0.000");    // T: MACD
+  sh.getRange(DATA_START_ROW, 22, numRows, 1).setNumberFormat("0.0");      // V: ADX
+  sh.getRange(DATA_START_ROW, 23, numRows, 1).setNumberFormat("0.00%");    // W: Stoch
+  sh.getRange(DATA_START_ROW, 24, numRows, 1).setNumberFormat("@");        // X: VOL REGIME
+  sh.getRange(DATA_START_ROW, 25, numRows, 1).setNumberFormat("@");        // Y: BBP SIGNAL
+  sh.getRange(DATA_START_ROW, 26, numRows, 1).setNumberFormat("#,##0.00"); // Z: ATR
+  sh.getRange(DATA_START_ROW, 27, numRows, 1).setNumberFormat("0.00");     // AA: Bollinger %B
+  sh.getRange(DATA_START_ROW, 28, numRows, 1).setNumberFormat("#,##0.00"); // AB: Target (3:1)
+  sh.getRange(DATA_START_ROW, 29, numRows, 1).setNumberFormat("0.00");     // AC: R:R Quality
+  sh.getRange(DATA_START_ROW, 30, numRows, 1).setNumberFormat("#,##0.00"); // AD: Support
+  sh.getRange(DATA_START_ROW, 31, numRows, 1).setNumberFormat("#,##0.00"); // AE: Resistance
+  sh.getRange(DATA_START_ROW, 32, numRows, 1).setNumberFormat("#,##0.00"); // AF: ATR STOP
+  sh.getRange(DATA_START_ROW, 33, numRows, 1).setNumberFormat("#,##0.00"); // AG: ATR TARGET
+  sh.getRange(DATA_START_ROW, 34, numRows, 1).setNumberFormat("@");        // AH: POSITION SIZE
 
   // Apply conditional formatting rules
   applyConditionalFormatting(sh, DATA_START_ROW, numRows, C_GREEN, C_RED, C_BLUE);
@@ -523,7 +533,7 @@ function applyDashboardBloombergFormatting_(sh, DATA_START_ROW) {
   const C_GREEN = "#C8E6C9";  // Light green (positive)
   const C_RED = "#FFCDD2";    // Light red (negative)
   const HEADER_DARK = "#1F1F1F";
-  const TOTAL_COLS = 33; // Updated to 33 columns (A-AG, includes MARKET RATING and CONSENSUS PRICE)
+  const TOTAL_COLS = 35; // Updated to 35 columns (A-AI, includes MARKET RATING, CONSENSUS PRICE, 52WH, 52WL)
 
   const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
@@ -557,7 +567,7 @@ function applyDashboardBloombergFormatting_(sh, DATA_START_ROW) {
   safeHideNotes_();
   const lastDataRow = findLastDataRow_();
   const numRows = Math.max(1, lastDataRow - DATA_START_ROW + 1);
-  const dataRange = sh.getRange(DATA_START_ROW, 1, numRows, 33); // Updated to 33 columns
+  const dataRange = sh.getRange(DATA_START_ROW, 1, numRows, 35); // Updated to 35 columns
 
   // Header styling
   // Row 1: Control row (all controls A1-P1) - preserve existing styling from setupDashboardLayout
@@ -606,31 +616,33 @@ function applyDashboardBloombergFormatting_(sh, DATA_START_ROW) {
   sh.getRange(3, 1, 2, TOTAL_COLS)
     .setBorder(true, true, true, true, true, true, "#FFFFFF", SpreadsheetApp.BorderStyle.SOLID);
 
-  // Number formats (updated for 33 columns A-AG)
+  // Number formats (updated for 35 columns A-AI)
   sh.getRange(DATA_START_ROW, 6, numRows, 1).setNumberFormat("#,##0.00");  // F: CONSENSUS PRICE
   sh.getRange(DATA_START_ROW, 7, numRows, 1).setNumberFormat("#,##0.00");  // G: Price
   sh.getRange(DATA_START_ROW, 8, numRows, 1).setNumberFormat("0.00%");     // H: Change%
   sh.getRange(DATA_START_ROW, 9, numRows, 1).setNumberFormat("0.00");      // I: Vol Trend (RVOL)
-  sh.getRange(DATA_START_ROW, 10, numRows, 1).setNumberFormat("#,##0.00"); // J: ATH (TRUE)
-  sh.getRange(DATA_START_ROW, 11, numRows, 1).setNumberFormat("0.00%");    // K: ATH Diff%
-  sh.getRange(DATA_START_ROW, 12, numRows, 1).setNumberFormat("@");        // L: ATH ZONE
-  sh.getRange(DATA_START_ROW, 13, numRows, 1).setNumberFormat("@");        // M: FUNDAMENTAL
-  sh.getRange(DATA_START_ROW, 15, numRows, 3).setNumberFormat("#,##0.00"); // O-Q: SMAs
-  sh.getRange(DATA_START_ROW, 18, numRows, 1).setNumberFormat("0.0");      // R: RSI
-  sh.getRange(DATA_START_ROW, 19, numRows, 1).setNumberFormat("0.000");    // S: MACD
-  sh.getRange(DATA_START_ROW, 21, numRows, 1).setNumberFormat("0.0");      // U: ADX
-  sh.getRange(DATA_START_ROW, 22, numRows, 1).setNumberFormat("0.00%");    // V: Stoch
-  sh.getRange(DATA_START_ROW, 23, numRows, 1).setNumberFormat("@");        // W: VOL REGIME
-  sh.getRange(DATA_START_ROW, 24, numRows, 1).setNumberFormat("@");        // X: BBP SIGNAL
-  sh.getRange(DATA_START_ROW, 25, numRows, 1).setNumberFormat("#,##0.00"); // Y: ATR
-  sh.getRange(DATA_START_ROW, 26, numRows, 1).setNumberFormat("0.00");     // Z: Bollinger %B
-  sh.getRange(DATA_START_ROW, 27, numRows, 1).setNumberFormat("#,##0.00"); // AA: Target (3:1)
-  sh.getRange(DATA_START_ROW, 28, numRows, 1).setNumberFormat("0.00");     // AB: R:R Quality
-  sh.getRange(DATA_START_ROW, 29, numRows, 1).setNumberFormat("#,##0.00"); // AC: Support
-  sh.getRange(DATA_START_ROW, 30, numRows, 1).setNumberFormat("#,##0.00"); // AD: Resistance
-  sh.getRange(DATA_START_ROW, 31, numRows, 1).setNumberFormat("#,##0.00"); // AE: ATR STOP
-  sh.getRange(DATA_START_ROW, 32, numRows, 1).setNumberFormat("#,##0.00"); // AF: ATR TARGET
-  sh.getRange(DATA_START_ROW, 33, numRows, 1).setNumberFormat("@");        // AG: POSITION SIZE
+  sh.getRange(DATA_START_ROW, 10, numRows, 1).setNumberFormat("#,##0.00"); // J: 52WH
+  sh.getRange(DATA_START_ROW, 11, numRows, 1).setNumberFormat("#,##0.00"); // K: 52WL
+  sh.getRange(DATA_START_ROW, 12, numRows, 1).setNumberFormat("#,##0.00"); // L: ATH (TRUE)
+  sh.getRange(DATA_START_ROW, 13, numRows, 1).setNumberFormat("0.00%");    // M: ATH Diff%
+  sh.getRange(DATA_START_ROW, 14, numRows, 1).setNumberFormat("@");        // N: ATH ZONE
+  sh.getRange(DATA_START_ROW, 15, numRows, 1).setNumberFormat("@");        // O: FUNDAMENTAL
+  sh.getRange(DATA_START_ROW, 16, numRows, 3).setNumberFormat("#,##0.00"); // P-R: SMAs
+  sh.getRange(DATA_START_ROW, 19, numRows, 1).setNumberFormat("0.0");      // S: RSI
+  sh.getRange(DATA_START_ROW, 20, numRows, 1).setNumberFormat("0.000");    // T: MACD
+  sh.getRange(DATA_START_ROW, 22, numRows, 1).setNumberFormat("0.0");      // V: ADX
+  sh.getRange(DATA_START_ROW, 23, numRows, 1).setNumberFormat("0.00%");    // W: Stoch
+  sh.getRange(DATA_START_ROW, 24, numRows, 1).setNumberFormat("@");        // X: VOL REGIME
+  sh.getRange(DATA_START_ROW, 25, numRows, 1).setNumberFormat("@");        // Y: BBP SIGNAL
+  sh.getRange(DATA_START_ROW, 26, numRows, 1).setNumberFormat("#,##0.00"); // Z: ATR
+  sh.getRange(DATA_START_ROW, 27, numRows, 1).setNumberFormat("0.00");     // AA: Bollinger %B
+  sh.getRange(DATA_START_ROW, 28, numRows, 1).setNumberFormat("#,##0.00"); // AB: Target (3:1)
+  sh.getRange(DATA_START_ROW, 29, numRows, 1).setNumberFormat("0.00");     // AC: R:R Quality
+  sh.getRange(DATA_START_ROW, 30, numRows, 1).setNumberFormat("#,##0.00"); // AD: Support
+  sh.getRange(DATA_START_ROW, 31, numRows, 1).setNumberFormat("#,##0.00"); // AE: Resistance
+  sh.getRange(DATA_START_ROW, 32, numRows, 1).setNumberFormat("#,##0.00"); // AF: ATR STOP
+  sh.getRange(DATA_START_ROW, 33, numRows, 1).setNumberFormat("#,##0.00"); // AG: ATR TARGET
+  sh.getRange(DATA_START_ROW, 34, numRows, 1).setNumberFormat("@");        // AH: POSITION SIZE
 
   // Apply conditional formatting rules
   applyConditionalFormatting(sh, DATA_START_ROW, numRows, C_GREEN, C_RED, C_BLUE);
@@ -683,84 +695,92 @@ function applyConditionalFormatting(sh, r0, numRows, C_GREEN, C_RED, C_BLUE) {
   add(`=$I${r0}>=1.5`, C_GREEN, 9);
   add(`=$I${r0}<=0.85`, C_RED, 9);
 
-  // ATH (TRUE) (J) - Green near ATH, Red far from ATH
-  add(`=AND($J${r0}>0,$G${r0}>=$J${r0}*0.995)`, C_GREEN, 10);
+  // 52WH (J) - Green near 52WH, Red far from 52WH
+  add(`=AND($J${r0}>0,$G${r0}>=$J${r0}*0.95)`, C_GREEN, 10);
   add(`=AND($J${r0}>0,$G${r0}<=$J${r0}*0.80)`, C_RED, 10);
 
-  // ATH Diff % (K) - Green near ATH, Red far from ATH
-  add(`=$K${r0}>=-0.05`, C_GREEN, 11);
-  add(`=$K${r0}<=-0.20`, C_RED, 11);
+  // 52WL (K) - Green far above 52WL, Red near 52WL
+  add(`=AND($K${r0}>0,$G${r0}>=$K${r0}*1.20)`, C_GREEN, 11);
+  add(`=AND($K${r0}>0,$G${r0}<=$K${r0}*1.05)`, C_RED, 11);
 
-  // ATH ZONE (L) - Green at/near ATH, Red in correction
-  add(`=REGEXMATCH($L${r0},"AT ATH|NEAR ATH")`, C_GREEN, 12);
-  add(`=REGEXMATCH($L${r0},"DEEP VALUE|CORRECTION")`, C_RED, 12);
+  // ATH (TRUE) (L) - Green near ATH, Red far from ATH
+  add(`=AND($L${r0}>0,$G${r0}>=$L${r0}*0.995)`, C_GREEN, 12);
+  add(`=AND($L${r0}>0,$G${r0}<=$L${r0}*0.80)`, C_RED, 12);
 
-  // FUNDAMENTAL (M) - Green for value, Red for expensive
-  add(`=$M${r0}="VALUE"`, C_GREEN, 13);
-  add(`=REGEXMATCH($M${r0},"EXPENSIVE|PRICED FOR PERFECTION|ZOMBIE")`, C_RED, 13);
+  // ATH Diff % (M) - Green near ATH, Red far from ATH
+  add(`=$M${r0}>=-0.05`, C_GREEN, 13);
+  add(`=$M${r0}<=-0.20`, C_RED, 13);
 
-  // Trend State (N) - Green for bull, Red for bear
-  add(`=$N${r0}="BULL"`, C_GREEN, 14);
-  add(`=$N${r0}="BEAR"`, C_RED, 14);
+  // ATH ZONE (N) - Green at/near ATH, Red in correction
+  add(`=REGEXMATCH($N${r0},"AT ATH|NEAR ATH")`, C_GREEN, 14);
+  add(`=REGEXMATCH($N${r0},"DEEP VALUE|CORRECTION")`, C_RED, 14);
 
-  // SMAs (O/P/Q) - Green when price >= SMA (bullish), Red when price < SMA (bearish)
-  add(`=AND($O${r0}>0,$G${r0}>=$O${r0})`, C_GREEN, 15);
-  add(`=AND($O${r0}>0,$G${r0}<$O${r0})`, C_RED, 15);
-  add(`=AND($P${r0}>0,$G${r0}>=$P${r0})`, C_GREEN, 16);
-  add(`=AND($P${r0}>0,$G${r0}<$P${r0})`, C_RED, 16);
+  // FUNDAMENTAL (O) - Green for value, Red for expensive
+  add(`=$O${r0}="VALUE"`, C_GREEN, 15);
+  add(`=REGEXMATCH($O${r0},"EXPENSIVE|PRICED FOR PERFECTION|ZOMBIE")`, C_RED, 15);
+
+  // Trend State (P) - Green for bull, Red for bear
+  add(`=$P${r0}="BULL"`, C_GREEN, 16);
+  add(`=$P${r0}="BEAR"`, C_RED, 16);
+
+  // SMAs (Q/R/S) - Green when price >= SMA (bullish), Red when price < SMA (bearish)
   add(`=AND($Q${r0}>0,$G${r0}>=$Q${r0})`, C_GREEN, 17);
   add(`=AND($Q${r0}>0,$G${r0}<$Q${r0})`, C_RED, 17);
+  add(`=AND($R${r0}>0,$G${r0}>=$R${r0})`, C_GREEN, 18);
+  add(`=AND($R${r0}>0,$G${r0}<$R${r0})`, C_RED, 18);
+  add(`=AND($S${r0}>0,$G${r0}>=$S${r0})`, C_GREEN, 19);
+  add(`=AND($S${r0}>0,$G${r0}<$S${r0})`, C_RED, 19);
 
-  // RSI (R) - Green oversold (opportunity), Red overbought
-  add(`=$R${r0}<=30`, C_GREEN, 18);
-  add(`=$R${r0}>=70`, C_RED, 18);
+  // RSI (T) - Green oversold (opportunity), Red overbought
+  add(`=$T${r0}<=30`, C_GREEN, 20);
+  add(`=$T${r0}>=70`, C_RED, 20);
 
-  // MACD Hist (S) - Green positive, Red negative
-  add(`=$S${r0}>0`, C_GREEN, 19);
-  add(`=$S${r0}<0`, C_RED, 19);
+  // MACD Hist (U) - Green positive, Red negative
+  add(`=$U${r0}>0`, C_GREEN, 21);
+  add(`=$U${r0}<0`, C_RED, 21);
 
-  // Divergence (T) - Green bullish, Red bearish
-  add(`=REGEXMATCH($T${r0},"BULL")`, C_GREEN, 20);
-  add(`=REGEXMATCH($T${r0},"BEAR")`, C_RED, 20);
+  // Divergence (V) - Green bullish, Red bearish
+  add(`=REGEXMATCH($V${r0},"BULL")`, C_GREEN, 22);
+  add(`=REGEXMATCH($V${r0},"BEAR")`, C_RED, 22);
 
-  // ADX (U) - Green strong trend, no red (weak trend stays blue)
-  add(`=$U${r0}>=25`, C_GREEN, 21);
+  // ADX (W) - Green strong trend, no red (weak trend stays blue)
+  add(`=$W${r0}>=25`, C_GREEN, 23);
 
-  // Stoch %K (V) - Green oversold, Red overbought
-  add(`=$V${r0}<=0.2`, C_GREEN, 22);
-  add(`=$V${r0}>=0.8`, C_RED, 22);
+  // Stoch %K (X) - Green oversold, Red overbought
+  add(`=$X${r0}<=0.2`, C_GREEN, 24);
+  add(`=$X${r0}>=0.8`, C_RED, 24);
 
-  // VOL REGIME (W) - Green low vol, Red extreme vol
-  add(`=$W${r0}="LOW VOL"`, C_GREEN, 23);
-  add(`=$W${r0}="EXTREME VOL"`, C_RED, 23);
+  // VOL REGIME (Y) - Green low vol, Red extreme vol
+  add(`=$Y${r0}="LOW VOL"`, C_GREEN, 25);
+  add(`=$Y${r0}="EXTREME VOL"`, C_RED, 25);
 
-  // BBP SIGNAL (X) - Green oversold/mean reversion, Red overbought
-  add(`=REGEXMATCH($X${r0},"EXTREME OVERSOLD|MEAN REVERSION")`, C_GREEN, 24);
-  add(`=REGEXMATCH($X${r0},"EXTREME OVERBOUGHT")`, C_RED, 24);
+  // BBP SIGNAL (Z) - Green oversold/mean reversion, Red overbought
+  add(`=REGEXMATCH($Z${r0},"EXTREME OVERSOLD|MEAN REVERSION")`, C_GREEN, 26);
+  add(`=REGEXMATCH($Z${r0},"EXTREME OVERBOUGHT")`, C_RED, 26);
 
-  // ATR (Y) - Green low volatility, Red high volatility
-  add(`=IFERROR($Y${r0}/$G${r0},0)<=0.02`, C_GREEN, 25);
-  add(`=IFERROR($Y${r0}/$G${r0},0)>=0.05`, C_RED, 25);
+  // ATR (AA) - Green low volatility, Red high volatility
+  add(`=IFERROR($AA${r0}/$G${r0},0)<=0.02`, C_GREEN, 27);
+  add(`=IFERROR($AA${r0}/$G${r0},0)>=0.05`, C_RED, 27);
 
-  // Bollinger %B (Z) - Green oversold, Red overbought
-  add(`=$Z${r0}<=0.2`, C_GREEN, 26);
-  add(`=$Z${r0}>=0.8`, C_RED, 26);
+  // Bollinger %B (AB) - Green oversold, Red overbought
+  add(`=$AB${r0}<=0.2`, C_GREEN, 28);
+  add(`=$AB${r0}>=0.8`, C_RED, 28);
 
-  // Target (AA) - Green good upside, Red limited upside
-  add(`=AND($AA${r0}>0,$AA${r0}>=$G${r0}*1.05)`, C_GREEN, 27);
-  add(`=AND($AA${r0}>0,$AA${r0}<=$G${r0}*1.01)`, C_RED, 27);
+  // Target (AC) - Green good upside, Red limited upside
+  add(`=AND($AC${r0}>0,$AC${r0}>=$G${r0}*1.05)`, C_GREEN, 29);
+  add(`=AND($AC${r0}>0,$AC${r0}<=$G${r0}*1.01)`, C_RED, 29);
 
-  // R:R Quality (AB) - Green good R:R, Red poor R:R
-  add(`=$AB${r0}>=3`, C_GREEN, 28);
-  add(`=$AB${r0}<=1`, C_RED, 28);
+  // R:R Quality (AD) - Green good R:R, Red poor R:R
+  add(`=$AD${r0}>=3`, C_GREEN, 30);
+  add(`=$AD${r0}<=1`, C_RED, 30);
 
-  // Support (AC) - Green at/near support, Red below support
-  add(`=AND($AC${r0}>0,$G${r0}>=$AC${r0},$G${r0}<=$AC${r0}*1.01)`, C_GREEN, 29);
-  add(`=AND($AC${r0}>0,$G${r0}<$AC${r0})`, C_RED, 29);
+  // Support (AE) - Green at/near support, Red below support
+  add(`=AND($AE${r0}>0,$G${r0}>=$AE${r0},$G${r0}<=$AE${r0}*1.01)`, C_GREEN, 31);
+  add(`=AND($AE${r0}>0,$G${r0}<$AE${r0})`, C_RED, 31);
 
-  // Resistance (AD) - Green far from resistance, Red at resistance
-  add(`=AND($AD${r0}>0,$G${r0}<=$AD${r0}*0.90)`, C_GREEN, 30);
-  add(`=AND($AD${r0}>0,$G${r0}>=$AD${r0}*0.995)`, C_RED, 30);
+  // Resistance (AF) - Green far from resistance, Red at resistance
+  add(`=AND($AF${r0}>0,$G${r0}<=$AF${r0}*0.90)`, C_GREEN, 32);
+  add(`=AND($AF${r0}>0,$G${r0}>=$AF${r0}*0.995)`, C_RED, 32);
 
   sh.setConditionalFormatRules(rules);
 }
@@ -1345,7 +1365,7 @@ function setupControlRowDropdowns() {
   dashboard.getRange('P1').setDataValidation(alertRule);
   
   // Setup Sort dropdown (B2)
-  const headers = dashboard.getRange('B4:AG4').getValues()[0]
+  const headers = dashboard.getRange('B4:AI4').getValues()[0]
     .filter(h => h !== '');
   
   const sortRule = SpreadsheetApp.newDataValidation()

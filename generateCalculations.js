@@ -9,7 +9,7 @@
 const DELAY_AFTER_MAIN_FORMULAS = 12500;  // 12.5 seconds - allows calculation engine to process bulk formulas (columns E-AF)
 const DELAY_AFTER_CD_FORMULAS = 2000;     // 2 seconds - shorter delay for smaller formula set (columns C-D)
 
-// Column headers for CALCULATIONS sheet (34 columns: A-AH)
+// Column headers for CALCULATIONS sheet (36 columns: A-AJ)
 const CALC_HEADERS = [
   'Ticker',           // A
   'MARKET RATING',    // B (NEW - references INPUT D)
@@ -44,7 +44,9 @@ const CALC_HEADERS = [
   'ATR STOP',         // AE (shifted from AC)
   'ATR TARGET',       // AF (shifted from AD)
   'POSITION SIZE',    // AG (shifted from AE)
-  'LAST STATE'        // AH (shifted from AF)
+  'LAST STATE',       // AH (shifted from AF)
+  '52WH',             // AI (NEW)
+  '52WL'              // AJ (NEW)
 ];
 
 function generateCalculationsSheet() {
@@ -76,10 +78,10 @@ function generateCalculationsSheet() {
     // Clear existing content
     calc.clear().clearFormats();
 
-    // Ensure sheet has enough columns (34 total: A-AH)
+    // Ensure sheet has enough columns (36 total: A-AJ)
     const maxCols = calc.getMaxColumns();
-    if (maxCols < 34) {
-      calc.insertColumnsAfter(maxCols, 34 - maxCols);
+    if (maxCols < 36) {
+      calc.insertColumnsAfter(maxCols, 36 - maxCols);
     }
 
     // PHASE 1: Setup headers
@@ -144,6 +146,7 @@ function setupHeaders(calc, ss, SEP) {
   styleGroup("W1:Z1", "VOLATILITY", COLORS.VOLATILITY);  // Shifted from U1:X1
   styleGroup("AA1:AG1", "TARGET", COLORS.TARGET);  // Shifted from Y1:AE1
   styleGroup("AH1:AH1", "NOTES", COLORS.NOTES);  // Shifted from AF1
+  styleGroup("AI1:AJ1", "PERFORMANCE", COLORS.PERFORMANCE);  // NEW: 52WH, 52WL
 
   // Timestamp in AH1
   calc.getRange("AH1")
@@ -166,11 +169,12 @@ function setupHeaders(calc, ss, SEP) {
     COLORS.VOLATILITY, COLORS.VOLATILITY, COLORS.VOLATILITY, COLORS.VOLATILITY,  // W-Z: VOL REGIME, BBP SIGNAL, ATR, Bollinger %B
     COLORS.TARGET, COLORS.TARGET,  // AA-AB: Target, R:R Quality
     COLORS.TARGET, COLORS.TARGET, COLORS.TARGET, COLORS.TARGET, COLORS.TARGET,  // AC-AG: Support, Resistance, ATR STOP/TARGET, Position Size
-    COLORS.NOTES  // AH: LAST STATE
+    COLORS.NOTES,  // AH: LAST STATE
+    COLORS.PERFORMANCE, COLORS.PERFORMANCE  // AI-AJ: 52WH, 52WL
   ];
 
   // Set Row 2 headers with group colors
-  calc.getRange(2, 1, 1, 34)
+  calc.getRange(2, 1, 1, 36)
     .setValues([CALC_HEADERS])
     .setFontColor("white")
     .setFontWeight("bold")
@@ -373,19 +377,19 @@ function writeFormulas(calc, tickers, SEP) {
   const phase1Data = [];
   for (let i = 0; i < allFormulas.length; i++) {
     if (allFormulas[i] && allFormulas[i].formulas) {
-      const sliced = allFormulas[i].formulas.slice(5); // Indices 5-32 (28 columns: G-AH)
+      const sliced = allFormulas[i].formulas.slice(5); // Indices 5-34 (30 columns: G-AJ)
       
       // Validate slice length
-      if (sliced.length !== 28) {
-        Logger.log(`WARNING: ${allFormulas[i].ticker} Phase 1 has ${sliced.length} elements, expected 28. Formula array length: ${allFormulas[i].formulas.length}`);
-        // Pad or trim to exactly 28 elements
-        while (sliced.length < 28) sliced.push('');
-        if (sliced.length > 28) sliced.length = 28;
+      if (sliced.length !== 30) {
+        Logger.log(`WARNING: ${allFormulas[i].ticker} Phase 1 has ${sliced.length} elements, expected 30. Formula array length: ${allFormulas[i].formulas.length}`);
+        // Pad or trim to exactly 30 elements
+        while (sliced.length < 30) sliced.push('');
+        if (sliced.length > 30) sliced.length = 30;
       }
       
       phase1Data.push(sliced);
     } else {
-      phase1Data.push(new Array(28).fill('')); // Empty row for failed formulas
+      phase1Data.push(new Array(30).fill('')); // Empty row for failed formulas
     }
   }
   
@@ -393,13 +397,13 @@ function writeFormulas(calc, tickers, SEP) {
     if (phase1Data.length > 0) {
       // Final validation before writing
       for (let i = 0; i < phase1Data.length; i++) {
-        if (phase1Data[i].length !== 28) {
+        if (phase1Data[i].length !== 30) {
           throw new Error(`Row ${i} has ${phase1Data[i].length} columns, expected 28`);
         }
       }
       
-      calc.getRange(3, 7, phase1Data.length, 28).setFormulas(phase1Data);
-      Logger.log(`Phase 1 complete: Wrote formulas for columns G-AH (${phase1Data.length} tickers)`);
+      calc.getRange(3, 7, phase1Data.length, 30).setFormulas(phase1Data);
+      Logger.log(`Phase 1 complete: Wrote formulas for columns G-AJ (${phase1Data.length} tickers)`);
     }
   } catch (writeError) {
     Logger.log(`Error writing Phase 1 formulas: ${writeError.message}`);
@@ -599,12 +603,14 @@ function generateTickerFormulas(ticker, row, index, BLOCK, SEP, useLongTermSigna
       `=ROUND(MAX($AC${row}${SEP}$G${row}-($Y${row}*2))${SEP}2)`,        // AE: ATR STOP (shifted from AC)
       `=ROUND($G${row}+($Y${row}*3)${SEP}2)`,                             // AF: ATR TARGET (shifted from AD)
       buildPositionSizeFormula(row, SEP),                                 // AG: POSITION SIZE (shifted from AE) - uses K and AB not L and AC!
-      `=IF($A${row}=""${SEP}""${SEP}$C${row})`                            // AH: LAST STATE (shifted from AF) (references DECISION)
+      `=IF($A${row}=""${SEP}""${SEP}$C${row})`,                           // AH: LAST STATE (shifted from AF) (references DECISION)
+      `=IFERROR(INDEX(DATA!$2:$2${SEP}1${SEP}MATCH($A${row}${SEP}DATA!$2:$2${SEP}0)+2)${SEP}0)`, // AI: 52WH (NEW)
+      `=IFERROR(INDEX(DATA!$2:$2${SEP}1${SEP}MATCH($A${row}${SEP}DATA!$2:$2${SEP}0)+4)${SEP}0)`  // AJ: 52WL (NEW)
     ];
     
-    // Validate that we have exactly 33 formulas
-    if (formulas.length !== 33) {
-      throw new Error(`Formula count mismatch: expected 33, got ${formulas.length}`);
+    // Validate that we have exactly 35 formulas
+    if (formulas.length !== 35) {
+      throw new Error(`Formula count mismatch: expected 35, got ${formulas.length}`);
     }
     
     // Validate that all formulas are strings

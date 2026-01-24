@@ -51,27 +51,29 @@ function generateDataSheet() {
     const SEP = (/^(en|en_)/.test(ss.getSpreadsheetLocale())) ? "," : ";";
 
     // ========================================================================
-    // ROW 2: Ticker headers + 52WH/52WL + Market Regime headers
+    // STEP 1: Write formulas to fetch data
     // ========================================================================
-    const row2 = new Array(finalTotalCols).fill("");
+    ss.toast("Building formulas...", "⏳ Processing", 2);
+
+    // Row 2: Ticker headers + 52WH/52WL (labels as values, data as formulas)
+    const row2Values = new Array(finalTotalCols).fill("");
     for (let i = 0; i < tickers.length; i++) {
+      const t = tickers[i];
       const b = i * colsPer;
-      row2[b] = tickers[i];
-      row2[b + 1] = "52WH";
-      row2[b + 3] = "52WL";
+      row2Values[b] = t;
+      row2Values[b + 1] = "52WH";
+      row2Values[b + 3] = "52WL";
     }
-    row2[regimeStartCol - 1] = "USA_REGIME";
-    row2[regimeStartCol] = "USA_RATIO"; 
-    row2[regimeStartCol + 1] = "USA_VIX";
-    row2[regimeStartCol + 2] = "INDIA_REGIME";
-    row2[regimeStartCol + 3] = "INDIA_RATIO";
-    row2[regimeStartCol + 4] = "INDIA_VIX";
+    row2Values[regimeStartCol - 1] = "USA_REGIME";
+    row2Values[regimeStartCol] = "USA_RATIO"; 
+    row2Values[regimeStartCol + 1] = "USA_VIX";
+    row2Values[regimeStartCol + 2] = "INDIA_REGIME";
+    row2Values[regimeStartCol + 3] = "INDIA_RATIO";
+    row2Values[regimeStartCol + 4] = "INDIA_VIX";
     
-    dataSheet.getRange(2, 1, 1, finalTotalCols)
-      .setValues([row2])
-      .setFontWeight("bold");
+    dataSheet.getRange(2, 1, 1, finalTotalCols).setValues([row2Values]);
     
-    // Add formulas for 52WH and 52WL values
+    // Add formulas for 52WH and 52WL data
     for (let i = 0; i < tickers.length; i++) {
       const t = tickers[i];
       const c = (i * colsPer) + 1;
@@ -79,22 +81,28 @@ function generateDataSheet() {
       dataSheet.getRange(2, c + 4).setFormula(`=IFERROR(MIN(QUERY(GOOGLEFINANCE("${t}","low",TODAY()-365,TODAY()),"SELECT Col2 LABEL Col2 ''")),0)`);
     }
 
-    ss.toast("Building formulas...", "⏳ Processing", 2);
-
-    // ========================================================================
-    // ROW 3: ATH / P-E / EPS + Market Regime
-    // ========================================================================
-    const row3Formulas = new Array(finalTotalCols).fill("");
+    // Row 3: ATH / P-E / EPS (labels as values, data as formulas)
+    const row3Values = new Array(finalTotalCols).fill("");
+    for (let i = 0; i < tickers.length; i++) {
+      const b = i * colsPer;
+      row3Values[b] = "ATH:";
+      row3Values[b + 2] = "P/E:";
+      row3Values[b + 4] = "EPS:";
+    }
+    
+    dataSheet.getRange(3, 1, 1, finalTotalCols).setValues([row3Values]);
+    
+    // Add formulas for ATH, P/E, EPS data
     for (let i = 0; i < tickers.length; i++) {
       const t = tickers[i];
-      const b = i * colsPer;
-      row3Formulas[b + 1] = `=MAX(QUERY(GOOGLEFINANCE("${t}","high","1/1/2000",TODAY()),"SELECT Col2 LABEL Col2 ''"))`;
-      row3Formulas[b + 3] = `=IFERROR(GOOGLEFINANCE("${t}","pe"),"")`;
-      row3Formulas[b + 5] = `=IFERROR(GOOGLEFINANCE("${t}","eps"),"")`;
+      const c = (i * colsPer) + 1;
+      dataSheet.getRange(3, c + 1).setFormula(`=MAX(QUERY(GOOGLEFINANCE("${t}","high","1/1/2000",TODAY()),"SELECT Col2 LABEL Col2 ''"))`);
+      dataSheet.getRange(3, c + 3).setFormula(`=IFERROR(GOOGLEFINANCE("${t}","pe"),"")`);
+      dataSheet.getRange(3, c + 5).setFormula(`=IFERROR(GOOGLEFINANCE("${t}","eps"),"")`);
     }
     
     // USA Market Regime
-    row3Formulas[regimeStartCol - 1] = 
+    dataSheet.getRange(3, regimeStartCol).setFormula(
       `=LET(spyPrice${SEP}IFERROR(GOOGLEFINANCE("SPY"${SEP}"price")${SEP}0)${SEP}` +
       `spySMA200${SEP}IFERROR(AVERAGE(QUERY(GOOGLEFINANCE("SPY"${SEP}"close"${SEP}TODAY()-250${SEP}TODAY())${SEP}"SELECT Col2 ORDER BY Col1 DESC LIMIT 200"))${SEP}spyPrice)${SEP}` +
       `regimeRatio${SEP}IF(spySMA200>0${SEP}spyPrice/spySMA200${SEP}1)${SEP}` +
@@ -103,15 +111,17 @@ function generateDataSheet() {
       `AND(regimeRatio>=1.02${SEP}vixLevel<=25)${SEP}"BULL"${SEP}` +
       `AND(regimeRatio>=0.98${SEP}vixLevel<=30)${SEP}"NEUTRAL"${SEP}` +
       `AND(regimeRatio>=0.95${SEP}vixLevel<=35)${SEP}"BEAR"${SEP}` +
-      `TRUE${SEP}"STRONG BEAR"))`;
+      `TRUE${SEP}"STRONG BEAR"))`
+    );
     
-    row3Formulas[regimeStartCol] = 
-      `=IFERROR(GOOGLEFINANCE("SPY"${SEP}"price")/AVERAGE(QUERY(GOOGLEFINANCE("SPY"${SEP}"close"${SEP}TODAY()-250${SEP}TODAY())${SEP}"SELECT Col2 ORDER BY Col1 DESC LIMIT 200"))${SEP}1)`;
+    dataSheet.getRange(3, regimeStartCol + 1).setFormula(
+      `=IFERROR(GOOGLEFINANCE("SPY"${SEP}"price")/AVERAGE(QUERY(GOOGLEFINANCE("SPY"${SEP}"close"${SEP}TODAY()-250${SEP}TODAY())${SEP}"SELECT Col2 ORDER BY Col1 DESC LIMIT 200"))${SEP}1)`
+    );
     
-    row3Formulas[regimeStartCol + 1] = `=IFERROR(GOOGLEFINANCE("INDEXCBOE:VIX"${SEP}"price")${SEP}20)`;
+    dataSheet.getRange(3, regimeStartCol + 2).setFormula(`=IFERROR(GOOGLEFINANCE("INDEXCBOE:VIX"${SEP}"price")${SEP}20)`);
     
     // India Market Regime
-    row3Formulas[regimeStartCol + 2] = 
+    dataSheet.getRange(3, regimeStartCol + 3).setFormula(
       `=LET(niftyPrice${SEP}IFERROR(GOOGLEFINANCE("INDEXNSE:NIFTY_50"${SEP}"price")${SEP}0)${SEP}` +
       `niftySMA200${SEP}IFERROR(AVERAGE(QUERY(GOOGLEFINANCE("INDEXNSE:NIFTY_50"${SEP}"close"${SEP}TODAY()-250${SEP}TODAY())${SEP}"SELECT Col2 ORDER BY Col1 DESC LIMIT 200"))${SEP}niftyPrice)${SEP}` +
       `regimeRatio${SEP}IF(niftySMA200>0${SEP}niftyPrice/niftySMA200${SEP}1)${SEP}` +
@@ -120,34 +130,82 @@ function generateDataSheet() {
       `AND(regimeRatio>=1.02${SEP}vixLevel<=25)${SEP}"BULL"${SEP}` +
       `AND(regimeRatio>=0.98${SEP}vixLevel<=30)${SEP}"NEUTRAL"${SEP}` +
       `AND(regimeRatio>=0.95${SEP}vixLevel<=35)${SEP}"BEAR"${SEP}` +
-      `TRUE${SEP}"STRONG BEAR"))`;
+      `TRUE${SEP}"STRONG BEAR"))`
+    );
     
-    row3Formulas[regimeStartCol + 3] = 
-      `=IFERROR(GOOGLEFINANCE("INDEXNSE:NIFTY_50"${SEP}"price")/AVERAGE(QUERY(GOOGLEFINANCE("INDEXNSE:NIFTY_50"${SEP}"close"${SEP}TODAY()-250${SEP}TODAY())${SEP}"SELECT Col2 ORDER BY Col1 DESC LIMIT 200"))${SEP}1)`;
+    dataSheet.getRange(3, regimeStartCol + 4).setFormula(
+      `=IFERROR(GOOGLEFINANCE("INDEXNSE:NIFTY_50"${SEP}"price")/AVERAGE(QUERY(GOOGLEFINANCE("INDEXNSE:NIFTY_50"${SEP}"close"${SEP}TODAY()-250${SEP}TODAY())${SEP}"SELECT Col2 ORDER BY Col1 DESC LIMIT 200"))${SEP}1)`
+    );
     
-    row3Formulas[regimeStartCol + 4] = `=IFERROR(GOOGLEFINANCE("INDEXNSE:INDIAVIX"${SEP}"price")${SEP}20)`;
-    
-    dataSheet.getRange(3, 1, 1, finalTotalCols).setFormulas([row3Formulas]);
+    dataSheet.getRange(3, regimeStartCol + 5).setFormula(`=IFERROR(GOOGLEFINANCE("INDEXNSE:INDIAVIX"${SEP}"price")${SEP}20)`);
 
-    // Write labels for row 3
-    for (let i = 0; i < tickers.length; i++) {
-      const c = (i * colsPer) + 1;
-      dataSheet.getRange(3, c).setValue("ATH:");
-      dataSheet.getRange(3, c + 2).setValue("P/E:");
-      dataSheet.getRange(3, c + 4).setValue("EPS:");
-    }
-
-    ss.toast("Fetching historical data...", "⏳ Loading", 2);
-
-    // ========================================================================
-    // ROW 4: GOOGLEFINANCE(all) - Historical data
-    // ========================================================================
+    // Row 4: Historical data formulas
     const row4Formulas = new Array(finalTotalCols).fill("");
     for (let i = 0; i < tickers.length; i++) {
       const t = tickers[i];
       row4Formulas[i * colsPer] = `=IFERROR(GOOGLEFINANCE("${t}","all",TODAY()-800,TODAY()),"No Data")`;
     }
     dataSheet.getRange(4, 1, 1, finalTotalCols).setFormulas([row4Formulas]);
+
+    // Force calculation
+    SpreadsheetApp.flush();
+    
+    ss.toast("Fetching data from Google Finance...", "⏳ Loading", 5);
+    Utilities.sleep(5000); // Wait 5 seconds for formulas to calculate
+
+    // ========================================================================
+    // STEP 2: Read calculated values
+    // ========================================================================
+    ss.toast("Converting to static values...", "⏳ Processing", 2);
+    
+    const row2Data = dataSheet.getRange(2, 1, 1, finalTotalCols).getDisplayValues()[0];
+    const row3Data = dataSheet.getRange(3, 1, 1, finalTotalCols).getDisplayValues()[0];
+    
+    // Read historical data
+    const historicalData = [];
+    for (let i = 0; i < tickers.length; i++) {
+      const colStart = (i * colsPer) + 1;
+      const data = dataSheet.getRange(4, colStart, 1000, 6).getValues();
+      historicalData.push(data);
+    }
+
+    // ========================================================================
+    // STEP 3: Clear and write static values
+    // ========================================================================
+    dataSheet.clear({ contentsOnly: true });
+    dataSheet.clearFormats();
+    
+    // Rewrite timestamp
+    dataSheet.getRange("A1")
+      .setValue("Last Update: " + timestamp)
+      .setFontWeight("bold")
+      .setFontColor("blue");
+    
+    // Write row 2 as static values
+    dataSheet.getRange(2, 1, 1, finalTotalCols)
+      .setValues([row2Data])
+      .setFontWeight("bold");
+    
+    // Write row 3 as static values
+    dataSheet.getRange(3, 1, 1, finalTotalCols).setValues([row3Data]);
+    
+    // Write historical data as static values
+    for (let i = 0; i < tickers.length; i++) {
+      const colStart = (i * colsPer) + 1;
+      const data = historicalData[i];
+      
+      // Find last non-empty row
+      let lastRow = 0;
+      for (let j = 0; j < data.length; j++) {
+        if (data[j][0] !== "" && data[j][0] !== null) {
+          lastRow = j + 1;
+        }
+      }
+      
+      if (lastRow > 0) {
+        dataSheet.getRange(4, colStart, lastRow, 6).setValues(data.slice(0, lastRow));
+      }
+    }
 
     // ========================================================================
     // NUMBER FORMATTING
@@ -174,8 +232,8 @@ function generateDataSheet() {
     // Historical data formatting
     for (let i = 0; i < tickers.length; i++) {
       const colStart = (i * colsPer) + 1;
-      dataSheet.getRange(5, colStart, 1000, 1).setNumberFormat("yyyy-mm-dd");
-      dataSheet.getRange(5, colStart + 1, 1000, 5).setNumberFormat("#,##0.00");
+      dataSheet.getRange(4, colStart, 1000, 1).setNumberFormat("yyyy-mm-dd");
+      dataSheet.getRange(4, colStart + 1, 1000, 5).setNumberFormat("#,##0.00");
     }
 
     // ========================================================================
