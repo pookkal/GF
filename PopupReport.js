@@ -912,6 +912,34 @@ function showAnalysisPopup(ticker, reportHtml, d) {
         margin:4px 0;
         padding:2px 8px;
       }
+      .dash-category{
+        font-weight:700;
+        color:#60a5fa;
+        font-size:11px;
+        letter-spacing:0.3px;
+        margin:8px 0 4px 0;
+        padding:2px 8px;
+        text-transform:uppercase;
+      }
+      .dash-bullets{
+        margin:4px 0;
+        padding-left:8px;
+      }
+      .dash-bullet{
+        font-size:11px;
+        line-height:1.6;
+        color:#e5e7eb;
+        margin:2px 0;
+        padding:2px 0 2px 8px;
+      }
+      .dash-bullet strong{
+        color:#fbbf24;
+        font-weight:600;
+      }
+      .dash-bullet .dash-value{
+        color:#34d399;
+        font-weight:600;
+      }
 
 
       /* REPORT (scoped) */
@@ -1241,83 +1269,205 @@ function buildInputFPanel_(ticker) {
 
 /**
  * Builds the BOTTOM panel showing DASH_REPORT data formatted professionally
- * Reads the output of the DASH_REPORT custom function from REPORT sheet A43
- * Filters out duplicate DECISION/SIGNAL/PATTERNS and "📊 INSTITUTIONAL ANALYSIS" header
+ * Uses formulaEvaluator.js functions to generate institutional-grade narratives
+ * Displays SIGNAL and DECISION narratives with professional formatting
  */
 function buildDashReportPanel_(ticker) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const reportSheet = ss.getSheetByName("REPORT");
-  
-  if (!reportSheet) {
-    return '<div class="dash-text">REPORT sheet not found</div>';
-  }
-
-  // Read the DASH_REPORT output from cell A43 (which contains the formula =DASH_REPORT(A1))
-  const dashReportData = reportSheet.getRange("A43").getDisplayValue() || "";
-  
-  if (!dashReportData || dashReportData === "—") {
-    return '<div class="dash-text">No dashboard data available</div>';
-  }
-
-  // Format the data professionally
-  let formattedContent = String(dashReportData);
-  
-  // Remove excessive equals signs and decorative characters
-  formattedContent = formattedContent
-    .replace(/═+/g, '')
-    .replace(/◈+/g, '')
-    .replace(/━+/g, '')
-    .replace(/\[━+\]/g, '')
-    .replace(/\s*\|\s*/g, ' | ');
-  
-  // Split into sections and format
-  const lines = formattedContent.split(/\n+/);
-  let html = '';
-  
-  for (let line of lines) {
-    line = line.trim();
-    if (!line) continue;
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const calcSheet = ss.getSheetByName("CALCULATIONS");
+    const dashboardSheet = ss.getSheetByName("DASHBOARD");
     
-    // Skip duplicate "📊 INSTITUTIONAL ANALYSIS" header
-    if (line.match(/\s*INSTITUTIONAL\s*ANALYSIS/i)) {
-      continue;
+    if (!calcSheet) {
+      return '<div class="dash-text">CALCULATIONS sheet not found</div>';
     }
     
-    // Skip duplicate DECISION/SIGNAL/PATTERNS lines (they're already in top bar)
-    if (line.match(/DECISION\s*[:=]/i) || 
-        line.match(/SIGNAL\s*[:=]/i) || 
-        line.match(/PATTERNS\s*[:=]/i)) {
-      continue;
+    if (!dashboardSheet) {
+      return '<div class="dash-text">DASHBOARD sheet not found</div>';
     }
     
-    // Check if it's a section header (starts with [, contains emojis, or all caps)
-    if (line.match(/^\[.*\]$/) || line.match(/^[🔴🟢🟡⚪📊📈📉🎯💡⚠️🔥✅]+\s+[A-Z\s]+:?$/)) {
-      const cleanHeader = line.replace(/[\[\]]/g, '').trim();
-      html += `<div class="dash-section">${cleanHeader}</div>`;
-    }
-    // Check if it's a key-value pair (contains : or →)
-    else if (line.includes(':') || line.includes('→')) {
-      const parts = line.split(/[:→]/);
-      if (parts.length >= 2) {
-        const label = parts[0].trim();
-        const value = parts.slice(1).join(':').trim();
-        html += `
-          <div class="dash-row">
-            <span class="dash-label">${label}</span>
-            <span class="dash-value">${value}</span>
-          </div>
-        `;
-      } else {
-        html += `<div class="dash-text">${line}</div>`;
+    // Get mode flag from DASHBOARD!H1 (TRUE = INVEST/long-term, FALSE = TRADE/short-term)
+    const modeValue = dashboardSheet.getRange("H1").getValue();
+    const isInvestMode = (modeValue === true || String(modeValue).toUpperCase() === "TRUE");
+    
+    // Find ticker row in CALCULATIONS sheet
+    const data = calcSheet.getDataRange().getValues();
+    let tickerRow = -1;
+    
+    for (let i = 0; i < data.length; i++) {
+      if (data[i][0].toString().toUpperCase() === ticker.toString().toUpperCase()) {
+        tickerRow = i;
+        break;
       }
     }
-    // Regular text
-    else {
-      html += `<div class="dash-text">${line}</div>`;
+    
+    if (tickerRow === -1) {
+      return '<div class="dash-text">Ticker not found in CALCULATIONS sheet</div>';
+    }
+    
+    // Extract ticker data from CALCULATIONS row (0-based indexing)
+    const rowData = data[tickerRow];
+    const tickerData = {
+      ticker: rowData[0],           // Column A
+      marketRating: rowData[1],     // Column B
+      decision: rowData[2],         // Column C
+      signal: rowData[3],           // Column D
+      patterns: rowData[4],         // Column E
+      consensusPrice: rowData[5],   // Column F
+      price: rowData[6],            // Column G
+      changePct: rowData[7],        // Column H
+      volTrend: rowData[8],         // Column I
+      athTrue: rowData[9],          // Column J
+      athDiff: rowData[10],         // Column K
+      athZone: rowData[11],         // Column L
+      fundamental: rowData[12],     // Column M
+      trendState: rowData[13],      // Column N
+      sma20: rowData[14],           // Column O
+      sma50: rowData[15],           // Column P
+      sma200: rowData[16],          // Column Q
+      rsi: rowData[17],             // Column R
+      macdHist: rowData[18],        // Column S
+      divergence: rowData[19],      // Column T
+      adx: rowData[20],             // Column U
+      stochK: rowData[21],          // Column V
+      volRegime: rowData[22],       // Column W
+      bbpSignal: rowData[23],       // Column X
+      atr: rowData[24],             // Column Y
+      bollingerB: rowData[25],      // Column Z
+      target: rowData[26],          // Column AA
+      rrQuality: rowData[27],       // Column AB
+      support: rowData[28],         // Column AC
+      resistance: rowData[29],      // Column AD
+      atrStop: rowData[30],         // Column AE
+      atrTarget: rowData[31],       // Column AF
+      positionSize: rowData[32],    // Column AG
+      isPurchased: false            // Default to false (not purchased)
+    };
+    
+    // Call evaluateSignalFormula() to get SIGNAL narrative
+    let signalResult = null;
+    let signalNarrative = null;
+    
+    try {
+      // Check if function is available
+      if (typeof evaluateSignalFormula !== 'function') {
+        throw new Error("evaluateSignalFormula function not available");
+      }
+      
+      signalResult = evaluateSignalFormula(tickerData, isInvestMode);
+      signalNarrative = signalResult ? signalResult.narrative : null;
+    } catch (error) {
+      Logger.log(`Error calling evaluateSignalFormula: ${error.message}`);
+      // Fall back to generic explanation
+      signalNarrative = `🎯 WHY '${tickerData.signal}' TRIGGERED:\n\n⚠️ Using generic explanation (formula evaluation unavailable)\n\nSignal criteria: ${tickerData.signal} - see formula logic for details`;
+    }
+    
+    // Call evaluateDecisionFormula() to get DECISION narrative
+    let decisionResult = null;
+    let decisionNarrative = null;
+    
+    try {
+      // Check if function is available
+      if (typeof evaluateDecisionFormula !== 'function') {
+        throw new Error("evaluateDecisionFormula function not available");
+      }
+      
+      const signalValue = signalResult ? signalResult.signal : tickerData.signal;
+      decisionResult = evaluateDecisionFormula(tickerData, signalValue, isInvestMode);
+      decisionNarrative = decisionResult ? decisionResult.narrative : null;
+    } catch (error) {
+      Logger.log(`Error calling evaluateDecisionFormula: ${error.message}`);
+      // Fall back to generic explanation
+      decisionNarrative = `🎯 HOW DECISION WAS DERIVED:\n\n⚠️ Using generic explanation (formula evaluation unavailable)\n\n1. SIGNAL: ${tickerData.signal} (technical setup)\n2. PATTERNS: ${tickerData.patterns === "—" ? "not detected" : tickerData.patterns + " detected"}\n3. DECISION: ${tickerData.decision}\n\n✅ Positive signal supports entry/add`;
+    }
+    
+    // Format narratives into professional HTML
+    let html = '';
+    
+    // SIGNAL Section
+    html += '<div class="dash-section">📊 SIGNAL ANALYSIS</div>';
+    html += formatNarrative_(signalNarrative || "No narrative available");
+    
+    // DECISION Section
+    html += '<div class="dash-section">🎯 DECISION RATIONALE</div>';
+    html += formatNarrative_(decisionNarrative || "No narrative available");
+    
+    return html;
+    
+  } catch (error) {
+    Logger.log(`Error in buildDashReportPanel_: ${error.message}`);
+    Logger.log(`Stack trace: ${error.stack}`);
+    return `<div class="dash-text">Error generating dashboard report: ${error.message}</div>`;
+  }
+}
+
+/**
+ * Helper function to format narrative text into professional HTML
+ * Converts markdown-style formatting to HTML with proper styling
+ */
+function formatNarrative_(narrative) {
+  if (!narrative || narrative.trim() === "") {
+    return '<div class="dash-text">No narrative available</div>';
+  }
+  
+  let html = '';
+  
+  // Split narrative into sections (separated by double newlines)
+  const sections = narrative.split(/\n\n+/);
+  
+  for (let section of sections) {
+    section = section.trim();
+    if (!section) continue;
+    
+    // Check if section is a category header (e.g., "PRICE ACTION:", "TREND STRUCTURE:")
+    if (section.match(/^[A-Z\s]+:$/)) {
+      const header = section.replace(/:$/, '').trim();
+      html += `<div class="dash-category">${header}</div>`;
+      continue;
+    }
+    
+    // Check if section contains bullet points
+    if (section.includes('•') || section.includes('-')) {
+      const lines = section.split(/\n/);
+      html += '<div class="dash-bullets">';
+      
+      for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        
+        // Remove bullet markers
+        line = line.replace(/^[•\-]\s*/, '');
+        
+        // Format bold text (**text**)
+        line = line.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        
+        // Format percentages and values with highlighting
+        line = line.replace(/(\$[\d,]+\.?\d*)/g, '<span class="dash-value">$1</span>');
+        line = line.replace(/([\d.]+%)/g, '<span class="dash-value">$1</span>');
+        
+        html += `<div class="dash-bullet">• ${line}</div>`;
+      }
+      
+      html += '</div>';
+    } else {
+      // Regular paragraph
+      let text = section;
+      
+      // Format bold text (**text**)
+      text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      
+      // Format percentages and values with highlighting
+      text = text.replace(/(\$[\d,]+\.?\d*)/g, '<span class="dash-value">$1</span>');
+      text = text.replace(/([\d.]+%)/g, '<span class="dash-value">$1</span>');
+      
+      // Replace newlines with <br>
+      text = text.replace(/\n/g, '<br>');
+      
+      html += `<div class="dash-text">${text}</div>`;
     }
   }
-
-  return html || '<div class="dash-text">No formatted content available</div>';
+  
+  return html;
 }
 
 
@@ -1431,6 +1581,29 @@ function buildIndicatorPanelHtml_(d) {
     return x >= 0 ? BG_GREEN : BG_RED;
   };
 
+  const colorAthZone = () => {
+    const v = String(d.athZone || "").toUpperCase();
+    if (v.includes("ATH") || v.includes("ZONE")) return BG_GREEN;
+    if (v.includes("PULLBACK")) return BG_GREY;
+    if (v.includes("CORRECTION")) return BG_RED;
+    return BG_GREY;
+  };
+
+  const colorFundamental = () => {
+    const v = String(d.fundamental || "").toUpperCase();
+    if (v.includes("VALUE") || v.includes("DEEP VALUE")) return BG_GREEN;
+    if (v.includes("FAIR")) return BG_GREY;
+    if (v.includes("EXPENSIVE") || v.includes("ZOMBIE") || v.includes("PERFECTION")) return BG_RED;
+    return BG_GREY;
+  };
+
+  const colorVolRegime = () => {
+    const v = String(d.volRegime || "").toUpperCase();
+    if (v.includes("LOW") || v.includes("SQUEEZE")) return BG_GREEN;
+    if (v.includes("HIGH") || v.includes("BREAKOUT")) return BG_RED;
+    return BG_GREY;
+  };
+
   const colorRR = () => {
     const rr = num(d.rrQuality);
     if (rr == null) return BG_GREY;
@@ -1513,37 +1686,53 @@ function buildIndicatorPanelHtml_(d) {
   // 2-column grid container
   let html = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">`;
 
-  // PRICE / VOLUME SECTION
+  // PRICE / VOLUME SECTION (matches mobile report rows 9-14)
   html += `<div style="${sectionStyle}">PRICE / VOLUME</div>`;
   html += cell("PRICE", fmt.price(d.price), colorPriceVsSMA200());
   html += cell("CHG%", fmt.pct(d.changePct), colorChangePct());
-  html += cell("VOL", fmt.ratio(d.volRatio), colorVol());
-  html += cell("ATH %", fmt.pct(d.athDiff), colorAthDiff());
+  html += cell("VOL TREND", fmt.ratio(d.volRatio), colorVol());
+  html += cell("P/E", "—", BG_GREY); // From GOOGLEFINANCE, not in d object
+  html += cell("EPS", "—", BG_GREY); // From GOOGLEFINANCE, not in d object
+  html += cell("RANGE %", "—", BG_GREY); // Calculated from historical data, not in d object
 
-  // TREND SECTION
+  // PERFORMANCE SECTION (matches mobile report rows 16-19)
+  html += `<div style="${sectionStyle}">PERFORMANCE</div>`;
+  html += cell("ATH TRUE", fmt.price(d.isATH), BG_GREY);
+  html += cell("ATH DIFF %", fmt.pct(d.athDiff), colorAthDiff());
+  html += cell("ATH ZONE", fmt.text(d.athZone), colorAthZone());
+  html += cell("FUNDAMENTAL", fmt.text(d.fundamental), colorFundamental());
+
+  // TREND SECTION (matches mobile report rows 21-24)
   html += `<div style="${sectionStyle}">TREND</div>`;
-  html += cell("STATE", fmt.text(d.trendState), colorTrendState());
-  html += cell("R:R", fmt.n2(d.rrQuality), colorRR());
-  html += cell("SMA20", fmt.price(d.sma20), BG_GREY);
-  html += cell("SMA50", fmt.price(d.sma50), BG_GREY);
-  html += cell("SMA200", fmt.price(d.sma200), BG_GREY);
-  html += cell("ATH", fmt.price(d.isATH), BG_GREY);
+  html += cell("TREND STATE", fmt.text(d.trendState), colorTrendState());
+  html += cell("SMA 20", fmt.price(d.sma20), BG_GREY);
+  html += cell("SMA 50", fmt.price(d.sma50), BG_GREY);
+  html += cell("SMA 200", fmt.price(d.sma200), BG_GREY);
 
-  // MOMENTUM SECTION
+  // MOMENTUM SECTION (matches mobile report rows 26-30)
   html += `<div style="${sectionStyle}">MOMENTUM</div>`;
   html += cell("RSI", fmt.n2(d.rsi), colorRSI());
-  html += cell("MACD", fmt.n3(d.macdHist), colorMACD());
-  html += cell("DIV", fmt.text(d.divergence), colorDiv());
-  html += cell("ADX", fmt.n2(d.adx), colorADX());
-  html += cell("STO", fmt.stochPct(d.stochK), colorStoch());
-  html += cell("%B", fmt.bollPct(d.bolB), colorBoll());
+  html += cell("MACD HIST", fmt.n3(d.macdHist), colorMACD());
+  html += cell("DIVERGENCE", fmt.text(d.divergence), colorDiv());
+  html += cell("ADX (14)", fmt.n2(d.adx), colorADX());
+  html += cell("STOCH %K", fmt.stochPct(d.stochK), colorStoch());
 
-  // LEVELS / RISK SECTION
-  html += `<div style="${sectionStyle}">LEVELS / RISK</div>`;
+  // VOLATILITY SECTION (matches mobile report rows 32-35)
+  html += `<div style="${sectionStyle}">VOLATILITY</div>`;
+  html += cell("VOL REGIME", fmt.text(d.volRegime), colorVolRegime());
+  html += cell("BBP SIGNAL", fmt.text(d.bbpSignal), BG_GREY);
+  html += cell("ATR (14)", fmt.n2(d.atr), BG_GREY);
+  html += cell("BOLLINGER %B", fmt.bollPct(d.bolB), colorBoll());
+
+  // TARGET SECTION (matches mobile report rows 37-43)
+  html += `<div style="${sectionStyle}">TARGET</div>`;
+  html += cell("TARGET (3:1)", fmt.price(d.target), BG_GREY);
+  html += cell("R:R QUALITY", fmt.ratio(d.rrQuality), colorRR());
   html += cell("SUPPORT", fmt.price(d.support), colorLevels("support"));
-  html += cell("RESIST", fmt.price(d.resistance), colorLevels("resistance"));
-  html += cell("TARGET", fmt.price(d.target), BG_GREY);
-  html += cell("ATR", fmt.n2(d.atr), BG_GREY);
+  html += cell("RESISTANCE", fmt.price(d.resistance), colorLevels("resistance"));
+  html += cell("ATR STOP", fmt.price(d.atrStop), BG_GREY);
+  html += cell("ATR TARGET", fmt.price(d.atrTarget), BG_GREY);
+  html += cell("POSITION SIZE", fmt.text(d.positionSize), BG_GREY);
 
   html += `</div>`;
 

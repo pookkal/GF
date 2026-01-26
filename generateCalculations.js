@@ -9,7 +9,7 @@
 const DELAY_AFTER_MAIN_FORMULAS = 12500;  // 12.5 seconds - allows calculation engine to process bulk formulas (columns E-AF)
 const DELAY_AFTER_CD_FORMULAS = 2000;     // 2 seconds - shorter delay for smaller formula set (columns C-D)
 
-// Column headers for CALCULATIONS sheet (36 columns: A-AJ)
+// Column headers for CALCULATIONS sheet (34 columns: A-AH)
 const CALC_HEADERS = [
   'Ticker',           // A
   'MARKET RATING',    // B (NEW - references INPUT D)
@@ -44,9 +44,7 @@ const CALC_HEADERS = [
   'ATR STOP',         // AE (shifted from AC)
   'ATR TARGET',       // AF (shifted from AD)
   'POSITION SIZE',    // AG (shifted from AE)
-  'LAST STATE',       // AH (shifted from AF)
-  '52WH',             // AI (NEW)
-  '52WL'              // AJ (NEW)
+  'LAST STATE'        // AH (shifted from AF)
 ];
 
 function generateCalculationsSheet() {
@@ -78,10 +76,10 @@ function generateCalculationsSheet() {
     // Clear existing content
     calc.clear().clearFormats();
 
-    // Ensure sheet has enough columns (36 total: A-AJ)
+    // Ensure sheet has enough columns (34 total: A-AH)
     const maxCols = calc.getMaxColumns();
-    if (maxCols < 36) {
-      calc.insertColumnsAfter(maxCols, 36 - maxCols);
+    if (maxCols < 34) {
+      calc.insertColumnsAfter(maxCols, 34 - maxCols);
     }
 
     // PHASE 1: Setup headers
@@ -146,7 +144,6 @@ function setupHeaders(calc, ss, SEP) {
   styleGroup("W1:Z1", "VOLATILITY", COLORS.VOLATILITY);  // Shifted from U1:X1
   styleGroup("AA1:AG1", "TARGET", COLORS.TARGET);  // Shifted from Y1:AE1
   styleGroup("AH1:AH1", "NOTES", COLORS.NOTES);  // Shifted from AF1
-  styleGroup("AI1:AJ1", "PERFORMANCE", COLORS.PERFORMANCE);  // NEW: 52WH, 52WL
 
   // Timestamp in AH1
   calc.getRange("AH1")
@@ -169,12 +166,11 @@ function setupHeaders(calc, ss, SEP) {
     COLORS.VOLATILITY, COLORS.VOLATILITY, COLORS.VOLATILITY, COLORS.VOLATILITY,  // W-Z: VOL REGIME, BBP SIGNAL, ATR, Bollinger %B
     COLORS.TARGET, COLORS.TARGET,  // AA-AB: Target, R:R Quality
     COLORS.TARGET, COLORS.TARGET, COLORS.TARGET, COLORS.TARGET, COLORS.TARGET,  // AC-AG: Support, Resistance, ATR STOP/TARGET, Position Size
-    COLORS.NOTES,  // AH: LAST STATE
-    COLORS.PERFORMANCE, COLORS.PERFORMANCE  // AI-AJ: 52WH, 52WL
+    COLORS.NOTES  // AH: LAST STATE
   ];
 
   // Set Row 2 headers with group colors
-  calc.getRange(2, 1, 1, 36)
+  calc.getRange(2, 1, 1, 34)
     .setValues([CALC_HEADERS])
     .setFontColor("white")
     .setFontWeight("bold")
@@ -377,19 +373,19 @@ function writeFormulas(calc, tickers, SEP) {
   const phase1Data = [];
   for (let i = 0; i < allFormulas.length; i++) {
     if (allFormulas[i] && allFormulas[i].formulas) {
-      const sliced = allFormulas[i].formulas.slice(5); // Indices 5-34 (30 columns: G-AJ)
+      const sliced = allFormulas[i].formulas.slice(5); // Indices 5-32 (28 columns: G-AH)
       
       // Validate slice length
-      if (sliced.length !== 30) {
-        Logger.log(`WARNING: ${allFormulas[i].ticker} Phase 1 has ${sliced.length} elements, expected 30. Formula array length: ${allFormulas[i].formulas.length}`);
-        // Pad or trim to exactly 30 elements
-        while (sliced.length < 30) sliced.push('');
-        if (sliced.length > 30) sliced.length = 30;
+      if (sliced.length !== 28) {
+        Logger.log(`WARNING: ${allFormulas[i].ticker} Phase 1 has ${sliced.length} elements, expected 28. Formula array length: ${allFormulas[i].formulas.length}`);
+        // Pad or trim to exactly 28 elements
+        while (sliced.length < 28) sliced.push('');
+        if (sliced.length > 28) sliced.length = 28;
       }
       
       phase1Data.push(sliced);
     } else {
-      phase1Data.push(new Array(30).fill('')); // Empty row for failed formulas
+      phase1Data.push(new Array(28).fill('')); // Empty row for failed formulas
     }
   }
   
@@ -397,13 +393,13 @@ function writeFormulas(calc, tickers, SEP) {
     if (phase1Data.length > 0) {
       // Final validation before writing
       for (let i = 0; i < phase1Data.length; i++) {
-        if (phase1Data[i].length !== 30) {
+        if (phase1Data[i].length !== 28) {
           throw new Error(`Row ${i} has ${phase1Data[i].length} columns, expected 28`);
         }
       }
       
-      calc.getRange(3, 7, phase1Data.length, 30).setFormulas(phase1Data);
-      Logger.log(`Phase 1 complete: Wrote formulas for columns G-AJ (${phase1Data.length} tickers)`);
+      calc.getRange(3, 7, phase1Data.length, 28).setFormulas(phase1Data);
+      Logger.log(`Phase 1 complete: Wrote formulas for columns G-AH (${phase1Data.length} tickers)`);
     }
   } catch (writeError) {
     Logger.log(`Error writing Phase 1 formulas: ${writeError.message}`);
@@ -572,8 +568,8 @@ function generateTickerFormulas(ticker, row, index, BLOCK, SEP, useLongTermSigna
     
     const formulas = [
       buildMarketRatingFormula(row, SEP),                                 // B: MARKET RATING (from INPUT D)
-      buildDecisionFormula(row, SEP, useLongTermSignal),                  // C: DECISION (old B formula)
-      buildSignalFormula(row, SEP, useLongTermSignal),                    // D: SIGNAL (old C formula)
+      `=DECISION($A${row}${SEP}$D${row}${SEP}$E${row})`,                 // C: DECISION (custom function with dependencies)
+      `=SIGNAL($A${row}${SEP}$G${row}${SEP}$I${row}${SEP}$O${row}${SEP}$P${row}${SEP}$Q${row}${SEP}$AC${row}${SEP}$AD${row})`,     // D: SIGNAL (custom function - price triggers dependent indicators)
       `=GETPATTERNS($A${row})`,                                           // E: PATTERNS (old D formula - pattern detection)
       buildConsensusPriceFormula(row, SEP),                               // F: CONSENSUS PRICE (from INPUT E)
       `=ROUND(IFERROR(GOOGLEFINANCE("${t}"${SEP}"price")${SEP}0)${SEP}2)`, // G: Price (old E formula)
@@ -603,14 +599,12 @@ function generateTickerFormulas(ticker, row, index, BLOCK, SEP, useLongTermSigna
       `=ROUND(MAX($AC${row}${SEP}$G${row}-($Y${row}*2))${SEP}2)`,        // AE: ATR STOP (shifted from AC)
       `=ROUND($G${row}+($Y${row}*3)${SEP}2)`,                             // AF: ATR TARGET (shifted from AD)
       buildPositionSizeFormula(row, SEP),                                 // AG: POSITION SIZE (shifted from AE) - uses K and AB not L and AC!
-      `=IF($A${row}=""${SEP}""${SEP}$C${row})`,                           // AH: LAST STATE (shifted from AF) (references DECISION)
-      `=IFERROR(INDEX(DATA!$2:$2${SEP}1${SEP}MATCH($A${row}${SEP}DATA!$2:$2${SEP}0)+2)${SEP}0)`, // AI: 52WH (NEW)
-      `=IFERROR(INDEX(DATA!$2:$2${SEP}1${SEP}MATCH($A${row}${SEP}DATA!$2:$2${SEP}0)+4)${SEP}0)`  // AJ: 52WL (NEW)
+      `=IF($A${row}=""${SEP}""${SEP}$C${row})`                            // AH: LAST STATE (shifted from AF) (references DECISION)
     ];
     
-    // Validate that we have exactly 35 formulas
-    if (formulas.length !== 35) {
-      throw new Error(`Formula count mismatch: expected 35, got ${formulas.length}`);
+    // Validate that we have exactly 33 formulas
+    if (formulas.length !== 33) {
+      throw new Error(`Formula count mismatch: expected 33, got ${formulas.length}`);
     }
     
     // Validate that all formulas are strings
@@ -1129,4 +1123,476 @@ if (typeof module !== 'undefined' && module.exports) {
     buildMarketRatingFormula,
     buildConsensusPriceFormula
   };
+}
+
+
+// ==============================================================================
+// SIGNAL AND DECISION CUSTOM FUNCTIONS
+// ==============================================================================
+
+/**
+ * Custom Apps Script Functions for SIGNAL and DECISION
+ * 
+ * These functions replace the complex IFS formulas in CALCULATIONS sheet
+ * with cleaner, more maintainable Apps Script code.
+ * 
+ * Usage in CALCULATIONS sheet:
+ * - Column D (SIGNAL): =SIGNAL(A3, G3, I3, O3, P3, Q3, AC3, AD3)
+ *   Parameters: ticker, price, volTrend, sma20, sma50, sma200, support, resistance
+ *   Note: Price change triggers recalculation of K, R, S, U, V, Y, Z automatically
+ * - Column C (DECISION): =DECISION(A3, D3, E3)
+ *   Parameters: ticker, signal, patterns (for auto-recalculation)
+ * 
+ * Benefits:
+ * - Single source of truth for logic
+ * - No mismatch between CALCULATIONS and DASH_REPORT
+ * - Better performance than nested IFS formulas
+ * - Easier to maintain and debug
+ * - Auto-recalculates when dependent cells change
+ * 
+ * Technical Analysis Approach:
+ * - Uses ATH (All-Time High) instead of 52-week high for breakout signals
+ * - ATH is superior: captures true breakout potential without arbitrary time limits
+ * - Follows methodology of Mark Minervini (SEPA) and Dan Zanger
+ * - Added 52-week low for deep value/contrarian signals (long-term mode)
+ * 
+ * Version: 2.1 (Auto-recalculation support)
+ */
+
+/**
+ * SIGNAL - Calculates trading signal for a ticker
+ * 
+ * @param {string} ticker - Ticker symbol (e.g., "AAPL")
+ * @param {number} price - Price (G) - forces recalculation (triggers K, R, S, U, V, Y, Z)
+ * @param {number} volTrend - Vol Trend (I) - independent, forces recalculation
+ * @param {number} sma20 - SMA 20 (O) - independent, forces recalculation
+ * @param {number} sma50 - SMA 50 (P) - independent, forces recalculation
+ * @param {number} sma200 - SMA 200 (Q) - independent, forces recalculation
+ * @param {number} support - Support (AC) - independent, forces recalculation
+ * @param {number} resistance - Resistance (AD) - independent, forces recalculation
+ * @return {string} Signal value (e.g., "STRONG BUY", "MOMENTUM", "RISK OFF")
+ * @customfunction
+ */
+function SIGNAL(ticker, price, volTrend, sma20, sma50, sma200, support, resistance) {
+  try {
+    // Validate input
+    if (!ticker || ticker === "") {
+      return "—";
+    }
+    
+    const tickerUpper = String(ticker).toUpperCase().trim();
+    
+    // Get spreadsheet and sheets
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const calc = ss.getSheetByName('CALCULATIONS');
+    const data = ss.getSheetByName('DATA');
+    const dashboard = ss.getSheetByName('DASHBOARD');
+    
+    if (!calc || !data) {
+      return "ERROR: Required sheets not found";
+    }
+    
+    // Get mode from DASHBOARD H1
+    const useLongTermSignal = dashboard ? dashboard.getRange('H1').getValue() === true : false;
+    
+    // Find ticker row in CALCULATIONS
+    const calcData = calc.getDataRange().getValues();
+    let tickerRow = -1;
+    for (let i = 2; i < calcData.length; i++) { // Start from row 3 (index 2)
+      if (String(calcData[i][0]).toUpperCase().trim() === tickerUpper) {
+        tickerRow = i;
+        break;
+      }
+    }
+    
+    if (tickerRow === -1) {
+      return "ERROR: Ticker not found";
+    }
+    
+    // Build indicator data object from CALCULATIONS row
+    const row = calcData[tickerRow];
+    const indicators = {
+      price: Number(row[6]) || 0,           // G: Price
+      volTrend: Number(row[8]) || 0,        // I: Vol Trend
+      athDiff: Number(row[10]) || 0,        // K: ATH Diff%
+      sma20: Number(row[14]) || 0,          // O: SMA 20
+      sma50: Number(row[15]) || 0,          // P: SMA 50
+      sma200: Number(row[16]) || 0,         // Q: SMA 200
+      rsi: Number(row[17]) || 0,            // R: RSI
+      macdHist: Number(row[18]) || 0,       // S: MACD Hist
+      adx: Number(row[20]) || 0,            // U: ADX
+      stochK: Number(row[21]) || 0,         // V: Stoch %K
+      atr: Number(row[24]) || 0,            // Y: ATR
+      bollingerPctB: Number(row[25]) || 0,  // Z: Bollinger %B
+      support: Number(row[28]) || 0,        // AC: Support
+      resistance: Number(row[29]) || 0,     // AD: Resistance
+      fundamental: String(row[12]).trim()   // M: FUNDAMENTAL (for DEEP VALUE)
+    };
+    
+    // Check if data is loaded
+    if (indicators.price === 0) {
+      return "LOADING";
+    }
+    
+    // Calculate ATR average for VOLATILITY BREAKOUT and VOLATILITY SQUEEZE
+    // Find ticker column in DATA sheet (each ticker is 7 columns wide)
+    const tickerIndex = tickerRow - 2; // Convert to 0-based index
+    const atrAverage = calculateATRAverage_Signal(data, tickerIndex);
+    indicators.atrAverage = atrAverage;
+    
+    // Evaluate signal based on mode
+    if (useLongTermSignal) {
+      return evaluateSignalLongTerm(indicators);
+    } else {
+      return evaluateSignalTrade(indicators, atrAverage);
+    }
+    
+  } catch (error) {
+    Logger.log("SIGNAL function error: " + error.message);
+    return "ERROR";
+  }
+}
+
+/**
+ * Calculate 20-period average ATR from DATA sheet
+ * @param {Sheet} dataSheet - DATA sheet reference
+ * @param {number} tickerIndex - Ticker index (0-based)
+ * @return {number} Average ATR over last 20 periods
+ * @private
+ */
+function calculateATRAverage_Signal(dataSheet, tickerIndex) {
+  try {
+    const BLOCK = 7; // Each ticker occupies 7 columns in DATA
+    const atrColIndex = (tickerIndex * BLOCK) + 6; // ATR is 7th column in each block (0-based: index 6)
+    
+    // Get ATR column data (starting from row 5, which is where data starts)
+    const atrColumn = dataSheet.getRange(5, atrColIndex + 1, dataSheet.getLastRow() - 4, 1).getValues();
+    
+    // Filter out empty/zero values and get last 20 valid ATR values
+    const validATRs = [];
+    for (let i = atrColumn.length - 1; i >= 0 && validATRs.length < 20; i--) {
+      const atrValue = Number(atrColumn[i][0]);
+      if (atrValue > 0) {
+        validATRs.push(atrValue);
+      }
+    }
+    
+    // Calculate average
+    if (validATRs.length === 0) {
+      return 0;
+    }
+    
+    const sum = validATRs.reduce((acc, val) => acc + val, 0);
+    return sum / validATRs.length;
+    
+  } catch (error) {
+    Logger.log("calculateATRAverage_Signal error: " + error.message);
+    return 0;
+  }
+}
+
+/**
+ * DECISION - Calculates trading decision for a ticker
+ * 
+ * @param {string} ticker - Ticker symbol (e.g., "AAPL")
+ * @param {string} signal - SIGNAL value (from column D) - forces recalculation
+ * @param {string} patterns - PATTERNS value (from column E) - forces recalculation
+ * @return {string} Decision value (e.g., "🟢 STRONG BUY", "⚖️ HOLD", "🔴 EXIT")
+ * @customfunction
+ */
+function DECISION(ticker, signal, patterns) {
+  try {
+    // Validate input
+    if (!ticker || ticker === "") {
+      return "—";
+    }
+    
+    const tickerUpper = String(ticker).toUpperCase().trim();
+    
+    // Get spreadsheet and sheets
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const calc = ss.getSheetByName('CALCULATIONS');
+    const input = ss.getSheetByName('INPUT');
+    const dashboard = ss.getSheetByName('DASHBOARD');
+    
+    if (!calc || !input) {
+      return "ERROR: Required sheets not found";
+    }
+    
+    // Get mode from DASHBOARD H1
+    const useLongTermSignal = dashboard ? dashboard.getRange('H1').getValue() === true : false;
+    
+    // Find ticker row in CALCULATIONS
+    const calcData = calc.getDataRange().getValues();
+    let tickerRow = -1;
+    for (let i = 2; i < calcData.length; i++) { // Start from row 3 (index 2)
+      if (String(calcData[i][0]).toUpperCase().trim() === tickerUpper) {
+        tickerRow = i;
+        break;
+      }
+    }
+    
+    if (tickerRow === -1) {
+      return "ERROR: Ticker not found";
+    }
+    
+    // Get SIGNAL and PATTERNS from CALCULATIONS
+    const row = calcData[tickerRow];
+    const signalValue = String(row[3]).trim();      // D: SIGNAL
+    const patternsValue = String(row[4]).trim();    // E: PATTERNS
+    const price = Number(row[6]) || 0;              // G: Price
+    const support = Number(row[28]) || 0;           // AC: Support
+    const resistance = Number(row[29]) || 0;        // AD: Resistance
+    
+    // Check if SIGNAL is loaded
+    if (signalValue === "LOADING" || signalValue === "") {
+      return "LOADING";
+    }
+    
+    // Check PURCHASED tag from INPUT sheet
+    const inputData = input.getDataRange().getValues();
+    let isPurchased = false;
+    for (let i = 2; i < inputData.length; i++) {
+      if (String(inputData[i][0]).toUpperCase().trim() === tickerUpper) {
+        const tag = String(inputData[i][2]).toUpperCase().trim();
+        isPurchased = (tag === "PURCHASED" || tag === "YES" || tag === "TRUE");
+        break;
+      }
+    }
+    
+    // Analyze patterns
+    const hasPattern = patternsValue !== "" && patternsValue !== "—" && patternsValue !== "-";
+    let patternType = "none";
+    if (hasPattern) {
+      const upperPatterns = patternsValue.toUpperCase();
+      const bullishPatterns = ["ASC_TRI", "BRKOUT", "DBL_BTM", "INV_H&S", "CUP_HDL"];
+      const bearishPatterns = ["DESC_TRI", "H&S", "DBL_TOP"];
+      
+      for (const pattern of bullishPatterns) {
+        if (upperPatterns.includes(pattern)) {
+          patternType = "bullish";
+          break;
+        }
+      }
+      
+      if (patternType === "none") {
+        for (const pattern of bearishPatterns) {
+          if (upperPatterns.includes(pattern)) {
+            patternType = "bearish";
+            break;
+          }
+        }
+      }
+    }
+    
+    // Evaluate decision based on mode
+    if (useLongTermSignal) {
+      return evaluateDecisionLongTerm(signalValue, isPurchased, hasPattern, patternType);
+    } else {
+      return evaluateDecisionTrade(signalValue, isPurchased, hasPattern, patternType, price, support, resistance);
+    }
+    
+  } catch (error) {
+    Logger.log("DECISION function error: " + error.message);
+    return "ERROR";
+  }
+}
+
+/**
+ * Evaluates SIGNAL for LONG-TERM INVESTMENT mode
+ * @private
+ */
+function evaluateSignalLongTerm(ind) {
+  // Branch 1: STOP OUT (with 3% buffer to avoid whipsaws)
+  if (ind.price < ind.support * 0.97) {
+    return "STOP OUT";
+  }
+  
+  // Branch 2: RISK OFF
+  if (ind.price < ind.sma200) {
+    return "RISK OFF";
+  }
+  
+  // Branch 3: STRONG BUY
+  if (ind.price > ind.sma200 && 
+      ind.sma50 > ind.sma200 && 
+      ind.rsi >= 30 && ind.rsi <= 50 && 
+      ind.macdHist > 0 && 
+      ind.adx >= 20 && 
+      ind.volTrend >= 1.5) {
+    return "STRONG BUY";
+  }
+  
+  // Branch 4: BUY
+  if (ind.price > ind.sma200 && 
+      ind.sma50 > ind.sma200 && 
+      ind.rsi > 50 && ind.rsi <= 60 && 
+      ind.macdHist > 0 && 
+      ind.adx >= 15) {
+    return "BUY";
+  }
+  
+  // Branch 5: ACCUMULATE
+  if (ind.price > ind.sma200 && 
+      ind.rsi >= 35 && ind.rsi <= 55 && 
+      ind.price >= ind.sma50 * 0.95 && 
+      ind.price <= ind.sma50 * 1.05) {
+    return "ACCUMULATE";
+  }
+  
+  // Branch 6: DEEP VALUE
+  if (ind.rsi <= 30 && 
+      ind.price > ind.support &&
+      (ind.fundamental === "VALUE" || ind.fundamental === "FAIR")) {
+    return "DEEP VALUE";
+  }
+  
+  // Branch 7: OVERSOLD WATCH
+  if (ind.rsi <= 30 && ind.price > ind.support) {
+    return "OVERSOLD WATCH";
+  }
+  
+  // Branch 8: TRIM
+  if (ind.rsi >= 70 || 
+      ind.bollingerPctB >= 0.85 || 
+      ind.price >= ind.resistance * 0.98) {
+    return "TRIM";
+  }
+  
+  // Branch 9: HOLD
+  if (ind.price > ind.sma200 && 
+      ind.rsi > 40 && ind.rsi < 70) {
+    return "HOLD";
+  }
+  
+  // Branch 10: DEFAULT
+  return "NEUTRAL";
+}
+
+/**
+ * Evaluates SIGNAL for TRADE mode
+ * @param {object} ind - Indicator values
+ * @param {number} atrAverage - 20-period ATR average
+ * @private
+ */
+function evaluateSignalTrade(ind, atrAverage) {
+  // Branch 1: STOP OUT (with 3% buffer)
+  if (ind.price < ind.support * 0.97) {
+    return "STOP OUT";
+  }
+  
+  // Branch 2: VOLATILITY BREAKOUT
+  if (atrAverage > 0 && ind.atr > atrAverage * 1.5 && 
+      ind.volTrend >= 2.0 && ind.price >= ind.resistance * 1.01) {
+    return "VOLATILITY BREAKOUT";
+  }
+  
+  // Branch 3: BREAKOUT
+  if (ind.volTrend >= 1.5 && ind.price >= ind.resistance * 1.02) {
+    return "BREAKOUT";
+  }
+  
+  // Branch 4: ATH BREAKOUT
+  if (ind.athDiff >= -0.01 && ind.volTrend >= 2.0 && ind.adx >= 25) {
+    return "ATH BREAKOUT";
+  }
+  
+  // Branch 5: MOMENTUM
+  if (ind.price > ind.sma50 && ind.macdHist > 0 && ind.adx >= 20) {
+    return "MOMENTUM";
+  }
+  
+  // Branch 6: OVERSOLD REVERSAL
+  if (ind.stochK <= 20 && ind.macdHist > 0 && ind.price > ind.support) {
+    return "OVERSOLD REVERSAL";
+  }
+  
+  // Branch 7: VOLATILITY SQUEEZE
+  if (atrAverage > 0 && ind.atr < atrAverage * 0.7 && 
+      ind.adx < 15 && Math.abs(ind.bollingerPctB - 0.5) < 0.2) {
+    return "VOLATILITY SQUEEZE";
+  }
+  
+  // Branch 8: RANGE SUPPORT BUY
+  if (ind.adx < 15 && 
+      ind.price >= ind.support * 0.98 && 
+      ind.price <= ind.support * 1.02) {
+    return "RANGE SUPPORT BUY";
+  }
+  
+  // Branch 9: OVERBOUGHT
+  if (ind.rsi >= 70 || ind.bollingerPctB >= 0.9) {
+    return "OVERBOUGHT";
+  }
+  
+  // Branch 10: RISK OFF
+  if (ind.price < ind.sma200) {
+    return "RISK OFF";
+  }
+  
+  // Branch 11: RANGE
+  if (ind.adx < 15 && ind.price > ind.support) {
+    return "RANGE";
+  }
+  
+  // Branch 12: DEFAULT
+  return "NEUTRAL";
+}
+
+/**
+ * Evaluates DECISION for LONG-TERM INVESTMENT mode
+ * @private
+ */
+function evaluateDecisionLongTerm(signal, isPurchased, hasPattern, patternType) {
+  if (isPurchased) {
+    if (signal === "STOP OUT" || signal === "RISK OFF") return "🔴 EXIT";
+    if (signal === "TRIM" && hasPattern && patternType === "bearish") return "🟠 TRIM (PATTERN CONFIRMED)";
+    if (signal === "TRIM") return "🟠 TRIM";
+    if ((signal === "STRONG BUY" || signal === "BUY" || signal === "ACCUMULATE") && hasPattern && patternType === "bullish") return "🟢 ADD (PATTERN CONFIRMED)";
+    if ((signal === "STRONG BUY" || signal === "BUY" || signal === "ACCUMULATE") && hasPattern && patternType === "bearish") return "⚠️ HOLD (PATTERN CONFLICT)";
+    if (signal === "STRONG BUY" || signal === "BUY" || signal === "ACCUMULATE") return "🟢 ADD";
+    if (signal === "HOLD") return "⚖️ HOLD";
+    return "⚖️ HOLD";
+  } else {
+    if (signal === "STOP OUT" || signal === "RISK OFF") return "🔴 AVOID";
+    if (signal === "STRONG BUY" && hasPattern && patternType === "bullish") return "🟢 STRONG BUY (PATTERN CONFIRMED)";
+    if ((signal === "STRONG BUY" || signal === "BUY") && hasPattern && patternType === "bearish") return "⚠️ CAUTION (PATTERN CONFLICT)";
+    if (signal === "STRONG BUY") return "🟢 STRONG BUY";
+    if (signal === "BUY") return "🟢 BUY";
+    if (signal === "ACCUMULATE") return "🟢 ACCUMULATE";
+    if (signal === "DEEP VALUE") return "🟢 DEEP VALUE BUY";
+    if (signal === "OVERSOLD WATCH") return "🟡 WATCH (OVERSOLD)";
+    if (signal === "TRIM") return "⏳ WAIT (EXTENDED)";
+    if (signal === "HOLD") return "⚖️ WATCH";
+    return "⚪ NEUTRAL";
+  }
+}
+
+/**
+ * Evaluates DECISION for TRADE mode
+ * @private
+ */
+function evaluateDecisionTrade(signal, isPurchased, hasPattern, patternType, price, support, resistance) {
+  // Branch 1: STOP OUT check
+  if (price > 0 && support > 0 && price < support * 0.97) {
+    return "🔴 STOP OUT";
+  }
+  
+  if (!isPurchased) {
+    if (signal === "VOLATILITY BREAKOUT" && hasPattern && patternType === "bullish") return "🟢 STRONG TRADE LONG (PATTERN CONFIRMED)";
+    if ((signal === "BREAKOUT" || signal === "ATH BREAKOUT") && hasPattern && patternType === "bullish") return "🟢 TRADE LONG (PATTERN CONFIRMED)";
+    if ((signal === "VOLATILITY BREAKOUT" || signal === "BREAKOUT" || signal === "ATH BREAKOUT" || signal === "MOMENTUM") && hasPattern && patternType === "bearish") return "⚠️ CAUTION (PATTERN CONFLICT)";
+    if (signal === "VOLATILITY BREAKOUT") return "🟢 STRONG TRADE LONG";
+    if (signal === "BREAKOUT" || signal === "ATH BREAKOUT") return "🟢 TRADE LONG";
+    if (signal === "MOMENTUM") return "🟡 ACCUMULATE";
+    if (signal === "OVERSOLD REVERSAL") return "🟢 BUY DIP";
+    if (signal === "RANGE SUPPORT BUY") return "🟡 RANGE BUY";
+    if (signal === "VOLATILITY SQUEEZE") return "⏳ WAIT FOR BREAKOUT";
+    if (signal === "RISK OFF") return "🔴 AVOID";
+    return "⚪ NEUTRAL";
+  } else {
+    if (signal === "OVERBOUGHT" || (price > 0 && resistance > 0 && price >= resistance * 0.98)) return "🟠 TAKE PROFIT";
+    if (signal === "RISK OFF") return "🔴 RISK OFF";
+    return "⚖️ HOLD";
+  }
 }

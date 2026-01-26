@@ -63,6 +63,7 @@ function onEdit(e) {
     }
 
     // Mode toggle (H1)
+    // Task 4.1: H1 checkbox change triggers automatic data repopulation
     if (a1 === "H1") {
       try {
         syncModeToggle("DASHBOARD", "H1");
@@ -73,6 +74,7 @@ function onEdit(e) {
     }
 
     // Dashboard refresh (J1)
+    // Task 4.1: J1 checkbox change triggers automatic data repopulation
     if (a1 === "J1" && e.value === "TRUE") {
       try {
         refreshDashboardDataFromCheckbox();

@@ -539,40 +539,40 @@ function getNarrativeFormula_(label) {
       return '=IFERROR(IF(' + lookup('T') + '="BULL DIV","Bullish divergence detected.",IF(' + lookup('T') + '="BEAR DIV","Bearish divergence detected.","No divergence detected.")),"—")';
     
     case 'ADX (14)':
-      return '=IFERROR("Trend strength: " & IF(' + lookup('S') + '>=25," strong ",IF(' + lookup('S') + '>=20," developing ",IF(' + lookup('S') + '>=15," weak "," range-bound "))),"—")';
+      return '=IFERROR("Trend strength: " & IF(' + lookup('U') + '>=25," strong ",IF(' + lookup('U') + '>=20," developing ",IF(' + lookup('U') + '>=15," weak "," range-bound "))),"—")';
     
     case 'Stoch %K (14)':
-      return '=IFERROR(IF(' + lookup('T') + '>=0.8,"overbought timing.",IF(' + lookup('T') + '<=0.2,"oversold timing.","neutral timing.")),"—")';
+      return '=IFERROR(IF(' + lookup('V') + '>=0.8,"overbought timing.",IF(' + lookup('V') + '<=0.2,"oversold timing.","neutral timing.")),"—")';
     
     case 'BBP SIGNAL':
       return '=IFERROR("Signal for mean reversion opportunities.","—")';
     
     // VOLATILITY Section
     case 'ATR (14)':
-      return '=IFERROR(TEXT(' + lookup('W') + '/' + lookup('E') + ',"0.0%") & " of price - volatility measure.","—")';
+      return '=IFERROR(TEXT(' + lookup('Y') + '/' + lookup('G') + ',"0.0%") & " of price - volatility measure.","—")';
     
     case 'Bollinger %B':
-      return '=IFERROR(IF(' + lookup('X') + '>1," above upper band.",IF(' + lookup('X') + '>=0.8," upper band zone.",IF(' + lookup('X') + '<0," below lower band.",IF(' + lookup('X') + '<=0.2," lower band zone."," mid-band zone.")))),"—")';
+      return '=IFERROR(IF(' + lookup('Z') + '>1," above upper band.",IF(' + lookup('Z') + '>=0.8," upper band zone.",IF(' + lookup('Z') + '<0," below lower band.",IF(' + lookup('Z') + '<=0.2," lower band zone."," mid-band zone.")))),"—")';
     
     // TARGET Section
     case 'Target (3:1)':
-      return '=IFERROR(TEXT((' + numLookup('Y') + '/' + numLookup('E') + '-1),"+0.00%;-0.00%") & " upside potential","—")';
+      return '=IFERROR(TEXT((' + numLookup('AA') + '/' + numLookup('G') + '-1),"+0.00%;-0.00%") & " upside potential","—")';
     
     case 'R:R Quality':
-      return '=IFERROR(IF(' + lookup('Z') + '>=3," elite asymmetry.",IF(' + lookup('Z') + '>=1.5," acceptable asymmetry."," poor asymmetry.")),"—")';
+      return '=IFERROR(IF(' + lookup('AB') + '>=3," elite asymmetry.",IF(' + lookup('AB') + '>=1.5," acceptable asymmetry."," poor asymmetry.")),"—")';
     
     // LEVELS Section
     case 'Support':
-      return '=IFERROR(IF(' + numLookup('AA') + '<' + numLookup('E') + ',TEXT((' + numLookup('E') + '/' + numLookup('AA') + '-1),"+0.0%") & " support",TEXT((' + numLookup('AA') + '/' + numLookup('E') + '-1),"+0.0%") & " support"),"—")';
+      return '=IFERROR(IF(' + numLookup('AC') + '<' + numLookup('G') + ',TEXT((' + numLookup('G') + '/' + numLookup('AC') + '-1),"+0.0%") & " support",TEXT((' + numLookup('AC') + '/' + numLookup('G') + '-1),"+0.0%") & " support"),"—")';
     
     case 'Resistance':
-      return '=IFERROR(IF(' + numLookup('AB') + '>' + numLookup('E') + ',TEXT((' + numLookup('E') + '/' + numLookup('AB') + '-1),"0.0%") & " below Resistance",TEXT((' + numLookup('E') + '/' + numLookup('AB') + '-1),"+0.0%") & " above Resistance"),"—")';
+      return '=IFERROR(IF(' + numLookup('AD') + '>' + numLookup('G') + ',TEXT((' + numLookup('G') + '/' + numLookup('AD') + '-1),"0.0%") & " below Resistance",TEXT((' + numLookup('G') + '/' + numLookup('AD') + '-1),"+0.0%") & " above Resistance"),"—")';
     
     case 'ATR STOP':
-      return '=IFERROR(TEXT(ABS((' + numLookup('E') + '/' + numLookup('AC') + '-1)),"+0.0%;-0.0%") & " risk from current price","—")';
+      return '=IFERROR(TEXT(ABS((' + numLookup('G') + '/' + numLookup('AE') + '-1)),"+0.0%;-0.0%") & " risk from current price","—")';
     
     case 'ATR TARGET':
-      return '=IFERROR(TEXT((' + numLookup('AD') + '/' + numLookup('E') + '-1),"+0.0%;-0.0%") & " reward potential","—")';
+      return '=IFERROR(TEXT((' + numLookup('AF') + '/' + numLookup('G') + '-1),"+0.0%;-0.0%") & " reward potential","—")';
     
     case 'POSITION SIZE':
       return '=""';
@@ -1257,7 +1257,7 @@ function createReportChartInternal_(REPORT, ticker) {
     if (tickerRow !== -1) {
       const calcRow = calcData[tickerRow];
       // Column indices are 0-based: A=0, B=1, C=2, ..., Z=25, AA=26, AB=27, AC=28, AD=29, AE=30, AF=31
-      currentPrice = Number(calcRow[4]) || 0; // Column E (index 4) - Price
+      currentPrice = Number(calcRow[6]) || 0; // Column G (index 6) - Price
       support = Number(calcRow[28]) || 0; // Column AC (index 28) - Support
       resistance = Number(calcRow[29]) || 0; // Column AD (index 29) - Resistance
       atr = Number(calcRow[24]) || 0; // Column Y (index 24) - ATR (14)
@@ -2535,10 +2535,29 @@ function positionReportChart(chart) {
 function DASH_REPORT(ticker) {
   if (!ticker || ticker === "") return "";
   
+  // Load Formula_Evaluator module functions
+  // These functions are available from formulaEvaluator.js in the same Apps Script project
+  // - evaluateSignalFormula(tickerData, useLongTermSignal): Evaluates SIGNAL formula and generates narrative
+  // - evaluateDecisionFormula(tickerData, signal, useLongTermSignal): Evaluates DECISION formula and generates narrative
+  
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const CALC = ss.getSheetByName('CALCULATIONS');
+  const DASHBOARD = ss.getSheetByName('DASHBOARD');
   
   if (!CALC) return "CALCULATIONS sheet not found";
+  
+  // Retrieve mode flag from DASHBOARD!H1
+  // H1 contains a checkbox: true = LONG-TERM INVESTMENT mode, false = TRADE mode
+  let useLongTermSignal = false;  // Default to TRADE mode
+  if (DASHBOARD) {
+    try {
+      const modeValue = DASHBOARD.getRange("H1").getValue();
+      useLongTermSignal = (modeValue === true);
+    } catch (error) {
+      Logger.log("Error reading DASHBOARD!H1 mode flag: " + error.message);
+      // Continue with default TRADE mode
+    }
+  }
   
   // Get all data from CALCULATIONS sheet
   const calcData = CALC.getDataRange().getValues();
@@ -2551,63 +2570,182 @@ function DASH_REPORT(ticker) {
   
   const row = calcData[tickerRow];
   
-  // Extract values (0-based indices)
-  const decision = row[2] || "—";  // Column C
-  const signal = row[3] || "—";    // Column D
-  const patterns = row[4] || "—";  // Column E
-  const price = Number(row[6]) || 0;  // Column G
-  const rsi = Number(row[17]) || 0;   // Column R
-  const adx = Number(row[20]) || 0;   // Column U
-  const volTrend = Number(row[8]) || 0;  // Column I
-  const sma50 = Number(row[15]) || 0;    // Column P
-  const sma200 = Number(row[16]) || 0;   // Column Q
-  const support = Number(row[28]) || 0;  // Column AC
-  const resistance = Number(row[29]) || 0; // Column AD
-  const bbp = Number(row[25]) || 0;      // Column Z
-  const athDiff = Number(row[10]) || 0;  // Column K
+  // Build tickerData object from CALCULATIONS row
+  // Map column indices to tickerData properties matching COLUMN_MAP from formulaEvaluator.js
+  // This object contains all indicator values needed by evaluateSignalFormula() and evaluateDecisionFormula()
+  // IMPORTANT: Use null for missing values, not 0, so formatValue() can distinguish between missing and zero
+  const tickerData = {
+    ticker: tickerUpper,                                                    // Column A (index 0)
+    marketRating: row[1] || "—",                                            // Column B (index 1)
+    decision: row[2] || "—",                                                // Column C (index 2)
+    signal: row[3] || "—",                                                  // Column D (index 3)
+    patterns: row[4] || "—",                                                // Column E (index 4)
+    consensusPrice: (row[5] !== null && row[5] !== "" && row[5] !== undefined) ? Number(row[5]) : null,      // Column F (index 5)
+    price: (row[6] !== null && row[6] !== "" && row[6] !== undefined) ? Number(row[6]) : null,               // Column G (index 6)
+    changePct: (row[7] !== null && row[7] !== "" && row[7] !== undefined) ? Number(row[7]) : null,           // Column H (index 7)
+    volTrend: (row[8] !== null && row[8] !== "" && row[8] !== undefined) ? Number(row[8]) : null,            // Column I (index 8)
+    athTrue: (row[9] !== null && row[9] !== "" && row[9] !== undefined) ? Number(row[9]) : null,             // Column J (index 9)
+    athDiff: (row[10] !== null && row[10] !== "" && row[10] !== undefined) ? Number(row[10]) : null,         // Column K (index 10)
+    athZone: row[11] || "—",                                                // Column L (index 11)
+    fundamental: row[12] || "—",                                            // Column M (index 12)
+    trendState: row[13] || "—",                                             // Column N (index 13)
+    sma20: (row[14] !== null && row[14] !== "" && row[14] !== undefined) ? Number(row[14]) : null,           // Column O (index 14)
+    sma50: (row[15] !== null && row[15] !== "" && row[15] !== undefined) ? Number(row[15]) : null,           // Column P (index 15)
+    sma200: (row[16] !== null && row[16] !== "" && row[16] !== undefined) ? Number(row[16]) : null,          // Column Q (index 16)
+    rsi: (row[17] !== null && row[17] !== "" && row[17] !== undefined) ? Number(row[17]) : null,             // Column R (index 17)
+    macdHist: (row[18] !== null && row[18] !== "" && row[18] !== undefined) ? Number(row[18]) : null,        // Column S (index 18)
+    divergence: row[19] || "—",                                             // Column T (index 19)
+    adx: (row[20] !== null && row[20] !== "" && row[20] !== undefined) ? Number(row[20]) : null,             // Column U (index 20)
+    stochK: (row[21] !== null && row[21] !== "" && row[21] !== undefined) ? Number(row[21]) : null,          // Column V (index 21)
+    volRegime: row[22] || "—",                                              // Column W (index 22)
+    bbpSignal: row[23] || "—",                                              // Column X (index 23)
+    atr: (row[24] !== null && row[24] !== "" && row[24] !== undefined) ? Number(row[24]) : null,             // Column Y (index 24)
+    bollingerPctB: (row[25] !== null && row[25] !== "" && row[25] !== undefined) ? Number(row[25]) : null,   // Column Z (index 25)
+    target: (row[26] !== null && row[26] !== "" && row[26] !== undefined) ? Number(row[26]) : null,          // Column AA (index 26)
+    rrQuality: (row[27] !== null && row[27] !== "" && row[27] !== undefined) ? Number(row[27]) : null,       // Column AB (index 27)
+    support: (row[28] !== null && row[28] !== "" && row[28] !== undefined) ? Number(row[28]) : null,         // Column AC (index 28)
+    resistance: (row[29] !== null && row[29] !== "" && row[29] !== undefined) ? Number(row[29]) : null,      // Column AD (index 29)
+    atrStop: (row[30] !== null && row[30] !== "" && row[30] !== undefined) ? Number(row[30]) : null,         // Column AE (index 30)
+    atrTarget: (row[31] !== null && row[31] !== "" && row[31] !== undefined) ? Number(row[31]) : null,       // Column AF (index 31)
+    positionSize: row[32] || "—",                                           // Column AG (index 32)
+    lastState: row[33] || "—"                                               // Column AH (index 33)
+  };
+  
+  // Add isPurchased flag by checking INPUT sheet column C for the ticker
+  // This flag is used by evaluateDecisionFormula() to determine position management mode
+  let isPurchased = false;
+  try {
+    const INPUT = ss.getSheetByName('INPUT');
+    if (INPUT) {
+      const inputData = INPUT.getDataRange().getValues();
+      // Find the ticker row in INPUT sheet (starting from row 3, index 2)
+      for (let i = 2; i < inputData.length; i++) {
+        const inputTicker = String(inputData[i][0]).toUpperCase().trim();
+        if (inputTicker === tickerUpper) {
+          // Column C (index 2) contains the PURCHASED tag
+          const purchasedTag = String(inputData[i][2]).toUpperCase().trim();
+          isPurchased = (purchasedTag === "PURCHASED" || purchasedTag === "YES" || purchasedTag === "TRUE");
+          break;
+        }
+      }
+    }
+  } catch (error) {
+    Logger.log("Error checking PURCHASED tag: " + error.message);
+    // Continue with isPurchased = false
+  }
+  tickerData.isPurchased = isPurchased;
   
   // Check if data is loaded
-  if (price === 0) return "LOADING...";
+  if (tickerData.price === 0) return "LOADING...";
+  
+  // Call evaluateSignalFormula() with tickerData and useLongTermSignal
+  // This evaluates the SIGNAL formula and generates a narrative explanation
+  let signalEvaluation = null;
+  let evaluatedSignal = tickerData.signal;  // Default to existing signal
+  let signalNarrative = null;
+  
+  try {
+    // Check if function is available
+    if (typeof evaluateSignalFormula !== 'function') {
+      Logger.log("ERROR: evaluateSignalFormula is not defined or not a function");
+      Logger.log("Type: " + typeof evaluateSignalFormula);
+      throw new Error("evaluateSignalFormula function not available");
+    }
+    
+    Logger.log("Calling evaluateSignalFormula for ticker: " + ticker);
+    signalEvaluation = evaluateSignalFormula(tickerData, useLongTermSignal);
+    Logger.log("evaluateSignalFormula returned: " + (signalEvaluation ? "result object" : "null"));
+    
+    // Check if evaluateSignalFormula() returned null (formula evaluation unavailable)
+    if (signalEvaluation === null || signalEvaluation === undefined) {
+      Logger.log("evaluateSignalFormula returned null - formula evaluation unavailable");
+      evaluatedSignal = tickerData.signal;
+      signalNarrative = null;
+    } else {
+      // Extract signal value and narrative from the result
+      evaluatedSignal = signalEvaluation.signal || tickerData.signal;
+      signalNarrative = signalEvaluation.narrative;
+      Logger.log("Signal narrative length: " + (signalNarrative ? signalNarrative.length : 0));
+    }
+  } catch (error) {
+    Logger.log("Error evaluating signal formula: " + error.message);
+    Logger.log("Error stack: " + error.stack);
+    // Fall back to using existing signal from CALCULATIONS
+    evaluatedSignal = tickerData.signal;
+    signalNarrative = null;
+  }
+  
+  // Call evaluateDecisionFormula() with tickerData, signal (from evaluateSignalFormula), and useLongTermSignal
+  // This evaluates the DECISION formula and generates a narrative explanation
+  let decisionEvaluation = null;
+  let evaluatedDecision = tickerData.decision;  // Default to existing decision
+  let decisionNarrative = null;
+  
+  try {
+    // Check if function is available
+    if (typeof evaluateDecisionFormula !== 'function') {
+      Logger.log("ERROR: evaluateDecisionFormula is not defined or not a function");
+      Logger.log("Type: " + typeof evaluateDecisionFormula);
+      throw new Error("evaluateDecisionFormula function not available");
+    }
+    
+    Logger.log("Calling evaluateDecisionFormula for ticker: " + ticker);
+    decisionEvaluation = evaluateDecisionFormula(tickerData, evaluatedSignal, useLongTermSignal);
+    Logger.log("evaluateDecisionFormula returned: " + (decisionEvaluation ? "result object" : "null"));
+    
+    // Check if evaluateDecisionFormula() returned null (formula evaluation unavailable)
+    if (decisionEvaluation === null || decisionEvaluation === undefined) {
+      Logger.log("evaluateDecisionFormula returned null - formula evaluation unavailable");
+      evaluatedDecision = tickerData.decision;
+      decisionNarrative = null;
+    } else {
+      // Extract decision value and narrative from the result
+      evaluatedDecision = decisionEvaluation.decision || tickerData.decision;
+      decisionNarrative = decisionEvaluation.narrative;
+      Logger.log("Decision narrative length: " + (decisionNarrative ? decisionNarrative.length : 0));
+    }
+  } catch (error) {
+    Logger.log("Error evaluating decision formula: " + error.message);
+    Logger.log("Error stack: " + error.stack);
+    // Fall back to using existing decision from CALCULATIONS
+    evaluatedDecision = tickerData.decision;
+    decisionNarrative = null;
+  }
+  
+  // Extract commonly used values for backward compatibility
+  // IMPORTANT: Use the SIGNAL and DECISION from CALCULATIONS sheet (tickerData.signal, tickerData.decision)
+  // NOT the evaluated values from evaluateSignalFormula/evaluateDecisionFormula
+  // The evaluated values are for narrative generation only, not for display
+  const decision = tickerData.decision;  // Use CALCULATIONS value, not evaluated
+  const signal = tickerData.signal;  // Use CALCULATIONS value, not evaluated
+  const patterns = tickerData.patterns;
+  const price = tickerData.price;
+  const rsi = tickerData.rsi;
+  const adx = tickerData.adx;
+  const volTrend = tickerData.volTrend;
+  const sma50 = tickerData.sma50;
+  const sma200 = tickerData.sma200;
+  const support = tickerData.support;
+  const resistance = tickerData.resistance;
+  const bbp = tickerData.bollingerPctB;
+  const athDiff = tickerData.athDiff;
   
   // Build the analysis text
   let text = "📊 INSTITUTIONAL ANALYSIS: " + ticker + "\n\n";
   text += "DECISION: " + decision + " | SIGNAL: " + signal + "\n";
   text += "PATTERNS: " + patterns + "\n";
   text += "═══════════════════════════════════════════════════\n\n";
-  text += "🎯 WHY '" + signal + "' TRIGGERED:\n\n";
   
-  // Signal-specific explanations
-  if (signal === "ACCUMULATE") {
-    text += "✅ Price ($" + price.toFixed(2) + ") > SMA 200 ($" + sma200.toFixed(2) + ") → Bullish long-term trend\n";
-    text += "✅ RSI (" + rsi.toFixed(1) + ") between 35-55 → Neutral zone, not overbought/oversold\n";
-    text += "✅ Price within 5% of SMA 50 → $" + price.toFixed(2) + " is within $" + sma50.toFixed(2) + " ± 5% range ($" + (sma50 * 0.95).toFixed(2) + " - $" + (sma50 * 1.05).toFixed(2) + ")\n\n";
-    text += "This is a conservative accumulation zone - stock is in bullish trend but not overextended, making it safe to build position gradually.";
-  } else if (signal === "STRONG BUY") {
-    text += "✅ Price > SMA 200 → Bullish regime | SMA 50 > SMA 200 → Uptrend confirmed\n";
-    text += "✅ RSI (" + rsi.toFixed(1) + ") 30-40 → Early entry | MACD > 0 → Positive momentum\n";
-    text += "✅ ADX (" + adx.toFixed(1) + ") ≥ 20 → Strong trend | Vol (" + volTrend.toFixed(2) + "x) ≥ 1.5x → High participation\n\n";
-    text += "High-conviction entry with strong trend, momentum, and volume confirmation.";
-  } else if (signal === "BUY") {
-    text += "✅ Price > SMA 200 → Bullish | SMA 50 > SMA 200 → Uptrend intact\n";
-    text += "✅ RSI (" + rsi.toFixed(1) + ") 40-50 → Healthy pullback | MACD > 0 → Momentum positive\n";
-    text += "✅ ADX (" + adx.toFixed(1) + ") ≥ 15 → Developing trend\n\n";
-    text += "Standard buy signal with good risk/reward. Trend established but not overextended.";
-  } else if (signal === "STOP OUT") {
-    text += "🔴 Price ($" + price.toFixed(2) + ") < Support ($" + support.toFixed(2) + ") → Support breakdown\n";
-    text += "🔴 Risk management triggered → Exit position immediately to preserve capital\n\n";
-    text += "Critical support breached. Technical structure compromised - exit to limit losses.";
-  } else if (signal === "RISK OFF") {
-    text += "🔴 Price ($" + price.toFixed(2) + ") < SMA 200 ($" + sma200.toFixed(2) + ") → Bear market regime\n";
-    text += "🔴 Long-term trend broken → Avoid new long positions\n\n";
-    text += "Bearish market structure. Stay defensive and wait for trend reversal confirmation.";
-  } else if (signal === "TRIM") {
-    text += "⚠️ RSI (" + rsi.toFixed(1) + ") ≥ 70 → Overbought | Bollinger %B (" + (bbp * 100).toFixed(1) + "%) ≥ 85% → Extended\n";
-    text += "⚠️ Price near Resistance ($" + resistance.toFixed(2) + ") → Supply zone\n\n";
-    text += "Stock overextended. Consider taking partial profits to lock in gains.";
+  // Use dynamic SIGNAL narrative from evaluateSignalFormula() if available
+  // Otherwise fall back to generic explanation
+  if (signalNarrative) {
+    text += signalNarrative;
   } else {
+    // Fallback: generic explanation if formula evaluation failed
+    text += "🎯 WHY '" + signal + "' TRIGGERED:\n\n";
+    text += "⚠️ Using generic explanation (formula evaluation unavailable)\n\n";
     text += "Signal criteria: " + signal + " - see formula logic for details";
   }
-  
   text += "\n\n─────────────────────────────────────────────────────\n📉 OTHER INDICATOR ANALYSIS:\n\n";
   
   // RSI Analysis
@@ -2662,30 +2800,40 @@ function DASH_REPORT(ticker) {
   else text += "Deep value (<-30%)";
   text += "\n\n";
   
-  text += "─────────────────────────────────────────────────────\n🎯 HOW DECISION WAS DERIVED:\n\n";
-  text += "1. SIGNAL: " + signal + " (technical setup)\n";
-  text += "2. PATTERNS: " + (patterns === "—" ? "not detected" : patterns + " detected") + "\n";
-  if (patterns !== "—") {
-    text += "   Bullish patterns (ASC_TRI, BRKOUT, DBL_BTM, INV_H&S, CUP_HDL) confirm longs\n";
-    text += "   Bearish patterns (DESC_TRI, H&S, DBL_TOP) create conflicts\n";
-  }
-  text += "3. DECISION: " + decision + "\n";
+  text += "─────────────────────────────────────────────────────\n";
   
-  // Decision explanation
-  if (decision.includes("PATTERN CONFIRMED")) {
-    text += "   ✅ " + signal + " + Bullish pattern = HIGH-CONFIDENCE ENTRY";
-  } else if (decision.includes("PATTERN CONFLICT")) {
-    text += "   ⚠️ " + signal + " BUT bearish pattern = WAIT FOR CLARITY";
-  } else if (decision.includes("BUY") || decision.includes("ADD")) {
-    text += "   ✅ Positive signal supports entry/add";
-  } else if (decision.includes("EXIT")) {
-    text += "   🔴 STOP OUT/RISK OFF = IMMEDIATE EXIT";
-  } else if (decision.includes("TRIM")) {
-    text += "   🟠 Overbought = TAKE PARTIAL PROFITS";
-  } else if (decision.includes("HOLD")) {
-    text += "   ⚖️ No actionable signal = MAINTAIN POSITION";
+  // Use dynamic DECISION narrative from evaluateDecisionFormula() if available
+  // Otherwise fall back to generic explanation
+  if (decisionNarrative) {
+    text += decisionNarrative;
   } else {
-    text += "   ⚪ Neutral - wait for clearer setup";
+    // Fallback: generic explanation if formula evaluation failed
+    text += "🎯 HOW DECISION WAS DERIVED:\n\n";
+    text += "⚠️ Using generic explanation (formula evaluation unavailable)\n\n";
+    text += "1. SIGNAL: " + signal + " (technical setup)\n";
+    text += "2. PATTERNS: " + (patterns === "—" ? "not detected" : patterns + " detected") + "\n";
+    if (patterns !== "—") {
+      text += "   Bullish patterns (ASC_TRI, BRKOUT, DBL_BTM, INV_H&S, CUP_HDL) confirm longs\n";
+      text += "   Bearish patterns (DESC_TRI, H&S, DBL_TOP) create conflicts\n";
+    }
+    text += "3. DECISION: " + decision + "\n";
+    
+    // Decision explanation
+    if (decision.includes("PATTERN CONFIRMED")) {
+      text += "   ✅ " + signal + " + Bullish pattern = HIGH-CONFIDENCE ENTRY";
+    } else if (decision.includes("PATTERN CONFLICT")) {
+      text += "   ⚠️ " + signal + " BUT bearish pattern = WAIT FOR CLARITY";
+    } else if (decision.includes("BUY") || decision.includes("ADD")) {
+      text += "   ✅ Positive signal supports entry/add";
+    } else if (decision.includes("EXIT")) {
+      text += "   � STOP OUT/RISK OFF = IMMEDIATE EXIT";
+    } else if (decision.includes("TRIM")) {
+      text += "   🟠 Overbought = TAKE PARTIAL PROFITS";
+    } else if (decision.includes("HOLD")) {
+      text += "   ⚖️ No actionable signal = MAINTAIN POSITION";
+    } else {
+      text += "   ⚪ Neutral - wait for clearer setup";
+    }
   }
   
   text += "\n\n📌 NOTE: FUNDAMENTAL data is informational only. Technical analysis drives all signals.";
